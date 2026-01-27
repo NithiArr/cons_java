@@ -167,6 +167,49 @@ function exportTableToCSV(tableId, filename) {
     window.URL.revokeObjectURL(url);
 }
 
+// Mobile menu toggle
+function setupMobileMenu() {
+    const sidebar = document.querySelector('.sidebar');
+    if (!sidebar) return;
+
+    // Create mobile menu button
+    const menuButton = document.createElement('button');
+    menuButton.className = 'mobile-menu-toggle';
+    menuButton.innerHTML = '☰';
+    menuButton.setAttribute('aria-label', 'Toggle menu');
+
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'mobile-overlay';
+
+    // Add to DOM
+    document.body.appendChild(menuButton);
+    document.body.appendChild(overlay);
+
+    // Toggle menu
+    menuButton.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+        overlay.classList.toggle('active');
+    });
+
+    // Close on overlay click
+    overlay.addEventListener('click', () => {
+        sidebar.classList.remove('active');
+        overlay.classList.remove('active');
+    });
+
+    // Close on nav link click (mobile)
+    const navLinks = sidebar.querySelectorAll('.nav-link');
+    navLinks.forEach(link => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove('active');
+                overlay.classList.remove('active');
+            }
+        });
+    });
+}
+
 // Set active nav link
 function setActiveNavLink() {
     const currentPath = window.location.pathname;
@@ -183,6 +226,7 @@ function setActiveNavLink() {
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
+    setupMobileMenu();
     setActiveNavLink();
 });
 

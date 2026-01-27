@@ -331,28 +331,254 @@ tr:hover {
     grid-template-columns: repeat(4, 1fr);
 }
 
+/* ==================== RESPONSIVE - TABLET ==================== */
 @media (max-width: 1200px) {
     .grid-4 {
         grid-template-columns: repeat(2, 1fr);
     }
+
+    .grid-3 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .container {
+        padding: 1.5rem;
+    }
 }
 
+/* ==================== RESPONSIVE - MOBILE ==================== */
 @media (max-width: 768px) {
 
+    /* Typography */
+    h1 {
+        font-size: 1.75rem;
+    }
+
+    h2 {
+        font-size: 1.5rem;
+    }
+
+    h3 {
+        font-size: 1.25rem;
+    }
+
+    h4 {
+        font-size: 1.1rem;
+    }
+
+    /* Layout */
+    .container {
+        padding: 1rem;
+    }
+
+    .main-layout {
+        flex-direction: column;
+    }
+
+    /* Sidebar - Transform to mobile menu */
+    .sidebar {
+        width: 100%;
+        position: fixed;
+        left: -100%;
+        top: 0;
+        height: 100vh;
+        z-index: 999;
+        transition: left 0.3s ease;
+        border-right: none;
+        box-shadow: var(--shadow-lg);
+    }
+
+    .sidebar.active {
+        left: 0;
+    }
+
+    /* Main content - No margin when sidebar is hidden */
+    .main-content {
+        margin-left: 0;
+        padding: 1rem;
+        width: 100%;
+    }
+
+    /* Mobile menu toggle button */
+    .mobile-menu-toggle {
+        display: block;
+        position: fixed;
+        top: 1rem;
+        left: 1rem;
+        z-index: 1000;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem;
+        cursor: pointer;
+        box-shadow: var(--shadow-md);
+    }
+
+    .mobile-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 998;
+    }
+
+    .mobile-overlay.active {
+        display: block;
+    }
+
+    /* Grids - Stack on mobile */
     .grid-2,
     .grid-3,
     .grid-4 {
         grid-template-columns: 1fr;
+        gap: 1rem;
     }
 
-    .sidebar {
+    /* Cards */
+    .card {
+        padding: 1rem;
+    }
+
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    /* KPI Cards - Smaller on mobile */
+    .kpi-value {
+        font-size: 1.75rem;
+    }
+
+    .kpi-label {
+        font-size: 0.75rem;
+    }
+
+    /* Buttons - Touch-friendly */
+    .btn {
         width: 100%;
-        position: relative;
-        height: auto;
+        justify-content: center;
+        padding: 1rem 1.5rem;
+        font-size: 1rem;
+    }
+
+    .btn-sm {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    .btn+.btn {
+        margin-top: 0.5rem;
+    }
+
+    /* Forms - Better touch targets */
+    .form-control {
+        padding: 1rem;
+        font-size: 16px;
+        /* Prevents zoom on iOS */
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    /* Tables - Horizontal scroll */
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin: 0 -1rem;
+        padding: 0 1rem;
+    }
+
+    table {
+        min-width: 600px;
+        /* Force horizontal scroll for small tables */
+    }
+
+    th,
+    td {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.875rem;
+        white-space: nowrap;
+    }
+
+    /* Navigation */
+    .nav-menu {
+        margin-top: 1rem;
+    }
+
+    .nav-link {
+        padding: 1rem;
+        font-size: 1rem;
+    }
+
+    /* Modals - Full screen on mobile */
+    .modal-content {
+        width: 95%;
+        max-width: none;
+        margin: 1rem;
+        padding: 1.5rem;
+    }
+
+    /* Flex utilities */
+    .flex-between {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    /* Status badges */
+    .status-badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    /* User info */
+    .user-info {
+        padding: 0.75rem;
+    }
+}
+
+/* ==================== RESPONSIVE - SMALL MOBILE ==================== */
+@media (max-width: 480px) {
+    body {
+        font-size: 14px;
+    }
+
+    h1 {
+        font-size: 1.5rem;
+    }
+
+    h2 {
+        font-size: 1.25rem;
+    }
+
+    h3 {
+        font-size: 1.1rem;
+    }
+
+    .container {
+        padding: 0.75rem;
     }
 
     .main-content {
-        margin-left: 0;
+        padding: 0.75rem;
+    }
+
+    .kpi-value {
+        font-size: 1.5rem;
+    }
+
+    .card {
+        padding: 0.75rem;
+    }
+
+    .btn {
+        padding: 0.875rem 1.25rem;
+        font-size: 0.9375rem;
     }
 }
 
