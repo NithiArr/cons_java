@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block title %}Purchases{% endblock %}
+
+{% block content %}
+<div class="container fade-in">
+    <div class="flex justify-between align-center mb-3">
+        <div>
+            <h1>🛒 Purchases</h1>
+            <p class="text-secondary">Record purchase orders</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('add-purchase-modal')">+ Add Purchase</button>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Invoice #</th>
+                            <th>Project</th>
+                            <th>Vendor</th>
+                            <th>Total Amount</th>
+                            <th>Type</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="purchases-tbody">
+                        <tr>
+                            <td colspan="7" class="text-center">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Purchase Modal -->
+<div id="add-purchase-modal" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header">
+            <h3>Add Purchase Order</h3>
+            <span class="close" onclick="closeModal('add-purchase-modal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="purchase-form">
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Project *</label>
+                        <select id="purchase-project" class="form-control" required>
+                            <option value="">-- Select Project --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Vendor *</label>
+                        <select id="purchase-vendor" class="form-control" required>
+                            <option value="">-- Select Vendor --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Invoice Number *</label>
+                        <input type="text" id="purchase-invoice" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Invoice Date *</label>
+                        <input type="date" id="purchase-date" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Payment Type *</label>
+                    <select id="purchase-type" class="form-control" required>
+                        <option value="CASH">Cash</option>
+                        <option value="CREDIT">Credit</option>
+                    </select>
+                </div>
+
+                <hr>
+                <h4>Items</h4>
+                <div id="items-container">
+                    <div class="purchase-item grid grid-4 gap-2 mb-2">
+                        <input type="text" class="form-control item-name" placeholder="Item Name" required>
+                        <input type="number" class="form-control item-quantity" placeholder="Qty" required min="0"
+                            step="0.01">
+                        <input type="number" class="form-control item-price" placeholder="Unit Price" required min="0"
+                            step="0.01">
+                        <input type="text" class="form-control item-total" placeholder="Total" readonly>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-secondary mb-3" onclick="addItem()">+ Add Item</button>
+
+                <div class="form-group">
+                    <label class="form-label">Total Amount</label>
+                    <input type="text" id="purchase-total" class="form-control" readonly>
+                </div>
+
+                <div class="flex gap-2">
+                    <button type="submit" class="btn btn-primary">Save Purchase</button>
+                    <button type="button" class="btn btn-secondary"
+                        onclick="closeModal('add-purchase-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    let purchases = [];
+    let projects = [];
+    let vendors = [];
+
+    async function loadData() {
+        try {
+            const [purchasesRes, projectsRes, vendorsRes] = await Promise.all([
+                fetch('/api/purchases'),
+                fetch('/api/projects'),
+                fetch('/api/vendors')
+            ]);
+
+            purchases = await purchasesRes.json();
+            projects = await projectsRes.json();
+            vendors = await vendorsRes.json();
+
+            // Populate dropdowns
+            document.getElementById('purchase-project').innerHTML = '<option value="">-- Select Project --</option>' +
+                projects.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
+
+            document.getElementById('purchase-vendor').innerHTML = '<option value="">-- Select Vendor --</option>' +
+                vendors.map(v => `<option value="${v.vendor_id}">${v.name}</option>`).join('');
+
+            renderPurchases();
+        } catch (error) {
+            console.error('Error loading data:', error);
+        }
+    }
+
+    function renderPurchases() {
+        const tbody = document.getElementById('purchases-tbody');
+
+        if (purchases.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">No purchases found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = purchases.map(p => {
+            const project = projects.find(pr => pr.project_id === p.project_id);
+            const vendor = vendors.find(v => v.vendor_id === p.vendor_id);
+            return `
+            <tr>
+                <td><strong>${p.invoice_number}</strong></td>
+                <td>${project ? project.name : 'Unknown'}</td>
+                <td>${vendor ? vendor.name : 'Unknown'}</td>
+                <td><strong>${formatCurrency(p.total_amount)}</strong></td>
+                <td><span class="badge">${p.payment_type}</span></td>
+                <td>${formatDate(p.invoice_date)}</td>
+                <td>
+                    <button class="btn btn-sm btn-danger" onclick="deletePurchase(${p.purchase_id})">Delete</button>
+                </td>
+            </tr>
+        `;
+        }).join('');
+    }
+
+    function addItem() {
+        const container = document.getElementById('items-container');
+        const itemHtml = `
+        <div class="purchase-item grid grid-4 gap-2 mb-2">
+            <input type="text" class="form-control item-name" placeholder="Item Name" required>
+            <input type="number" class="form-control item-quantity" placeholder="Qty" required min="0" step="0.01">
+            <input type="number" class="form-control item-price" placeholder="Unit Price" required min="0" step="0.01">
+            <input type="text" class="form-control item-total" placeholder="Total" readonly>
+        </div>
+    `;
+        container.insertAdjacentHTML('beforeend', itemHtml);
+        attachItemCalculators();
+    }
+
+    function attachItemCalculators() {
+        document.querySelectorAll('.purchase-item').forEach(item => {
+            const qty = item.querySelector('.item-quantity');
+            const price = item.querySelector('.item-price');
+            const total = item.querySelector('.item-total');
+
+            const calculate = () => {
+                const itemTotal = (parseFloat(qty.value) || 0) * (parseFloat(price.value) || 0);
+                total.value = itemTotal.toFixed(2);
+                calculateGrandTotal();
+            };
+
+            qty.removeEventListener('input', calculate);
+            price.removeEventListener('input', calculate);
+            qty.addEventListener('input', calculate);
+            price.addEventListener('input', calculate);
+        });
+    }
+
+    function calculateGrandTotal() {
+        let grandTotal = 0;
+        document.querySelectorAll('.item-total').forEach(input => {
+            grandTotal += parseFloat(input.value) || 0;
+        });
+        document.getElementById('purchase-total').value = formatCurrency(grandTotal);
+    }
+
+    document.getElementById('purchase-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const items = [];
+        document.querySelectorAll('.purchase-item').forEach(item => {
+            const name = item.querySelector('.item-name').value;
+            const quantity = parseFloat(item.querySelector('.item-quantity').value);
+            const price = parseFloat(item.querySelector('.item-price').value);
+
+            if (name && quantity && price) {
+                items.push({
+                    item_name: name,
+                    quantity: quantity,
+                    unit_price: price,
+                    total_price: quantity * price
+                });
+            }
+        });
+
+        if (items.length === 0) {
+            alert('Please add at least one item');
+            return;
+        }
+
+        const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0);
+
+        const data = {
+            project_id: parseInt(document.getElementById('purchase-project').value),
+            vendor_id: parseInt(document.getElementById('purchase-vendor').value),
+            invoice_number: document.getElementById('purchase-invoice').value,
+            invoice_date: document.getElementById('purchase-date').value,
+            total_amount: totalAmount,
+            payment_type: document.getElementById('purchase-type').value,
+            items: items
+        };
+
+        try {
+            const response = await fetch('/api/purchases', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showNotification('Purchase added successfully', 'success');
+                closeModal('add-purchase-modal');
+                resetForm('purchase-form');
+                loadData();
+            } else {
+                showNotification('Error adding purchase', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Error adding purchase', 'error');
+        }
+    });
+
+    async function deletePurchase(id) {
+        if (!confirm('Are you sure you want to delete this purchase?')) return;
+
+        try {
+            const response = await fetch(`/api/purchases/${id}`, { method: 'DELETE' });
+
+            if (response.ok) {
+                showNotification('Purchase deleted', 'success');
+                loadData();
+            } else {
+                showNotification('Error deleting purchase', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Error deleting purchase', 'error');
+        }
+    }
+
+    document.getElementById('purchase-date').value = new Date().toISOString().split('T')[0];
+
+    attachItemCalculators();
+    loadData();
+</script>
+{% endblock %}

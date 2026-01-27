@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container fade-in">
+    <h1>🏠 Dashboard</h1>
+    <p class="text-secondary mb-3">Welcome, {{ current_user.name }}!</p>
+
+    <!-- Financial KPIs -->
+    <div class="grid grid-4 mb-3">
+        <div class="kpi-card">
+            <div class="kpi-label">💰 Total Budget</div>
+            <div class="kpi-value" id="total-budget">₹0</div>
+            <div class="kpi-sublabel">Across all projects</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-label">📊 Total Spend</div>
+            <div class="kpi-value" id="total-spend">₹0</div>
+            <div class="kpi-sublabel">Expenses + Purchases</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-label">✅ Paid Amount</div>
+            <div class="kpi-value" id="total-paid" style="color: var(--success);">₹0</div>
+            <div class="kpi-sublabel">Vendor payments made</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-label">⏳ Credit Outstanding</div>
+            <div class="kpi-value" id="outstanding-credit" style="color: var(--warning);">₹0</div>
+            <div class="kpi-sublabel">Unpaid to vendors</div>
+        </div>
+    </div>
+
+    <!-- Project Stats -->
+    <div class="grid grid-3 mb-3">
+        <div class="kpi-card">
+            <div class="kpi-label">Total Projects</div>
+            <div class="kpi-value" id="total-projects">-</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-label">Active Projects</div>
+            <div class="kpi-value" id="active-projects">-</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-label">Budget Utilization</div>
+            <div class="kpi-value" id="budget-utilization">-</div>
+            <div class="kpi-sublabel">Spend vs Budget</div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h3 class="card-title">⚡ Quick Actions</h3>
+        </div>
+        <div class="card-body">
+            <div class="grid grid-3">
+                {% if current_user.role in ['ADMIN', 'MANAGER'] %}
+                <a href="/projects" class="btn btn-primary">
+                    🏗️ Manage Projects
+                </a>
+                <a href="/vendors" class="btn btn-primary">
+                    🏢 Manage Vendors
+                </a>
+                <a href="/purchases" class="btn btn-primary">
+                    🛒 Record Purchase
+                </a>
+                {% endif %}
+
+                {% if current_user.role in ['ADMIN', 'ACCOUNTANT'] %}
+                <a href="/expenses" class="btn btn-primary">
+                    💳 Add Expense
+                </a>
+                <a href="/payments" class="btn btn-primary">
+                    💸 Record Payment
+                </a>
+                <a href="/client-payments" class="btn btn-primary">
+                    💵 Record Client Payment
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Projects -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">📋 Recent Projects</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Project Name</th>
+                            <th>Location</th>
+                            <th>Status</th>
+                            <th>Budget</th>
+                            <th>Spend</th>
+                        </tr>
+                    </thead>
+                    <tbody id="projects-tbody">
+                        <tr>
+                            <td colspan="4" class="text-center">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Load dashboard data
+    async function loadDashboard() {
+        try {
+            const [projectsRes, expensesRes, purchasesRes, paymentsRes] = await Promise.all([
+                fetch('/api/projects'),
+                fetch('/api/expenses'),
+                fetch('/api/purchases'),
+                fetch('/api/payments')
+            ]);
+
+            const projects = await projectsRes.json();
+            const expenses = await expensesRes.json();
+            const purchases = await purchasesRes.json();
+            const payments = await paymentsRes.json();
+
+            // Calculate financial metrics
+            const totalBudget = projects.reduce((sum, p) => sum + parseFloat(p.budget || 0), 0);
+            const totalExpenses = expenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+            const totalPurchases = purchases.reduce((sum, p) => sum + parseFloat(p.total_amount), 0);
+            const totalSpend = totalExpenses + totalPurchases;
+            const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+            const outstandingCredit = totalPurchases - totalPaid;
+            const budgetUtilization = totalBudget > 0 ? ((totalSpend / totalBudget) * 100).toFixed(1) : 0;
+
+            // Update financial KPIs
+            document.getElementById('total-budget').textContent = formatCurrency(totalBudget);
+            document.getElementById('total-spend').textContent = formatCurrency(totalSpend);
+            document.getElementById('total-paid').textContent = formatCurrency(totalPaid);
+            document.getElementById('outstanding-credit').textContent = formatCurrency(outstandingCredit);
+
+            // Update project stats
+            document.getElementById('total-projects').textContent = projects.length;
+            document.getElementById('active-projects').textContent =
+                projects.filter(p => p.status === 'ACTIVE').length;
+            document.getElementById('budget-utilization').textContent = budgetUtilization + '%';
+
+            // Color code budget utilization
+            const utilizationEl = document.getElementById('budget-utilization');
+            if (budgetUtilization > 100) {
+                utilizationEl.style.color = 'var(--danger)';
+            } else if (budgetUtilization > 80) {
+                utilizationEl.style.color = 'var(--warning)';
+            } else {
+                utilizationEl.style.color = 'var(--success)';
+            }
+
+            // Render projects table
+            const tbody = document.getElementById('projects-tbody');
+            if (projects.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center">No projects found</td></tr>';
+            } else {
+                tbody.innerHTML = projects.slice(0, 10).map(p => {
+                    // Calculate project spend
+                    const projectExpenses = expenses
+                        .filter(e => e.project_id === p.project_id)
+                        .reduce((sum, e) => sum + parseFloat(e.amount), 0);
+                    const projectPurchases = purchases
+                        .filter(pur => pur.project_id === p.project_id)
+                        .reduce((sum, pur) => sum + parseFloat(pur.total_amount), 0);
+                    const projectSpend = projectExpenses + projectPurchases;
+
+                    return `
+                    <tr>
+                        <td><strong>${p.name}</strong></td>
+                        <td>${p.location || '-'}</td>
+                        <td><span class="status-badge status-${p.status.toLowerCase()}">${p.status}</span></td>
+                        <td>${formatCurrency(p.budget)}</td>
+                        <td>${formatCurrency(projectSpend)}</td>
+                    </tr>
+                `;
+                }).join('');
+            }
+        } catch (error) {
+            console.error('Error loading dashboard:', error);
+            showNotification('Error loading dashboard data', 'error');
+        }
+    }
+
+    // Initialize
+    loadDashboard();
+</script>
+{% endblock %}

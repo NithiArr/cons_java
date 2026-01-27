@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Vendors{% endblock %}
+
+{% block content %}
+<div class="container fade-in">
+    <div class="flex justify-between align-center mb-3">
+        <div>
+            <h1>🏢 Vendors</h1>
+            <p class="text-secondary">Manage vendor information</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('add-vendor-modal')">+ Add Vendor</button>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="flex justify-between align-center">
+                <h3 class="card-title">All Vendors</h3>
+                <input type="text" id="search-vendors" placeholder="Search vendors..." class="form-control"
+                    style="max-width: 300px;" oninput="filterVendors()">
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Vendor Name</th>
+                            <th>Phone</th>
+                            <th>Email</th>
+                            <th>GST Number</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vendors-tbody">
+                        <tr>
+                            <td colspan="5" class="text-center">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Vendor Modal -->
+<div id="add-vendor-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">Add New Vendor</h3>
+            <span class="close" onclick="closeModal('add-vendor-modal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="vendor-form">
+                <input type="hidden" id="vendor-id">
+
+                <div class="form-group">
+                    <label class="form-label">Vendor Name *</label>
+                    <input type="text" id="vendor-name" class="form-control" required>
+                </div>
+
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Phone</label>
+                        <input type="tel" id="vendor-phone" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" id="vendor-email" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">GST Number</label>
+                    <input type="text" id="vendor-gst" class="form-control">
+                </div>
+
+                <div class="flex gap-2">
+                    <button type="submit" class="btn btn-primary">Save Vendor</button>
+                    <button type="button" class="btn btn-secondary"
+                        onclick="closeModal('add-vendor-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    let vendors = [];
+
+    async function loadVendors() {
+        try {
+            const response = await fetch('/api/vendors');
+            vendors = await response.json();
+            renderVendors(vendors);
+        } catch (error) {
+            console.error('Error loading vendors:', error);
+        }
+    }
+
+    function renderVendors(data) {
+        const tbody = document.getElementById('vendors-tbody');
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center">No vendors found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.map(v => `
+        <tr>
+            <td><strong>${v.name}</strong></td>
+            <td>${v.phone || '-'}</td>
+            <td>${v.email || '-'}</td>
+            <td>${v.gst_number || '-'}</td>
+            <td>
+                <button class="btn btn-sm btn-secondary" onclick="editVendor(${v.vendor_id})">Edit</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteVendor(${v.vendor_id}, '${v.name}')">Delete</button>
+            </td>
+        </tr>
+    `).join('');
+    }
+
+    function filterVendors() {
+        const search = document.getElementById('search-vendors').value.toLowerCase();
+        const filtered = vendors.filter(v =>
+            v.name.toLowerCase().includes(search) ||
+            (v.email && v.email.toLowerCase().includes(search)) ||
+            (v.gst_number && v.gst_number.toLowerCase().includes(search))
+        );
+        renderVendors(filtered);
+    }
+
+    document.getElementById('vendor-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const vendorId = document.getElementById('vendor-id').value;
+        const data = {
+            name: document.getElementById('vendor-name').value,
+            phone: document.getElementById('vendor-phone').value || null,
+            email: document.getElementById('vendor-email').value || null,
+            gst_number: document.getElementById('vendor-gst').value || null
+        };
+
+        try {
+            const url = vendorId ? `/api/vendors/${vendorId}` : '/api/vendors';
+            const method = vendorId ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showNotification(vendorId ? 'Vendor updated' : 'Vendor created', 'success');
+                closeModal('add-vendor-modal');
+                resetForm('vendor-form');
+                loadVendors();
+            } else {
+                showNotification('Error saving vendor', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Error saving vendor', 'error');
+        }
+    });
+
+    function editVendor(id) {
+        const vendor = vendors.find(v => v.vendor_id === id);
+        if (!vendor) return;
+
+        document.getElementById('modal-title').textContent = 'Edit Vendor';
+        document.getElementById('vendor-id').value = vendor.vendor_id;
+        document.getElementById('vendor-name').value = vendor.name;
+        document.getElementById('vendor-phone').value = vendor.phone || '';
+        document.getElementById('vendor-email').value = vendor.email || '';
+        document.getElementById('vendor-gst').value = vendor.gst_number || '';
+
+        openModal('add-vendor-modal');
+    }
+
+    async function deleteVendor(id, name) {
+        if (!confirm(`Are you sure you want to delete vendor "${name}"?`)) return;
+
+        try {
+            const response = await fetch(`/api/vendors/${id}`, { method: 'DELETE' });
+
+            if (response.ok) {
+                showNotification('Vendor deleted', 'success');
+                loadVendors();
+            } else {
+                showNotification('Error deleting vendor', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Error deleting vendor', 'error');
+        }
+    }
+
+    loadVendors();
+</script>
+{% endblock %}

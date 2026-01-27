@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}Vendor Payments{% endblock %}
+
+{% block content %}
+<div class="container fade-in">
+    <div class="flex justify-between align-center mb-3">
+        <div>
+            <h1>💸 Vendor Payments</h1>
+            <p class="text-secondary">Record payments to vendors</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('add-payment-modal')">+ Add Payment</button>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Vendor</th>
+                            <th>Project</th>
+                            <th>Amount</th>
+                            <th>Payment Mode</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="payments-tbody">
+                        <tr>
+                            <td colspan="6" class="text-center">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Payment Modal -->
+<div id="add-payment-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Record Vendor Payment</h3>
+            <span class="close" onclick="closeModal('add-payment-modal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="payment-form">
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Vendor *</label>
+                        <select id="payment-vendor" class="form-control" required>
+                            <option value="">-- Select Vendor --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Project *</label>
+                        <select id="payment-project" class="form-control" required>
+                            <option value="">-- Select Project --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Amount *</label>
+                        <input type="number" id="payment-amount" class="form-control" required min="0" step="0.01">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Payment Mode *</label>
+                        <select id="payment-mode" class="form-control" required>
+                            <option value="CASH">Cash</option>
+                            <option value="BANK">Bank</option>
+                            <option value="UPI">UPI</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Payment Date *</label>
+                    <input type="date" id="payment-date" class="form-control" required>
+                </div>
+
+                <div class="flex gap-2">
+                    <button type="submit" class="btn btn-primary">Save Payment</button>
+                    <button type="button" class="btn btn-secondary"
+                        onclick="closeModal('add-payment-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    let payments = [];
+    let vendors = [];
+    let projects = [];
+
+    async function loadData() {
+        try {
+            const [paymentsRes, vendorsRes, projectsRes] = await Promise.all([
+                fetch('/api/payments'),
+                fetch('/api/vendors'),
+                fetch('/api/projects')
+            ]);
+
+            payments = await paymentsRes.json();
+            vendors = await vendorsRes.json();
+            projects = await projectsRes.json();
+
+            // Populate dropdowns
+            document.getElementById('payment-vendor').innerHTML = '<option value="">-- Select Vendor --</option>' +
+                vendors.map(v => `<option value="${v.vendor_id}">${v.name}</option>`).join('');
+
+            document.getElementById('payment-project').innerHTML = '<option value="">-- Select Project --</option>' +
+                projects.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
+
+            renderPayments();
+        } catch (error) {
+            console.error('Error loading data:', error);
+        }
+    }
+
+    function renderPayments() {
+        const tbody = document.getElementById('payments-tbody');
+
+        if (payments.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No payments found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = payments.map(p => {
+            const vendor = vendors.find(v => v.vendor_id === p.vendor_id);
+            const project = projects.find(pr => pr.project_id === p.project_id);
+            return `
+            <tr>
+                <td><strong>${vendor ? vendor.name : 'Unknown'}</strong></td>
+                <td>${project ? project.name : 'Unknown'}</td>
+                <td><strong>${formatCurrency(p.amount)}</strong></td>
+                <td><span class="badge">${p.payment_mode}</span></td>
+                <td>${formatDate(p.payment_date)}</td>
+                <td>
+                    <button class="btn btn-sm btn-danger" onclick="deletePayment(${p.payment_id})">Delete</button>
+                </td>
+            </tr>
+        `;
+        }).join('');
+    }
+
+    document.getElementById('payment-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const data = {
+            vendor_id: parseInt(document.getElementById('payment-vendor').value),
+            project_id: parseInt(document.getElementById('payment-project').value),
+            amount: parseFloat(document.getElementById('payment-amount').value),
+            payment_mode: document.getElementById('payment-mode').value,
+            payment_date: document.getElementById('payment-date').value
+        };
+
+        try {
+            const response = await fetch('/api/payments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showNotification('Payment recorded successfully', 'success');
+                closeModal('add-payment-modal');
+                resetForm('payment-form');
+                loadData();
+            } else {
+                showNotification('Error recording payment', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Error recording payment', 'error');
+        }
+    });
+
+    async function deletePayment(id) {
+        if (!confirm('Are you sure you want to delete this payment?')) return;
+
+        try {
+            const response = await fetch(`/api/payments/${id}`, { method: 'DELETE' });
+
+            if (response.ok) {
+                showNotification('Payment deleted', 'success');
+                loadData();
+            } else {
+                showNotification('Error deleting payment', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Error deleting payment', 'error');
+        }
+    }
+
+    document.getElementById('payment-date').value = new Date().toISOString().split('T')[0];
+
+    loadData();
+</script>
+{% endblock %}

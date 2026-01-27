@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}Projects{% endblock %}
+
+{% block content %}
+<div class="container fade-in">
+    <div class="flex justify-between align-center mb-3">
+        <div>
+            <h1>🏗️ Projects</h1>
+            <p class="text-secondary">Manage construction projects</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('add-project-modal')">+ Add Project</button>
+    </div>
+
+    <!-- Projects Table -->
+    <div class="card">
+        <div class="card-header">
+            <div class="flex justify-between align-center">
+                <h3 class="card-title">All Projects</h3>
+                <input type="text" id="search-projects" placeholder="Search projects..." class="form-control"
+                    style="max-width: 300px;" oninput="filterProjects()">
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Project Name</th>
+                            <th>Location</th>
+                            <th>Status</th>
+                            <th>Budget</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="projects-tbody">
+                        <tr>
+                            <td colspan="7" class="text-center">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Project Modal -->
+<div id="add-project-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">Add New Project</h3>
+            <span class="close" onclick="closeModal('add-project-modal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="project-form">
+                <input type="hidden" id="project-id">
+
+                <div class="form-group">
+                    <label class="form-label">Project Name *</label>
+                    <input type="text" id="project-name" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Location</label>
+                    <input type="text" id="project-location" class="form-control">
+                </div>
+
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" id="project-start" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">End Date</label>
+                        <input type="date" id="project-end" class="form-control">
+                    </div>
+                </div>
+
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Budget *</label>
+                        <input type="number" id="project-budget" class="form-control" required min="0" step="0.01">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Status *</label>
+                        <select id="project-status" class="form-control" required>
+                            <option value="PLANNING">Planning</option>
+                            <option value="ACTIVE">Active</option>
+                            <option value="ON_HOLD">On Hold</option>
+                            <option value="COMPLETED">Completed</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex gap-2">
+                    <button type="submit" class="btn btn-primary">Save Project</button>
+                    <button type="button" class="btn btn-secondary"
+                        onclick="closeModal('add-project-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    let projects = [];
+
+    // Load all projects
+    async function loadProjects() {
+        try {
+            const response = await fetch('/api/projects');
+            projects = await response.json();
+            renderProjects(projects);
+        } catch (error) {
+            console.error('Error loading projects:', error);
+            showNotification('Error loading projects', 'error');
+        }
+    }
+
+    // Render projects table
+    function renderProjects(data) {
+        const tbody = document.getElementById('projects-tbody');
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">No projects found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.map(p => `
+        <tr>
+            <td><strong>${p.name}</strong></td>
+            <td>${p.location || '-'}</td>
+            <td><span class="status-badge status-${p.status.toLowerCase()}">${p.status}</span></td>
+            <td>${formatCurrency(p.budget)}</td>
+            <td>${formatDate(p.start_date)}</td>
+            <td>${formatDate(p.end_date)}</td>
+            <td>
+                <button class="btn btn-sm btn-secondary" onclick="editProject(${p.project_id})">Edit</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteProject(${p.project_id}, '${p.name}')">Delete</button>
+            </td>
+        </tr>
+    `).join('');
+    }
+
+    // Filter projects
+    function filterProjects() {
+        const search = document.getElementById('search-projects').value.toLowerCase();
+        const filtered = projects.filter(p =>
+            p.name.toLowerCase().includes(search) ||
+            (p.location && p.location.toLowerCase().includes(search)) ||
+            p.status.toLowerCase().includes(search)
+        );
+        renderProjects(filtered);
+    }
+
+    // Handle form submission
+    document.getElementById('project-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const projectId = document.getElementById('project-id').value;
+        const data = {
+            name: document.getElementById('project-name').value,
+            location: document.getElementById('project-location').value || null,
+            start_date: document.getElementById('project-start').value || null,
+            end_date: document.getElementById('project-end').value || null,
+            budget: parseFloat(document.getElementById('project-budget').value),
+            status: document.getElementById('project-status').value
+        };
+
+        try {
+            const url = projectId ? `/api/projects/${projectId}` : '/api/projects';
+            const method = projectId ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showNotification(projectId ? 'Project updated successfully' : 'Project created successfully', 'success');
+                closeModal('add-project-modal');
+                resetForm('project-form');
+                loadProjects();
+            } else {
+                showNotification('Error saving project', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Error saving project', 'error');
+        }
+    });
+
+    // Edit project
+    function editProject(id) {
+        const project = projects.find(p => p.project_id === id);
+        if (!project) return;
+
+        document.getElementById('modal-title').textContent = 'Edit Project';
+        document.getElementById('project-id').value = project.project_id;
+        document.getElementById('project-name').value = project.name;
+        document.getElementById('project-location').value = project.location || '';
+        document.getElementById('project-start').value = project.start_date || '';
+        document.getElementById('project-end').value = project.end_date || '';
+        document.getElementById('project-budget').value = project.budget;
+        document.getElementById('project-status').value = project.status;
+
+        openModal('add-project-modal');
+    }
+
+    // Delete project
+    async function deleteProject(id, name) {
+        if (!confirm(`Are you sure you want to delete project "${name}"?`)) return;
+
+        try {
+            const response = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+
+            if (response.ok) {
+                showNotification('Project deleted successfully', 'success');
+                loadProjects();
+            } else {
+                showNotification('Error deleting project', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Error deleting project', 'error');
+        }
+    }
+
+    // Initialize
+    loadProjects();
+</script>
+{% endblock %}

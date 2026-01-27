@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}Payment Mode Split{% endblock %}
+
+{% block content %}
+<div class="container fade-in">
+    <div class="mb-3">
+        <h1>💳 Payment Mode Analysis</h1>
+        <p class="text-secondary">Cash, Bank & UPI position tracking</p>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="grid grid-3 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="kpi-label">💵 Cash Position</div>
+                <div class="kpi-value" id="cash-balance">₹0</div>
+                <div class="kpi-sublabel">
+                    <span id="cash-received">Received: ₹0</span> |
+                    <span id="cash-spent">Spent: ₹0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="kpi-label">🏦 Bank Position</div>
+                <div class="kpi-value" id="bank-balance">₹0</div>
+                <div class="kpi-sublabel">
+                    <span id="bank-received">Received: ₹0</span> |
+                    <span id="bank-spent">Spent: ₹0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="kpi-label">📱 UPI Position</div>
+                <div class="kpi-value" id="upi-balance">₹0</div>
+                <div class="kpi-sublabel">
+                    <span id="upi-received">Received: ₹0</span> |
+                    <span id="upi-spent">Spent: ₹0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Total Balance -->
+    <div class="card mb-3" style="background: linear-gradient(135deg, var(--primary), var(--secondary));">
+        <div class="card-body text-center">
+            <div class="kpi-label" style="color: white; opacity: 0.9;">Total Balance (All Modes)</div>
+            <div class="kpi-value" id="total-balance" style="color: white; font-size: 3rem;">₹0</div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="grid grid-2 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Received by Mode</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="received-chart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Spent by Mode</h3>
+            </div>
+            <div class="card-body">
+                <canvas id="spent-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Spending Breakdown Table -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Spending Breakdown</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Payment Mode</th>
+                            <th>Client Receipts</th>
+                            <th>Expenses</th>
+                            <th>Vendor Payments</th>
+                            <th>Total Spent</th>
+                            <th>Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="breakdown-tbody">
+                        <tr>
+                            <td colspan="6" class="text-center">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let paymentData = null;
+    let receivedChart = null;
+    let spentChart = null;
+
+    async function loadPaymentModeSplit() {
+        try {
+            const response = await fetch('/dashboard/api/payment-mode-split');
+            paymentData = await response.json();
+
+            updateKPIs();
+            updateCharts();
+            updateBreakdownTable();
+        } catch (error) {
+            console.error('Error loading payment mode data:', error);
+            showNotification('Error loading data', 'error');
+        }
+    }
+
+    function updateKPIs() {
+        // Cash KPIs
+        document.getElementById('cash-balance').textContent = formatCurrency(paymentData.cash.balance);
+        document.getElementById('cash-balance').style.color = paymentData.cash.balance >= 0 ? 'var(--success)' : 'var(--danger)';
+        document.getElementById('cash-received').textContent = `Received: ${formatCurrency(paymentData.cash.received)}`;
+        document.getElementById('cash-spent').textContent = `Spent: ${formatCurrency(paymentData.cash.spent)}`;
+
+        // Bank KPIs
+        document.getElementById('bank-balance').textContent = formatCurrency(paymentData.bank.balance);
+        document.getElementById('bank-balance').style.color = paymentData.bank.balance >= 0 ? 'var(--success)' : 'var(--danger)';
+        document.getElementById('bank-received').textContent = `Received: ${formatCurrency(paymentData.bank.received)}`;
+        document.getElementById('bank-spent').textContent = `Spent: ${formatCurrency(paymentData.bank.spent)}`;
+
+        // UPI KPIs
+        document.getElementById('upi-balance').textContent = formatCurrency(paymentData.upi.balance);
+        document.getElementById('upi-balance').style.color = paymentData.upi.balance >= 0 ? 'var(--success)' : 'var(--danger)';
+        document.getElementById('upi-received').textContent = `Received: ${formatCurrency(paymentData.upi.received)}`;
+        document.getElementById('upi-spent').textContent = `Spent: ${formatCurrency(paymentData.upi.spent)}`;
+
+        // Total Balance
+        document.getElementById('total-balance').textContent = formatCurrency(paymentData.totals.balance);
+    }
+
+    function updateCharts() {
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: 'var(--text)' }
+                }
+            }
+        };
+
+        // Received Chart
+        const receivedCtx = document.getElementById('received-chart').getContext('2d');
+        if (receivedChart) receivedChart.destroy();
+
+        receivedChart = new Chart(receivedCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Cash', 'Bank', 'UPI'],
+                datasets: [{
+                    data: [
+                        paymentData.cash.received,
+                        paymentData.bank.received,
+                        paymentData.upi.received
+                    ],
+                    backgroundColor: [
+                        'rgba(52, 211, 153, 0.8)',
+                        'rgba(96, 165, 250, 0.8)',
+                        'rgba(251, 146, 60, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(52, 211, 153, 1)',
+                        'rgba(96, 165, 250, 1)',
+                        'rgba(251, 146, 60, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: chartOptions
+        });
+
+        // Spent Chart
+        const spentCtx = document.getElementById('spent-chart').getContext('2d');
+        if (spentChart) spentChart.destroy();
+
+        spentChart = new Chart(spentCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Cash', 'Bank', 'UPI'],
+                datasets: [{
+                    data: [
+                        paymentData.cash.spent,
+                        paymentData.bank.spent,
+                        paymentData.upi.spent
+                    ],
+                    backgroundColor: [
+                        'rgba(248, 113, 113, 0.8)',
+                        'rgba(129, 140, 248, 0.8)',
+                        'rgba(250, 204, 21, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(248, 113, 113, 1)',
+                        'rgba(129, 140, 248, 1)',
+                        'rgba(250, 204, 21, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: chartOptions
+        });
+    }
+
+    function updateBreakdownTable() {
+        const tbody = document.getElementById('breakdown-tbody');
+
+        const modes = [
+            { name: 'CASH', icon: '💵', data: paymentData.cash },
+            { name: 'BANK', icon: '🏦', data: paymentData.bank },
+            { name: 'UPI', icon: '📱', data: paymentData.upi }
+        ];
+
+        tbody.innerHTML = modes.map(mode => {
+            const balanceColor = mode.data.balance >= 0 ? 'var(--success)' : 'var(--danger)';
+            return `
+            <tr>
+                <td><strong>${mode.icon} ${mode.name}</strong></td>
+                <td>${formatCurrency(mode.data.received)}</td>
+                <td>${formatCurrency(mode.data.breakdown.expenses)}</td>
+                <td>${formatCurrency(mode.data.breakdown.vendor_payments)}</td>
+                <td><strong>${formatCurrency(mode.data.spent)}</strong></td>
+                <td style="color: ${balanceColor};"><strong>${formatCurrency(mode.data.balance)}</strong></td>
+            </tr>
+        `;
+        }).join('') + `
+        <tr style="background: var(--surface); font-weight: bold;">
+            <td>TOTAL</td>
+            <td>${formatCurrency(paymentData.totals.received)}</td>
+            <td>${formatCurrency(paymentData.cash.breakdown.expenses + paymentData.bank.breakdown.expenses + paymentData.upi.breakdown.expenses)}</td>
+            <td>${formatCurrency(paymentData.cash.breakdown.vendor_payments + paymentData.bank.breakdown.vendor_payments + paymentData.upi.breakdown.vendor_payments)}</td>
+            <td>${formatCurrency(paymentData.totals.spent)}</td>
+            <td style="color: var(--primary);">${formatCurrency(paymentData.totals.balance)}</td>
+        </tr>
+    `;
+    }
+
+    // Load data on page load
+    loadPaymentModeSplit();
+</script>
+{% endblock %}

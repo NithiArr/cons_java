@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Construction Management System{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+    <div class="main-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar glass">
+            <div class="user-info">
+                <div class="user-name">{{ current_user.name }}</div>
+                <div class="user-role">
+                    {{ current_user.company.name }}
+                    <span class="role-badge">{{ current_user.role }}</span>
+                </div>
+            </div>
+
+            <nav>
+                <ul class="nav-menu">
+                    {% if current_user.role == 'OWNER' %}
+                    <li class="nav-item">
+                        <a href="{{ url_for('dashboard.owner_dashboard') }}" class="nav-link">
+                            📊 Owner Dashboard
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a href="{{ url_for('dashboard.main_dashboard') }}" class="nav-link">
+                            🏠 Dashboard
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <li class="nav-item">
+                        <a href="{{ url_for('dashboard.vendor_analytics') }}" class="nav-link">
+                            📈 Vendor Analytics
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="{{ url_for('dashboard.daily_cash') }}" class="nav-link">
+                            💰 Daily Cash Balance
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="/payment-mode-split" class="nav-link">
+                            💳 Payment Mode Split
+                        </a>
+                    </li>
+
+                    {% if current_user.role in ['ADMIN', 'MANAGER'] %}
+                    <li class="nav-item">
+                        <a href="/projects" class="nav-link">
+                            🏗️ Projects
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="/vendors" class="nav-link">
+                            🏢 Vendors
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="/purchases" class="nav-link">
+                            🛒 Purchases
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% if current_user.role in ['ADMIN', 'ACCOUNTANT'] %}
+                    <li class="nav-item">
+                        <a href="/expenses" class="nav-link">
+                            💳 Expenses
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="/payments" class="nav-link">
+                            💸 Vendor Payments
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="/client-payments" class="nav-link">
+                            💵 Client Payments
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <li class="nav-item" style="margin-top: 2rem;">
+                        <a href="{{ url_for('auth.logout') }}" class="nav-link">
+                            🚪 Logout
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">
+                {{ message }}
+            </div>
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}Daily Cash Balance{% endblock %}
+
+{% block content %}
+<div class="container fade-in">
+    <h1>💰 Daily Cash Balance</h1>
+    <p class="text-secondary mb-3">Track daily cash flow for projects</p>
+
+    <!-- Filters -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="grid grid-2">
+                <div class="form-group">
+                    <label class="form-label">Select Project</label>
+                    <select id="project-select" class="form-control">
+                        <option value="">-- Select Project --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Select Date</label>
+                    <input type="date" id="date-select" class="form-control" value="">
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="loadDailyCash()">Load Balance</button>
+        </div>
+    </div>
+
+    <!-- Balance Tracker -->
+    <div id="balance-display" style="display: none;">
+        <div class="grid grid-2 mb-3">
+            <div class="card">
+                <h4 class="mb-2">💵 Daily Balance Tracker</h4>
+                <table class="w-full">
+                    <tr>
+                        <td><strong>Opening Balance:</strong></td>
+                        <td id="opening-balance" class="text-right">₹0.00</td>
+                    </tr>
+                    <tr style="background: rgba(16, 185, 129, 0.1);">
+                        <td><strong>Client Receipts (Today):</strong></td>
+                        <td id="client-receipts" class="text-right" style="color: var(--success);">₹0.00</td>
+                    </tr>
+                    <tr style="background: rgba(239, 68, 68, 0.1);">
+                        <td><strong>Payments Made (Today):</strong></td>
+                        <td id="vendor-payments" class="text-right" style="color: var(--danger);">₹0.00</td>
+                    </tr>
+                    <tr style="background: rgba(239, 68, 68, 0.1);">
+                        <td><strong>Expenses (Today):</strong></td>
+                        <td id="expenses" class="text-right" style="color: var(--danger);">₹0.00</td>
+                    </tr>
+                    <tr style="background: var(--bg-tertiary);">
+                        <td><strong>Closing Balance:</strong></td>
+                        <td id="closing-balance" class="text-right"><strong>₹0.00</strong></td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="card">
+                <h4 class="mb-2">📊 Export Options</h4>
+                <button class="btn btn-success btn-sm mb-2 w-full" onclick="exportPDF()">
+                    📄 Download PDF
+                </button>
+                <button class="btn btn-success btn-sm w-full" onclick="exportExcel()">
+                    📊 Download Excel
+                </button>
+            </div>
+        </div>
+
+        <!-- Transaction Breakdown -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">📋 Transaction Breakdown</h3>
+            </div>
+            <div class="card-body">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Amount</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-tbody">
+                            <tr>
+                                <td colspan="3" class="text-center">No transactions</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Load projects
+    async function loadProjects() {
+        try {
+            const response = await fetch('/api/projects');
+            const projects = await response.json();
+
+            const select = document.getElementById('project-select');
+            select.innerHTML = '<option value="">-- Select Project --</option>' +
+                projects.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
+        } catch (error) {
+            console.error('Error loading projects:', error);
+        }
+    }
+
+    // Load daily cash balance
+    async function loadDailyCash() {
+        const projectId = document.getElementById('project-select').value;
+        const date = document.getElementById('date-select').value;
+
+        if (!projectId || !date) {
+            alert('Please select both project and date');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/dashboard/api/daily-cash-balance?project_id=${projectId}&date=${date}`);
+            const data = await response.json();
+
+            // Update balance tracker
+            document.getElementById('opening-balance').textContent = formatCurrency(data.opening_balance);
+            document.getElementById('client-receipts').textContent = formatCurrency(data.client_receipts);
+            document.getElementById('vendor-payments').textContent = formatCurrency(data.vendor_payments);
+            document.getElementById('expenses').textContent = formatCurrency(data.expenses);
+            document.getElementById('closing-balance').textContent = formatCurrency(data.closing_balance);
+
+            // Update transactions
+            const tbody = document.getElementById('transactions-tbody');
+            if (data.transactions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center">No transactions on this date</td></tr>';
+            } else {
+                tbody.innerHTML = data.transactions.map(t => {
+                    let type = '';
+                    let details = '';
+
+                    if (t.type === 'client_payment') {
+                        type = '💵 Client Payment';
+                        details = `${t.payment_mode} - ${t.reference || 'N/A'}`;
+                    } else if (t.type === 'expense') {
+                        type = '💳 Expense';
+                        details = `${t.category} - ${t.payment_mode}`;
+                    } else if (t.type === 'vendor_payment') {
+                        type = '💸 Vendor Payment';
+                        details = `${t.vendor_name} - ${t.payment_mode}`;
+                    }
+
+                    return `
+                    <tr>
+                        <td><strong>${type}</strong></td>
+                        <td><strong>${formatCurrency(t.amount)}</strong></td>
+                        <td>${details}</td>
+                    </tr>
+                `;
+                }).join('');
+            }
+
+            document.getElementById('balance-display').style.display = 'block';
+        } catch (error) {
+            console.error('Error loading daily cash:', error);
+            alert('Error loading data');
+        }
+    }
+
+    // Export functions (placeholder - would need backend integration)
+    function exportPDF() {
+        alert('PDF export feature - integrate with backend /export/daily-balance-pdf');
+    }
+
+    function exportExcel() {
+        alert('Excel export feature - integrate with backend /export/daily-balance-excel');
+    }
+
+    // Format currency
+    function formatCurrency(amount) {
+        return '₹' + parseFloat(amount).toLocaleString('en-IN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    // Set today's date as default
+    document.getElementById('date-select').value = new Date().toISOString().split('T')[0];
+
+    // Initialize
+    loadProjects();
+</script>
+{% endblock %}
