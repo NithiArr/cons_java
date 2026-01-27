@@ -27,10 +27,12 @@ ENV/
 .venv
 
 # Database
-*.db
-*.sqlite
-*.sqlite3
-instance/
+# Temporarily allowing database to be committed for initial Railway deployment
+# Uncomment these after first deployment if you don't want DB in git:
+# *.db
+# *.sqlite
+# *.sqlite3
+# instance/
 
 # IDE
 .vscode/
