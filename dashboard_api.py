@@ -257,6 +257,97 @@ def get_vendor_material_summary(vendor_id):
     
     return jsonify(data)
 
+# ==================== PROJECT PAYMENT ANALYTICS ====================
+@dashboard_bp.route('/api/project-payment-details/<int:project_id>', methods=['GET'])
+@login_required
+def get_project_payment_details(project_id):
+    """Get comprehensive payment details for a specific project"""
+    
+    project = company_filter(Project.query).filter_by(project_id=project_id).first_or_404()
+    
+    # Purchase History
+    purchase_history = []
+    for purchase in project.purchases:
+        # Calculate paid amount for this purchase
+        paid = sum([float(p.amount) for p in purchase.payments])
+        balance = float(purchase.total_amount) - paid
+        
+        purchase_history.append({
+            'purchase_id': purchase.purchase_id,
+            'vendor_name': purchase.vendor.name,
+            'invoice_number': purchase.invoice_number,
+            'invoice_date': purchase.invoice_date.isoformat() if purchase.invoice_date else None,
+            'amount': float(purchase.total_amount),
+            'paid': paid,
+            'balance': balance
+        })
+    
+    # Vendor Payments
+    vendor_payments = []
+    for payment in project.payments:
+        vendor_payments.append({
+            'payment_id': payment.payment_id,
+            'payment_date': payment.payment_date.isoformat() if payment.payment_date else None,
+            'vendor_name': payment.vendor.name,
+            'amount': float(payment.amount),
+            'payment_mode': payment.payment_mode,
+            'purchase_invoice': payment.purchase.invoice_number if payment.purchase else '-'
+        })
+    
+    # Expenses
+    expenses = []
+    for expense in project.expenses:
+        expenses.append({
+            'expense_id': expense.expense_id,
+            'expense_date': expense.expense_date.isoformat() if expense.expense_date else None,
+            'category': expense.category,
+            'subcategory': expense.subcategory,
+            'amount': float(expense.amount),
+            'payment_mode': expense.payment_mode,
+            'description': expense.description
+        })
+    
+    # Client Payments
+    client_payments = []
+    for cp in project.client_payments:
+        client_payments.append({
+            'client_payment_id': cp.client_payment_id,
+            'payment_date': cp.payment_date.isoformat() if cp.payment_date else None,
+            'amount': float(cp.amount),
+            'payment_mode': cp.payment_mode,
+            'reference_number': cp.reference_number,
+            'remarks': cp.remarks
+        })
+    
+    # Financial Summary
+    total_purchases = sum([float(p.total_amount) for p in project.purchases])
+    total_expenses = sum([float(e.amount) for e in project.expenses])
+    total_spent = total_purchases + total_expenses
+    
+    total_received = sum([float(cp.amount) for cp in project.client_payments])
+    outstanding = total_spent - total_received
+    
+    total_vendor_payments = sum([float(p.amount) for p in project.payments])
+    pending_vendor_payments = total_purchases - total_vendor_payments
+    
+    return jsonify({
+        'project_name': project.name,
+        'project_status': project.status,
+        'purchase_history': purchase_history,
+        'vendor_payments': vendor_payments,
+        'expenses': expenses,
+        'client_payments': client_payments,
+        'financial_summary': {
+            'total_purchases': total_purchases,
+            'total_expenses': total_expenses,
+            'total_spent': total_spent,
+            'total_received': total_received,
+            'outstanding': outstanding,
+            'total_vendor_payments': total_vendor_payments,
+            'pending_vendor_payments': pending_vendor_payments
+        }
+    })
+
 # ==================== DAILY CASH BALANCE ====================
 @dashboard_bp.route('/api/daily-cash-balance', methods=['GET'])
 @login_required

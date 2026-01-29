@@ -106,6 +106,109 @@
     </div>
 </div>
 
+<!-- Project Details Modal -->
+<div id="project-modal" class="modal">
+    <div class="modal-content" style="max-width: 1200px;">
+        <div class="modal-header">
+            <h3 id="project-modal-title">Project Details</h3>
+            <button class="modal-close" onclick="closeProjectModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <!-- Financial Summary -->
+            <div class="grid grid-3 mb-3" id="financial-summary">
+                <div class="card">
+                    <div class="card-body">
+                        <p class="text-secondary mb-1">Total Spent</p>
+                        <h3 id="summary-spent">₹0.00</h3>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-body">
+                        <p class="text-secondary mb-1">Total Received</p>
+                        <h3 id="summary-received">₹0.00</h3>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-body">
+                        <p class="text-secondary mb-1">Outstanding</p>
+                        <h3 id="summary-outstanding">₹0.00</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Purchase History -->
+            <h4 class="mb-2">Purchase History</h4>
+            <div class="table-container mb-3">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Vendor</th>
+                            <th>Invoice No.</th>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Paid</th>
+                            <th>Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="purchase-history-tbody"></tbody>
+                </table>
+            </div>
+
+            <!-- Vendor Payments -->
+            <h4 class="mb-2">Vendor Payments</h4>
+            <div class="table-container mb-3">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Vendor</th>
+                            <th>Amount</th>
+                            <th>Payment Mode</th>
+                            <th>Invoice Ref.</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vendor-payments-tbody"></tbody>
+                </table>
+            </div>
+
+            <!-- Expenses -->
+            <h4 class="mb-2">Expenses</h4>
+            <div class="table-container mb-3">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Category</th>
+                            <th>Subcategory</th>
+                            <th>Amount</th>
+                            <th>Payment Mode</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expenses-tbody"></tbody>
+                </table>
+            </div>
+
+            <!-- Client Payments -->
+            <h4 class="mb-2">Client Payments (Received)</h4>
+            <div class="table-container mb-3">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Payment Mode</th>
+                            <th>Reference</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody id="client-payments-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     let projects = [];
 
@@ -139,6 +242,7 @@
             <td>${formatDate(p.start_date)}</td>
             <td>${formatDate(p.end_date)}</td>
             <td>
+                <button class="btn btn-sm btn-primary" onclick="showProjectDetails(${p.project_id}, '${p.name}')">View Details</button>
                 <button class="btn btn-sm btn-secondary" onclick="editProject(${p.project_id})">Edit</button>
                 <button class="btn btn-sm btn-danger" onclick="deleteProject(${p.project_id}, '${p.name}')">Delete</button>
             </td>
@@ -229,6 +333,96 @@
             console.error('Error:', error);
             showNotification('Error deleting project', 'error');
         }
+    }
+
+    // Show project details
+    async function showProjectDetails(projectId, projectName) {
+        document.getElementById('project-modal-title').textContent = projectName;
+        document.getElementById('project-modal').classList.add('active');
+
+        try {
+            const response = await fetch(`/dashboard/api/project-payment-details/${projectId}`);
+            const data = await response.json();
+
+            // Update financial summary
+            document.getElementById('summary-spent').textContent = formatCurrency(data.financial_summary.total_spent);
+            document.getElementById('summary-received').textContent = formatCurrency(data.financial_summary.total_received);
+            document.getElementById('summary-outstanding').textContent = formatCurrency(data.financial_summary.outstanding);
+
+            // Render purchase history
+            const purchasesTbody = document.getElementById('purchase-history-tbody');
+            if (data.purchase_history.length === 0) {
+                purchasesTbody.innerHTML = '<tr><td colspan="6" class="text-center">No purchases found</td></tr>';
+            } else {
+                purchasesTbody.innerHTML = data.purchase_history.map(p => `
+                    <tr>
+                        <td><strong>${p.vendor_name}</strong></td>
+                        <td>${p.invoice_number || '-'}</td>
+                        <td>${formatDate(p.invoice_date)}</td>
+                        <td>${formatCurrency(p.amount)}</td>
+                        <td>${formatCurrency(p.paid)}</td>
+                        <td><strong>${formatCurrency(p.balance)}</strong></td>
+                    </tr>
+                `).join('');
+            }
+
+            // Render vendor payments
+            const paymentsTbody = document.getElementById('vendor-payments-tbody');
+            if (data.vendor_payments.length === 0) {
+                paymentsTbody.innerHTML = '<tr><td colspan="5" class="text-center">No vendor payments found</td></tr>';
+            } else {
+                paymentsTbody.innerHTML = data.vendor_payments.map(p => `
+                    <tr>
+                        <td>${formatDate(p.payment_date)}</td>
+                        <td>${p.vendor_name}</td>
+                        <td>${formatCurrency(p.amount)}</td>
+                        <td>${p.payment_mode}</td>
+                        <td>${p.purchase_invoice}</td>
+                    </tr>
+                `).join('');
+            }
+
+            // Render expenses
+            const expensesTbody = document.getElementById('expenses-tbody');
+            if (data.expenses.length === 0) {
+                expensesTbody.innerHTML = '<tr><td colspan="6" class="text-center">No expenses found</td></tr>';
+            } else {
+                expensesTbody.innerHTML = data.expenses.map(e => `
+                    <tr>
+                        <td>${formatDate(e.expense_date)}</td>
+                        <td>${e.category}</td>
+                        <td>${e.subcategory || '-'}</td>
+                        <td>${formatCurrency(e.amount)}</td>
+                        <td>${e.payment_mode}</td>
+                        <td>${e.description || '-'}</td>
+                    </tr>
+                `).join('');
+            }
+
+            // Render client payments
+            const clientPaymentsTbody = document.getElementById('client-payments-tbody');
+            if (data.client_payments.length === 0) {
+                clientPaymentsTbody.innerHTML = '<tr><td colspan="5" class="text-center">No client payments received</td></tr>';
+            } else {
+                clientPaymentsTbody.innerHTML = data.client_payments.map(cp => `
+                    <tr>
+                        <td>${formatDate(cp.payment_date)}</td>
+                        <td>${formatCurrency(cp.amount)}</td>
+                        <td>${cp.payment_mode}</td>
+                        <td>${cp.reference_number || '-'}</td>
+                        <td>${cp.remarks || '-'}</td>
+                    </tr>
+                `).join('');
+            }
+        } catch (error) {
+            console.error('Error loading project details:', error);
+            showNotification('Error loading project details', 'error');
+        }
+    }
+
+    // Close project modal
+    function closeProjectModal() {
+        document.getElementById('project-modal').classList.remove('active');
     }
 
     // Initialize
