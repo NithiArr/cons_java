@@ -4,59 +4,75 @@
 
 {% block content %}
 <div class="container fade-in">
-    <h1>🏠 Dashboard</h1>
-    <p class="text-secondary mb-3">Welcome, {{ current_user.name }}!</p>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <div>
+            <h1>🏠 Dashboard</h1>
+            <p class="text-secondary mb-0">Welcome, {{ current_user.name }}!</p>
+        </div>
 
-    <!-- Financial KPIs -->
-    <div class="grid grid-4 mb-3">
-        <div class="kpi-card">
+        <!-- Project Status Filter -->
+        <div style="min-width: 200px;">
+            <label for="status-filter"
+                style="font-size: 0.9rem; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;">Filter
+                by Status</label>
+            <select id="status-filter" class="form-control" onchange="loadDashboard()">
+                <option value="ALL">All Projects</option>
+                <option value="PLANNING">Planning</option>
+                <option value="ACTIVE" selected>Active</option>
+                <option value="ON_HOLD">On Hold</option>
+                <option value="COMPLETED">Completed</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Financial KPIs - Top Row -->
+    <div class="grid grid-4 mb-2">
+        <div class="kpi-card kpi-card-compact">
             <div class="kpi-label">💰 Total Budget</div>
             <div class="kpi-value" id="total-budget">₹0</div>
-            <div class="kpi-sublabel">Across all projects</div>
+            <div class="kpi-sublabel">Project budgets</div>
         </div>
 
-        <div class="kpi-card">
-            <div class="kpi-label">📊 Total Spend</div>
-            <div class="kpi-value" id="total-spend">₹0</div>
-            <div class="kpi-sublabel">Expenses + Purchases</div>
+        <div class="kpi-card kpi-card-compact">
+            <div class="kpi-label">💵 Amount Received</div>
+            <div class="kpi-value" id="amount-received" style="color: var(--success);">₹0</div>
+            <div class="kpi-sublabel">From clients</div>
         </div>
 
-        <div class="kpi-card">
-            <div class="kpi-label">✅ Paid Amount</div>
-            <div class="kpi-value" id="total-paid" style="color: var(--success);">₹0</div>
-            <div class="kpi-sublabel">Vendor payments made</div>
+        <div class="kpi-card kpi-card-compact">
+            <div class="kpi-label">✅ Expenses (Paid)</div>
+            <div class="kpi-value" id="expenses-paid" style="color: var(--info);">₹0</div>
+            <div class="kpi-sublabel">Cash/Bank/UPI only</div>
         </div>
 
-        <div class="kpi-card">
-            <div class="kpi-label">⏳ Credit Outstanding</div>
-            <div class="kpi-value" id="outstanding-credit" style="color: var(--warning);">₹0</div>
-            <div class="kpi-sublabel">Unpaid to vendors</div>
-        </div>
-    </div>
-
-    <!-- Project Stats -->
-    <div class="grid grid-3 mb-3">
-        <div class="kpi-card">
-            <div class="kpi-label">Total Projects</div>
-            <div class="kpi-value" id="total-projects">-</div>
-        </div>
-
-        <div class="kpi-card">
-            <div class="kpi-label">Active Projects</div>
-            <div class="kpi-value" id="active-projects">-</div>
-        </div>
-
-        <div class="kpi-card">
-            <div class="kpi-label">Budget Utilization</div>
-            <div class="kpi-value" id="budget-utilization">-</div>
-            <div class="kpi-sublabel">Spend vs Budget</div>
+        <div class="kpi-card kpi-card-compact">
+            <div class="kpi-label">⏳ Outstanding Payables</div>
+            <div class="kpi-value" id="expenses-credit" style="color: var(--warning);">₹0</div>
+            <div class="kpi-sublabel">Credit - Paid to vendors</div>
         </div>
     </div>
 
-    <!-- Recent Projects -->
+    <!-- Balance & Projects Row -->
+    <div class="grid grid-2 mb-2">
+        <div class="kpi-card"
+            style="background: linear-gradient(135deg, rgba(46, 213, 115, 0.15), rgba(0, 184, 148, 0.15)); border: 2px solid var(--success);">
+            <div class="kpi-label" style="font-weight: 600;">💳 Balance in Hand</div>
+            <div class="kpi-value" id="balance-in-hand"
+                style="color: var(--success); font-weight: 700; font-size: 2rem;">₹0</div>
+            <div class="kpi-sublabel">Received - Paid</div>
+        </div>
+
+        <div class="kpi-card" style="text-align: center;">
+            <div class="kpi-label">📊 Total Projects</div>
+            <div class="kpi-value" id="total-projects" style="font-size: 2.5rem;">-</div>
+            <div class="kpi-sublabel">In selected status</div>
+        </div>
+    </div>
+
+    <!-- Projects Overview -->
     <div class="card">
         <div class="card-header">
-            <h3 class="card-title">📋 Recent Projects</h3>
+            <h3 class="card-title">📋 Projects Overview</h3>
         </div>
         <div class="card-body">
             <div class="table-container">
@@ -67,12 +83,13 @@
                             <th>Location</th>
                             <th>Status</th>
                             <th>Budget</th>
-                            <th>Spend</th>
+                            <th>Expenses</th>
+                            <th>Received</th>
                         </tr>
                     </thead>
                     <tbody id="projects-tbody">
                         <tr>
-                            <td colspan="4" class="text-center">Loading...</td>
+                            <td colspan="6" class="text-center">Loading...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -82,66 +99,107 @@
 </div>
 
 <script>
-    // Load dashboard data
+    // Load dashboard data with status filter
     async function loadDashboard() {
         try {
-            const [projectsRes, expensesRes, purchasesRes, paymentsRes] = await Promise.all([
+            const statusFilter = document.getElementById('status-filter').value;
+
+            // Fetch all data including vendor payments
+            const [projectsRes, expensesRes, clientPaymentsRes, vendorPaymentsRes] = await Promise.all([
                 fetch('/api/projects'),
                 fetch('/api/expenses'),
-                fetch('/api/purchases'),
-                fetch('/api/payments')
+                fetch('/api/client-payments'),
+                fetch('/api/payments')  // Vendor payments
             ]);
 
-            const projects = await projectsRes.json();
+            let projects = await projectsRes.json();
             const expenses = await expensesRes.json();
-            const purchases = await purchasesRes.json();
-            const payments = await paymentsRes.json();
+            const clientPayments = await clientPaymentsRes.json();
+            const vendorPayments = await vendorPaymentsRes.json();
 
-            // Calculate financial metrics
+            // Apply status filter
+            if (statusFilter !== 'ALL') {
+                projects = projects.filter(p => p.status === statusFilter);
+            }
+
+            // Get project IDs for filtering
+            const projectIds = new Set(projects.map(p => p.project_id));
+
+            // Filter expenses, client payments, and vendor payments by project
+            const filteredExpenses = expenses.filter(e => projectIds.has(e.project_id));
+            const filteredClientPayments = clientPayments.filter(cp => projectIds.has(cp.project_id));
+            const filteredVendorPayments = vendorPayments.filter(vp => projectIds.has(vp.project_id));
+
+            // Calculate KPIs
             const totalBudget = projects.reduce((sum, p) => sum + parseFloat(p.budget || 0), 0);
-            const totalExpenses = expenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
-            const totalPurchases = purchases.reduce((sum, p) => sum + parseFloat(p.total_amount), 0);
-            const totalSpend = totalExpenses + totalPurchases;
-            const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
-            const outstandingCredit = totalPurchases - totalPaid;
-            const budgetUtilization = totalBudget > 0 ? ((totalSpend / totalBudget) * 100).toFixed(1) : 0;
 
-            // Update financial KPIs
+            // Total amount received from clients
+            const totalReceived = filteredClientPayments.reduce((sum, cp) => sum + parseFloat(cp.amount), 0);
+
+            // Expenses (Paid) - Only CASH, BANK, UPI payment modes
+            const expensesPaid = filteredExpenses
+                .filter(e => ['CASH', 'BANK', 'UPI'].includes(e.payment_mode))
+                .reduce((sum, e) => sum + parseFloat(e.amount), 0);
+
+            // Total Credit Expenses (material purchases on credit)
+            const totalCreditExpenses = filteredExpenses
+                .filter(e => e.payment_mode === 'CREDIT')
+                .reduce((sum, e) => sum + parseFloat(e.amount), 0);
+
+            // Total Vendor Payments Made
+            const totalVendorPayments = filteredVendorPayments
+                .reduce((sum, vp) => sum + parseFloat(vp.amount), 0);
+
+            // Outstanding Credit = Credit Purchases - Vendor Payments Made (what we still owe)
+            const expensesCredit = totalCreditExpenses - totalVendorPayments;
+
+            // Available Balance in Hand = Amount Received - Expenses (Paid)
+            const balanceInHand = totalReceived - expensesPaid;
+
+            // Update KPIs
             document.getElementById('total-budget').textContent = formatCurrency(totalBudget);
-            document.getElementById('total-spend').textContent = formatCurrency(totalSpend);
-            document.getElementById('total-paid').textContent = formatCurrency(totalPaid);
-            document.getElementById('outstanding-credit').textContent = formatCurrency(outstandingCredit);
+            document.getElementById('amount-received').textContent = formatCurrency(totalReceived);
+            document.getElementById('expenses-paid').textContent = formatCurrency(expensesPaid);
+            document.getElementById('expenses-credit').textContent = formatCurrency(expensesCredit);
+            document.getElementById('balance-in-hand').textContent = formatCurrency(balanceInHand);
 
             // Update project stats
             document.getElementById('total-projects').textContent = projects.length;
-            document.getElementById('active-projects').textContent =
-                projects.filter(p => p.status === 'ACTIVE').length;
-            document.getElementById('budget-utilization').textContent = budgetUtilization + '%';
 
-            // Color code budget utilization
-            const utilizationEl = document.getElementById('budget-utilization');
-            if (budgetUtilization > 100) {
-                utilizationEl.style.color = 'var(--danger)';
-            } else if (budgetUtilization > 80) {
-                utilizationEl.style.color = 'var(--warning)';
+            // Color code outstanding credit
+            const creditEl = document.getElementById('expenses-credit');
+            if (expensesCredit > totalBudget * 0.3) {
+                creditEl.style.color = 'var(--danger)';
+            } else if (expensesCredit > totalBudget * 0.15) {
+                creditEl.style.color = 'var(--warning)';
             } else {
-                utilizationEl.style.color = 'var(--success)';
+                creditEl.style.color = 'var(--warning)';
+            }
+
+            // Color code balance in hand
+            const balanceEl = document.getElementById('balance-in-hand');
+            if (balanceInHand < 0) {
+                balanceEl.style.color = 'var(--danger)';
+            } else if (balanceInHand < totalBudget * 0.1) {
+                balanceEl.style.color = 'var(--warning)';
+            } else {
+                balanceEl.style.color = 'var(--success)';
             }
 
             // Render projects table
             const tbody = document.getElementById('projects-tbody');
             if (projects.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center">No projects found</td></tr>';
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center">No ${statusFilter === 'ALL' ? '' : statusFilter.toLowerCase() + ' '}projects found</td></tr>`;
             } else {
-                tbody.innerHTML = projects.slice(0, 10).map(p => {
-                    // Calculate project spend
-                    const projectExpenses = expenses
+                tbody.innerHTML = projects.map(p => {
+                    // Calculate project-specific metrics
+                    const projectExpenses = filteredExpenses
                         .filter(e => e.project_id === p.project_id)
                         .reduce((sum, e) => sum + parseFloat(e.amount), 0);
-                    const projectPurchases = purchases
-                        .filter(pur => pur.project_id === p.project_id)
-                        .reduce((sum, pur) => sum + parseFloat(pur.total_amount), 0);
-                    const projectSpend = projectExpenses + projectPurchases;
+
+                    const projectReceived = filteredClientPayments
+                        .filter(cp => cp.project_id === p.project_id)
+                        .reduce((sum, cp) => sum + parseFloat(cp.amount), 0);
 
                     return `
                     <tr>
@@ -149,7 +207,8 @@
                         <td>${p.location || '-'}</td>
                         <td><span class="status-badge status-${p.status.toLowerCase()}">${p.status}</span></td>
                         <td>${formatCurrency(p.budget)}</td>
-                        <td>${formatCurrency(projectSpend)}</td>
+                        <td>${formatCurrency(projectExpenses)}</td>
+                        <td style="color: var(--success); font-weight: 600;">${formatCurrency(projectReceived)}</td>
                     </tr>
                 `;
                 }).join('');

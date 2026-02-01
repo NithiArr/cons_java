@@ -176,6 +176,7 @@ def get_purchases():
     purchases = company_data_filter(Expense.query).filter_by(category='Material Purchase').all()
     return jsonify([{
         'purchase_id': p.expense_id, # Map expense_id to purchase_id
+        'expense_id': p.expense_id,  # Also include expense_id for edit/delete
         'project_id': p.project_id,
         'project_name': p.project.name,
         'vendor_id': p.vendor_id,
@@ -289,6 +290,75 @@ def create_expense():
     db.session.commit()
     
     return jsonify({'message': 'Expense created', 'expense_id': expense.expense_id}), 201
+
+@api_bp.route('/expenses/<int:expense_id>', methods=['GET'])
+@login_required
+def get_expense(expense_id):
+    """Get specific expense by ID"""
+    expense = company_data_filter(Expense.query).filter_by(expense_id=expense_id).first_or_404()
+    
+    result = {
+        'expense_id': expense.expense_id,
+        'project_id': expense.project_id,
+        'vendor_id': expense.vendor_id,
+        'category': expense.category,
+        'subcategory': expense.subcategory,
+        'amount': float(expense.amount),
+        'payment_mode': expense.payment_mode,
+        'expense_date': expense.expense_date.isoformat(),
+        'description': expense.description,
+        'invoice_number': expense.invoice_number,
+        'bill_url': expense.bill_url
+    }
+    
+    # Include items if this is a purchase (Material Purchase)
+    if expense.category == 'Material Purchase':
+        result['items'] = [{
+            'item_name': item.item_name,
+            'quantity': float(item.quantity),
+            'unit_price': float(item.unit_price),
+            'total_price': float(item.total_price)
+        } for item in expense.items]
+    
+    return jsonify(result)
+
+@api_bp.route('/expenses/<int:expense_id>', methods=['PUT'])
+@login_required
+@role_required('ADMIN', 'ACCOUNTANT', 'MANAGER')
+def update_expense(expense_id):
+    """Update expense (works for both purchases and regular expenses)"""
+    expense = company_data_filter(Expense.query).filter_by(expense_id=expense_id).first_or_404()
+    data = request.get_json()
+    
+    # Update main expense fields
+    expense.project_id = data.get('project_id', expense.project_id)
+    expense.vendor_id = data.get('vendor_id', expense.vendor_id)
+    expense.subcategory = data.get('subcategory', expense.subcategory)
+    expense.amount = data.get('total_amount', data.get('amount', expense.amount))
+    expense.payment_mode = data.get('payment_type', data.get('payment_mode', expense.payment_mode))
+    expense.expense_date = datetime.fromisoformat(data.get('invoice_date', data.get('expense_date', expense.expense_date.isoformat())))
+    expense.invoice_number = data.get('invoice_number', expense.invoice_number)
+    expense.description = data.get('description', expense.description)
+    
+    # If this is a purchase (has items), update items
+    if 'items' in data and expense.category == 'Material Purchase':
+        # Delete existing items
+        for item in expense.items:
+            db.session.delete(item)
+        
+        # Add new items
+        for item_data in data['items']:
+            item = ExpenseItem(
+                expense_id=expense.expense_id,
+                item_name=item_data['item_name'],
+                quantity=item_data['quantity'],
+                unit_price=item_data['unit_price'],
+                total_price=item_data['total_price']
+            )
+            db.session.add(item)
+    
+    db.session.commit()
+    return jsonify({'message': 'Expense updated'})
 
 @api_bp.route('/expenses/<int:expense_id>', methods=['DELETE'])
 @login_required

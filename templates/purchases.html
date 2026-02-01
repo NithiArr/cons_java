@@ -43,11 +43,12 @@
 <div id="add-purchase-modal" class="modal">
     <div class="modal-content" style="max-width: 700px;">
         <div class="modal-header">
-            <h3>Add Purchase Order</h3>
+            <h3 id="purchase-modal-title">Add Purchase Order</h3>
             <span class="close" onclick="closeModal('add-purchase-modal')">&times;</span>
         </div>
         <div class="modal-body">
             <form id="purchase-form">
+                <input type="hidden" id="purchase-id" value="">
                 <div class="grid grid-2">
                     <div class="form-group">
                         <label class="form-label">Project *</label>
@@ -94,13 +95,16 @@
                 <hr>
                 <h4>Items</h4>
                 <div id="items-container">
-                    <div class="purchase-item grid grid-4 gap-2 mb-2">
+                    <div class="purchase-item mb-2"
+                        style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 0.5rem; align-items: center;">
                         <input type="text" class="form-control item-name" placeholder="Item Name" required>
                         <input type="number" class="form-control item-quantity" placeholder="Qty" required min="0"
                             step="0.01">
                         <input type="number" class="form-control item-price" placeholder="Unit Price" required min="0"
                             step="0.01">
                         <input type="text" class="form-control item-total" placeholder="Total" readonly>
+                        <button type="button" class="btn btn-sm btn-danger" onclick="removeItem(this)"
+                            style="padding: 0.5rem; min-width: 40px;">−</button>
                     </div>
                 </div>
                 <button type="button" class="btn btn-sm btn-secondary mb-3" onclick="addItem()">+ Add Item</button>
@@ -170,8 +174,9 @@
                 <td><strong>${formatCurrency(p.total_amount)}</strong></td>
                 <td><span class="badge">${p.payment_type}</span></td>
                 <td>${formatDate(p.invoice_date)}</td>
-                <td>
-                    <button class="btn btn-sm btn-danger" onclick="deletePurchase(${p.purchase_id})">Delete</button>
+                <td style="white-space: nowrap;">
+                    <button class="btn btn-sm btn-primary" onclick="editPurchase(${p.expense_id})" style="margin-right: 0.5rem;">Edit</button>
+                    <button class="btn btn-sm btn-danger" onclick="deletePurchase(${p.expense_id})">Delete</button>
                 </td>
             </tr>
         `;
@@ -181,15 +186,29 @@
     function addItem() {
         const container = document.getElementById('items-container');
         const itemHtml = `
-        <div class="purchase-item grid grid-4 gap-2 mb-2">
+        <div class="purchase-item mb-2" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 0.5rem; align-items: center;">
             <input type="text" class="form-control item-name" placeholder="Item Name" required>
             <input type="number" class="form-control item-quantity" placeholder="Qty" required min="0" step="0.01">
             <input type="number" class="form-control item-price" placeholder="Unit Price" required min="0" step="0.01">
             <input type="text" class="form-control item-total" placeholder="Total" readonly>
+            <button type="button" class="btn btn-sm btn-danger" onclick="removeItem(this)" style="padding: 0.5rem; min-width: 40px;">−</button>
         </div>
     `;
         container.insertAdjacentHTML('beforeend', itemHtml);
         attachItemCalculators();
+    }
+
+    function removeItem(button) {
+        const container = document.getElementById('items-container');
+        const items = container.querySelectorAll('.purchase-item');
+
+        // Keep at least one item
+        if (items.length > 1) {
+            button.closest('.purchase-item').remove();
+            calculateGrandTotal();
+        } else {
+            showNotification('At least one item is required', 'error');
+        }
     }
 
     function attachItemCalculators() {
@@ -245,6 +264,9 @@
 
         const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0);
 
+        const purchaseId = document.getElementById('purchase-id').value;
+        const isEdit = purchaseId !== '';
+
         const data = {
             project_id: parseInt(document.getElementById('purchase-project').value),
             vendor_id: parseInt(document.getElementById('purchase-vendor').value),
@@ -257,25 +279,93 @@
         };
 
         try {
-            const response = await fetch('/api/purchases', {
-                method: 'POST',
+            const url = isEdit ? `/api/expenses/${purchaseId}` : '/api/purchases';
+            const method = isEdit ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
 
             if (response.ok) {
-                showNotification('Purchase added successfully', 'success');
+                showNotification(isEdit ? 'Purchase updated successfully' : 'Purchase added successfully', 'success');
                 closeModal('add-purchase-modal');
                 resetForm('purchase-form');
+                document.getElementById('purchase-id').value = '';
+                document.getElementById('purchase-modal-title').textContent = 'Add Purchase Order';
                 loadData();
             } else {
-                showNotification('Error adding purchase', 'error');
+                showNotification(isEdit ? 'Error updating purchase' : 'Error adding purchase', 'error');
             }
         } catch (error) {
             console.error('Error:', error);
             showNotification('Error adding purchase', 'error');
         }
     });
+
+    async function editPurchase(id) {
+        try {
+            // Fetch the expense data
+            const response = await fetch(`/api/expenses/${id}`);
+            if (!response.ok) throw new Error('Failed to fetch purchase');
+
+            const expense = await response.json();
+
+            // Set the ID for update
+            document.getElementById('purchase-id').value = expense.expense_id;
+
+            // Change modal title
+            document.getElementById('purchase-modal-title').textContent = 'Edit Purchase Order';
+
+            // Pre-fill the form
+            document.getElementById('purchase-project').value = expense.project_id;
+            document.getElementById('purchase-vendor').value = expense.vendor_id;
+            document.getElementById('purchase-subcategory').value = expense.subcategory || '';
+            document.getElementById('purchase-invoice').value = expense.invoice_number || '';
+            document.getElementById('purchase-date').value = expense.expense_date;
+            document.getElementById('purchase-type').value = expense.payment_mode;
+
+            // Clear and populate items
+            const container = document.getElementById('items-container');
+            container.innerHTML = '';
+
+            // Check if items exist and is an array
+            if (expense.items && Array.isArray(expense.items) && expense.items.length > 0) {
+                expense.items.forEach((item, index) => {
+                    if (index > 0) addItem(); // Add rows for additional items
+                    const items = container.querySelectorAll('.purchase-item');
+                    const currentItem = items[index];
+                    if (currentItem) {
+                        currentItem.querySelector('.item-name').value = item.item_name || '';
+                        currentItem.querySelector('.item-quantity').value = item.quantity || 0;
+                        currentItem.querySelector('.item-price').value = item.unit_price || 0;
+                        currentItem.querySelector('.item-total').value = item.total_price || 0;
+                    }
+                });
+            } else {
+                // Add default empty item if no items
+                const itemHtml = `
+                <div class="purchase-item mb-2" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 0.5rem; align-items: center;">
+                    <input type="text" class="form-control item-name" placeholder="Item Name" required>
+                    <input type="number" class="form-control item-quantity" placeholder="Qty" required min="0" step="0.01">
+                    <input type="number" class="form-control item-price" placeholder="Unit Price" required min="0" step="0.01">
+                    <input type="text" class="form-control item-total" placeholder="Total" readonly>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removeItem(this)" style="padding: 0.5rem; min-width: 40px;">−</button>
+                </div>`;
+                container.innerHTML = itemHtml;
+            }
+
+            attachItemCalculators();
+            calculateGrandTotal();
+
+            // Open modal
+            openModal('add-purchase-modal');
+        } catch (error) {
+            console.error('Error loading purchase:', error);
+            showNotification('Error loading purchase data', 'error');
+        }
+    }
 
     async function deletePurchase(id) {
         if (!confirm('Are you sure you want to delete this purchase?')) return;

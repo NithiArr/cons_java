@@ -9,6 +9,8 @@
     /* Soft Cyan - Subtle accent */
     --accent: #d97706;
     /* Soft Amber - Warm accent */
+    --info: #0ea5e9;
+    /* Sky Blue - Info accent */
     --success: #16a34a;
     /* Softer Green */
     --warning: #ea580c;
@@ -94,7 +96,7 @@ h4 {
 .container {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 2rem;
+    padding: 1.5rem;
 }
 
 .main-layout {
@@ -316,7 +318,7 @@ tr:hover {
 /* ==================== GRID ==================== */
 .grid {
     display: grid;
-    gap: 1.5rem;
+    gap: 1rem;
 }
 
 .grid-2 {
@@ -331,8 +333,16 @@ tr:hover {
     grid-template-columns: repeat(4, 1fr);
 }
 
+.grid-5 {
+    grid-template-columns: repeat(5, 1fr);
+}
+
 /* ==================== RESPONSIVE - TABLET ==================== */
 @media (max-width: 1200px) {
+    .grid-5 {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
     .grid-4 {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -433,7 +443,8 @@ tr:hover {
     /* Grids - Stack on mobile */
     .grid-2,
     .grid-3,
-    .grid-4 {
+    .grid-4,
+    .grid-5 {
         grid-template-columns: 1fr;
         gap: 1rem;
     }
@@ -616,6 +627,25 @@ tr:hover {
     color: var(--text-secondary);
     font-size: 0.875rem;
     margin-top: 0.5rem;
+}
+
+/* Compact KPI Card variant */
+.kpi-card-compact {
+    padding: 1rem;
+}
+
+.kpi-card-compact .kpi-value {
+    font-size: 1.75rem;
+    margin: 0.3rem 0;
+}
+
+.kpi-card-compact .kpi-label {
+    font-size: 0.75rem;
+}
+
+.kpi-card-compact .kpi-sublabel {
+    font-size: 0.75rem;
+    margin-top: 0.3rem;
 }
 
 /* ==================== STATUS INDICATORS ==================== */
