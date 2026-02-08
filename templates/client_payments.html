@@ -4,12 +4,23 @@
 
 {% block content %}
 <div class="container fade-in">
-    <div class="flex justify-between align-center mb-3">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
         <div>
             <h1>💵 Client Payments</h1>
             <p class="text-secondary">Track incoming payments from clients</p>
         </div>
-        <button class="btn btn-primary" onclick="openModal('add-client-payment-modal')">+ Add Client Payment</button>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <div style="min-width: 250px;">
+                <label for="project-filter"
+                    style="font-size: 0.9rem; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;">Filter
+                    by Project</label>
+                <select id="project-filter" class="form-control" onchange="filterByProject()">
+                    <option value="">All Projects</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" onclick="openModal('add-client-payment-modal')"
+                style="margin-top: 1.5rem;">+ Add Client Payment</button>
+        </div>
     </div>
 
     <div class="card">
@@ -101,6 +112,7 @@
 
 <script>
     let clientPayments = [];
+    let allClientPayments = []; // Store all client payments for filtering
     let projects = [];
 
     async function loadData() {
@@ -111,16 +123,33 @@
             ]);
 
             clientPayments = await paymentsRes.json();
+            allClientPayments = [...clientPayments]; // Store all client payments
             projects = await projectsRes.json();
 
             // Populate project dropdown
             document.getElementById('client-payment-project').innerHTML = '<option value="">-- Select Project --</option>' +
                 projects.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
 
+            // Populate project filter
+            document.getElementById('project-filter').innerHTML = '<option value="">All Projects</option>' +
+                projects.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
+
             renderClientPayments();
         } catch (error) {
             console.error('Error loading data:', error);
         }
+    }
+
+    function filterByProject() {
+        const projectId = document.getElementById('project-filter').value;
+
+        if (projectId === '') {
+            clientPayments = [...allClientPayments];
+        } else {
+            clientPayments = allClientPayments.filter(cp => cp.project_id === parseInt(projectId));
+        }
+
+        renderClientPayments();
     }
 
     function renderClientPayments() {

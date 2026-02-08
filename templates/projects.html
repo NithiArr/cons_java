@@ -108,37 +108,44 @@
 
 <!-- Project Details Modal -->
 <div id="project-modal" class="modal">
-    <div class="modal-content" style="max-width: 1200px;">
+    <div class="modal-content" style="max-width: 1400px;">
         <div class="modal-header">
             <h3 id="project-modal-title">Project Details</h3>
             <button class="modal-close" onclick="closeProjectModal()">&times;</button>
         </div>
         <div class="modal-body">
             <!-- Financial Summary -->
-            <div class="grid grid-4 mb-3" id="financial-summary">
-                <div class="card">
-                    <div class="card-body">
-                        <p class="text-secondary mb-1">Total Budget</p>
-                        <h3 id="summary-budget">₹0.00</h3>
+            <div class="grid grid-5 mb-3" id="financial-summary" style="gap: 0.75rem;">
+                <div class="card" style="padding: 0.75rem;">
+                    <div class="card-body" style="padding: 0;">
+                        <p class="text-secondary mb-1" style="font-size: 0.75rem;">Total Budget</p>
+                        <h3 id="summary-budget" style="font-size: 1.5rem; margin: 0;">₹0.00</h3>
                     </div>
                 </div>
-                <div class="card">
-                    <div class="card-body">
-                        <p class="text-secondary mb-1">Total Spent</p>
-                        <h3 id="summary-spent">₹0.00</h3>
+                <div class="card" style="padding: 0.75rem;">
+                    <div class="card-body" style="padding: 0;">
+                        <p class="text-secondary mb-1" style="font-size: 0.75rem;">Total Spent</p>
+                        <h3 id="summary-spent" style="font-size: 1.5rem; margin: 0;">₹0.00</h3>
                     </div>
                 </div>
-                <div class="card">
-                    <div class="card-body">
-                        <p class="text-secondary mb-1">Total Received</p>
-                        <h3 id="summary-received">₹0.00</h3>
+                <div class="card" style="padding: 0.75rem;">
+                    <div class="card-body" style="padding: 0;">
+                        <p class="text-secondary mb-1" style="font-size: 0.75rem;">Balance</p>
+                        <h3 id="summary-balance" style="color: var(--success); font-size: 1.5rem; margin: 0;">₹0.00</h3>
+                        <small style="font-size: 0.65rem; color: var(--text-secondary);">Budget - Spent</small>
                     </div>
                 </div>
-                <div class="card">
-                    <div class="card-body">
-                        <p class="text-secondary mb-1">Vendor Outstanding</p>
-                        <h3 id="summary-outstanding">₹0.00</h3>
-                        <small style="font-size: 0.7rem; color: var(--text-secondary);">What we owe vendors</small>
+                <div class="card" style="padding: 0.75rem;">
+                    <div class="card-body" style="padding: 0;">
+                        <p class="text-secondary mb-1" style="font-size: 0.75rem;">Total Received</p>
+                        <h3 id="summary-received" style="font-size: 1.5rem; margin: 0;">₹0.00</h3>
+                    </div>
+                </div>
+                <div class="card" style="padding: 0.75rem;">
+                    <div class="card-body" style="padding: 0;">
+                        <p class="text-secondary mb-1" style="font-size: 0.75rem;">Vendor Outstanding</p>
+                        <h3 id="summary-outstanding" style="font-size: 1.5rem; margin: 0;">₹0.00</h3>
+                        <small style="font-size: 0.65rem; color: var(--text-secondary);">What we owe vendors</small>
                     </div>
                 </div>
             </div>
@@ -613,6 +620,21 @@
                 document.getElementById('summary-budget').textContent = formatCurrency(project.budget);
             }
             document.getElementById('summary-spent').textContent = formatCurrency(data.financial_summary.total_spent);
+
+            // Calculate and display balance (Budget - Spent)
+            const balance = project.budget - data.financial_summary.total_spent;
+            const balanceEl = document.getElementById('summary-balance');
+            balanceEl.textContent = formatCurrency(balance);
+
+            // Color code the balance
+            if (balance < 0) {
+                balanceEl.style.color = 'var(--danger)';
+            } else if (balance < project.budget * 0.2) {
+                balanceEl.style.color = 'var(--warning)';
+            } else {
+                balanceEl.style.color = 'var(--success)';
+            }
+
             document.getElementById('summary-received').textContent = formatCurrency(data.financial_summary.total_received);
             document.getElementById('summary-outstanding').textContent = formatCurrency(data.financial_summary.vendor_outstanding);
 

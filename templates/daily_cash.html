@@ -87,7 +87,17 @@
         <!-- Transaction Breakdown -->
         <div class="card">
             <div class="card-header">
-                <h3 class="card-title">📋 Transaction Breakdown</h3>
+                <div class="flex" style="justify-content: space-between; align-items: center;">
+                    <h3 class="card-title">📋 Transaction Breakdown</h3>
+                    <div class="flex gap-2">
+                        <button class="btn btn-sm btn-primary" onclick="filterTransactions('all')"
+                            id="btn-all">All</button>
+                        <button class="btn btn-sm btn-secondary" onclick="filterTransactions('cash')" id="btn-cash">💵
+                            Cash</button>
+                        <button class="btn btn-sm btn-secondary" onclick="filterTransactions('bank')" id="btn-bank">🏦
+                            Bank/UPI</button>
+                    </div>
+                </div>
             </div>
             <div class="card-body">
                 <div class="table-container">
@@ -96,12 +106,14 @@
                             <tr>
                                 <th>Type</th>
                                 <th>Amount</th>
+                                <th>Payment Mode</th>
                                 <th>Details</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="transactions-tbody">
                             <tr>
-                                <td colspan="3" class="text-center">No transactions</td>
+                                <td colspan="5" class="text-center">No transactions</td>
                             </tr>
                         </tbody>
                     </table>
@@ -110,6 +122,28 @@
         </div>
     </div>
 </div>
+
+<!-- Transaction Detail Modal -->
+<div id="transaction-modal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000; overflow-y: auto;">
+    <div
+        style="max-width: 600px; margin: 50px auto; background: var(--bg-secondary); border-radius: 12px; padding: 2rem; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+        <div class="flex" style="justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h3 style="margin: 0;">Transaction Details</h3>
+            <button class="btn btn-sm btn-secondary" onclick="closeTransactionModal()"
+                style="padding: 0.25rem 0.75rem;">✕</button>
+        </div>
+
+        <div id="modal-content">
+            <!-- Content will be dynamically populated -->
+        </div>
+
+        <div class="flex gap-2" style="margin-top: 1.5rem; justify-content: flex-end;">
+            <button class="btn btn-secondary" onclick="closeTransactionModal()">Close</button>
+        </div>
+    </div>
+</div>
+
 
 <script>
     // Load projects
@@ -168,6 +202,10 @@
         document.getElementById('to-date').value = formatDateLocal(toDate);
     }
 
+    // Store all transactions globally for filtering
+    let allTransactions = [];
+    let currentFilter = 'all';
+
     // Load cash balance for date range
     async function loadDailyCash() {
         const projectId = document.getElementById('project-select').value;
@@ -196,35 +234,12 @@
             document.getElementById('expenses-paid').textContent = formatCurrency(data.expenses_paid || 0);
             document.getElementById('closing-balance').textContent = formatCurrency(data.closing_balance);
 
-            // Update transactions
-            const tbody = document.getElementById('transactions-tbody');
-            if (data.transactions.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" class="text-center">No transactions in this period</td></tr>';
-            } else {
-                tbody.innerHTML = data.transactions.map(t => {
-                    let type = '';
-                    let details = '';
+            // Store transactions for filtering
+            allTransactions = data.transactions;
+            currentFilter = 'all';
 
-                    if (t.type === 'client_payment') {
-                        type = '💵 Client Payment';
-                        details = `${t.date} - ${t.payment_mode} - ${t.reference || 'N/A'}`;
-                    } else if (t.type === 'expense') {
-                        type = '💳 Expense';
-                        details = `${t.date} - ${t.category} - ${t.payment_mode}`;
-                    } else if (t.type === 'vendor_payment') {
-                        type = '💸 Vendor Payment';
-                        details = `${t.date} - ${t.vendor_name} - ${t.payment_mode}`;
-                    }
-
-                    return `
-                    <tr>
-                        <td><strong>${type}</strong></td>
-                        <td><strong>${formatCurrency(t.amount)}</strong></td>
-                        <td>${details}</td>
-                    </tr>
-                `;
-                }).join('');
-            }
+            // Display all transactions initially
+            displayTransactions(allTransactions);
 
             document.getElementById('balance-display').style.display = 'block';
         } catch (error) {
@@ -232,6 +247,186 @@
             alert('Error loading data');
         }
     }
+
+    // Display transactions in table
+    function displayTransactions(transactions) {
+        const tbody = document.getElementById('transactions-tbody');
+
+        if (transactions.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center">No transactions in this period</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = transactions.map((t, index) => {
+            let type = '';
+            let typeIcon = '';
+            let details = '';
+
+            if (t.type === 'client_payment') {
+                typeIcon = '💵';
+                type = 'Client Payment';
+                details = `${t.date}`;
+            } else if (t.type === 'expense') {
+                typeIcon = '💳';
+                type = 'Expense';
+                details = `${t.date} - ${t.category || 'N/A'}`;
+            } else if (t.type === 'vendor_payment') {
+                typeIcon = '💸';
+                type = 'Vendor Payment';
+                details = `${t.date} - ${t.vendor_name || 'N/A'}`;
+            }
+
+            // Get payment mode badge style
+            let paymentModeBadge = '';
+            if (t.payment_mode === 'CASH') {
+                paymentModeBadge = '<span style="background: #10b981; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">💵 CASH</span>';
+            } else if (t.payment_mode === 'BANK') {
+                paymentModeBadge = '<span style="background: #3b82f6; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">🏦 BANK</span>';
+            } else if (t.payment_mode === 'UPI') {
+                paymentModeBadge = '<span style="background: #8b5cf6; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">📱 UPI</span>';
+            } else {
+                paymentModeBadge = `<span style="background: #6b7280; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">${t.payment_mode || 'N/A'}</span>`;
+            }
+
+            return `
+                <tr>
+                    <td><strong>${typeIcon} ${type}</strong></td>
+                    <td><strong>${formatCurrency(t.amount)}</strong></td>
+                    <td>${paymentModeBadge}</td>
+                    <td>${details}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="viewTransactionDetails(${index})" style="padding: 0.25rem 0.75rem;">
+                            👁️ View
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    // Filter transactions by type
+    function filterTransactions(filterType) {
+        currentFilter = filterType;
+
+        // Update button styles
+        document.getElementById('btn-all').className = filterType === 'all' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
+        document.getElementById('btn-cash').className = filterType === 'cash' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
+        document.getElementById('btn-bank').className = filterType === 'bank' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
+
+        let filteredTransactions = allTransactions;
+
+        if (filterType === 'cash') {
+            filteredTransactions = allTransactions.filter(t => t.payment_mode === 'CASH');
+        } else if (filterType === 'bank') {
+            filteredTransactions = allTransactions.filter(t => t.payment_mode === 'BANK' || t.payment_mode === 'UPI');
+        }
+
+        displayTransactions(filteredTransactions);
+    }
+
+    // View transaction details in modal
+    function viewTransactionDetails(index) {
+        const transaction = allTransactions[index];
+
+        let modalContent = '';
+
+        if (transaction.type === 'client_payment') {
+            modalContent = `
+                <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <h4 style="margin: 0 0 0.5rem 0; color: var(--success);">💵 Client Payment</h4>
+                    <p style="margin: 0; font-size: 1.25rem; font-weight: bold;">${formatCurrency(transaction.amount)}</p>
+                </div>
+                
+                <div style="display: grid; gap: 0.75rem;">
+                    <div>
+                        <label style="font-weight: bold; color: var(--text-secondary); font-size: 0.875rem;">Date</label>
+                        <p style="margin: 0.25rem 0 0 0;">${transaction.date}</p>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; color: var(--text-secondary); font-size: 0.875rem;">Payment Mode</label>
+                        <p style="margin: 0.25rem 0 0 0;">${transaction.payment_mode || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; color: var(--text-secondary); font-size: 0.875rem;">Reference Number</label>
+                        <p style="margin: 0.25rem 0 0 0;">${transaction.reference || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; color: var(--text-secondary); font-size: 0.875rem;">Remarks</label>
+                        <p style="margin: 0.25rem 0 0 0;">${transaction.remarks || 'No remarks'}</p>
+                    </div>
+                </div>
+            `;
+        } else if (transaction.type === 'expense') {
+            modalContent = `
+                <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <h4 style="margin: 0 0 0.5rem 0; color: var(--warning);">💳 Expense</h4>
+                    <p style="margin: 0; font-size: 1.25rem; font-weight: bold;">${formatCurrency(transaction.amount)}</p>
+                </div>
+                
+                <div style="display: grid; gap: 0.75rem;">
+                    <div>
+                        <label style="font-weight: bold; color: var(--text-secondary); font-size: 0.875rem;">Date</label>
+                        <p style="margin: 0.25rem 0 0 0;">${transaction.date}</p>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; color: var(--text-secondary); font-size: 0.875rem;">Category</label>
+                        <p style="margin: 0.25rem 0 0 0;">${transaction.category || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; color: var(--text-secondary); font-size: 0.875rem;">Subcategory</label>
+                        <p style="margin: 0.25rem 0 0 0;">${transaction.subcategory || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; color: var(--text-secondary); font-size: 0.875rem;">Payment Mode</label>
+                        <p style="margin: 0.25rem 0 0 0;">${transaction.payment_mode || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; color: var(--text-secondary); font-size: 0.875rem;">Description</label>
+                        <p style="margin: 0.25rem 0 0 0;">${transaction.description || 'No description'}</p>
+                    </div>
+                </div>
+            `;
+        } else if (transaction.type === 'vendor_payment') {
+            modalContent = `
+                <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <h4 style="margin: 0 0 0.5rem 0; color: var(--danger);">💸 Vendor Payment</h4>
+                    <p style="margin: 0; font-size: 1.25rem; font-weight: bold;">${formatCurrency(transaction.amount)}</p>
+                </div>
+                
+                <div style="display: grid; gap: 0.75rem;">
+                    <div>
+                        <label style="font-weight: bold; color: var(--text-secondary); font-size: 0.875rem;">Date</label>
+                        <p style="margin: 0.25rem 0 0 0;">${transaction.date}</p>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; color: var(--text-secondary); font-size: 0.875rem;">Vendor Name</label>
+                        <p style="margin: 0.25rem 0 0 0;">${transaction.vendor_name || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; color: var(--text-secondary); font-size: 0.875rem;">Payment Mode</label>
+                        <p style="margin: 0.25rem 0 0 0;">${transaction.payment_mode || 'N/A'}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        document.getElementById('modal-content').innerHTML = modalContent;
+        document.getElementById('transaction-modal').style.display = 'block';
+    }
+
+    // Close transaction modal
+    function closeTransactionModal() {
+        document.getElementById('transaction-modal').style.display = 'none';
+    }
+
+    // Close modal when clicking outside
+    document.addEventListener('click', function (event) {
+        const modal = document.getElementById('transaction-modal');
+        if (event.target === modal) {
+            closeTransactionModal();
+        }
+    });
+
 
     // Export functions (placeholder - would need backend integration)
     function exportPDF() {

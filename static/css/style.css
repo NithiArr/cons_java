@@ -675,7 +675,7 @@ tr:hover {
 }
 
 .status-completed {
-    background: var(--text-muted);
+    background: var(--success);
     color: white;
 }
 

@@ -4,12 +4,23 @@
 
 {% block content %}
 <div class="container fade-in">
-    <div class="flex justify-between align-center mb-3">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
         <div>
             <h1>🛒 Purchases</h1>
             <p class="text-secondary">Record purchase orders</p>
         </div>
-        <button class="btn btn-primary" onclick="openModal('add-purchase-modal')">+ Add Purchase</button>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <div style="min-width: 250px;">
+                <label for="project-filter"
+                    style="font-size: 0.9rem; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;">Filter
+                    by Project</label>
+                <select id="project-filter" class="form-control" onchange="filterByProject()">
+                    <option value="">All Projects</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" onclick="openModal('add-purchase-modal')" style="margin-top: 1.5rem;">+ Add
+                Purchase</button>
+        </div>
     </div>
 
     <div class="card">
@@ -126,6 +137,7 @@
 
 <script>
     let purchases = [];
+    let allPurchases = []; // Store all purchases for filtering
     let projects = [];
     let vendors = [];
 
@@ -138,6 +150,7 @@
             ]);
 
             purchases = await purchasesRes.json();
+            allPurchases = [...purchases]; // Store all purchases
             projects = await projectsRes.json();
             vendors = await vendorsRes.json();
 
@@ -148,10 +161,26 @@
             document.getElementById('purchase-vendor').innerHTML = '<option value="">-- Select Vendor --</option>' +
                 vendors.map(v => `<option value="${v.vendor_id}">${v.name}</option>`).join('');
 
+            // Populate project filter
+            document.getElementById('project-filter').innerHTML = '<option value="">All Projects</option>' +
+                projects.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
+
             renderPurchases();
         } catch (error) {
             console.error('Error loading data:', error);
         }
+    }
+
+    function filterByProject() {
+        const projectId = document.getElementById('project-filter').value;
+
+        if (projectId === '') {
+            purchases = [...allPurchases];
+        } else {
+            purchases = allPurchases.filter(p => p.project_id === parseInt(projectId));
+        }
+
+        renderPurchases();
     }
 
     function renderPurchases() {
