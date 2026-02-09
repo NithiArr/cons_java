@@ -455,7 +455,7 @@ def get_project_payment_details(project_id):
 def get_daily_cash_balance():
     """Get cash balance for a project and date range"""
     
-    project_id = request.args.get('project_id', type=int)
+    project_id_param = request.args.get('project_id')
     from_date_str = request.args.get('from_date')
     to_date_str = request.args.get('to_date')
     
@@ -464,105 +464,140 @@ def get_daily_cash_balance():
         from_date_str = request.args.get('date')
         to_date_str = from_date_str
     
-    if not project_id or not from_date_str or not to_date_str:
+    if not project_id_param or not from_date_str or not to_date_str:
         return jsonify({'error': 'project_id, from_date and to_date required'}), 400
     
-    project = company_filter(Project.query).filter_by(project_id=project_id).first_or_404()
     from_date = datetime.fromisoformat(from_date_str).date()
     to_date = datetime.fromisoformat(to_date_str).date()
     
-    # Calculate opening balance (all transactions before from_date)
-    prev_client_payments = sum([
-        float(cp.amount) for cp in project.client_payments
-        if cp.payment_date < from_date
-    ])
+    # Check if viewing all projects or a specific project
+    if project_id_param == 'all':
+        # Get all projects for the user's company
+        projects = company_filter(Project.query).all()
+        project_name = 'All Projects'
+    else:
+        # Get specific project
+        project_id = int(project_id_param)
+        project = company_filter(Project.query).filter_by(project_id=project_id).first_or_404()
+        projects = [project]
+        project_name = project.name
     
-    prev_direct_expenses = sum([
-        float(e.amount) for e in project.expenses
-        if e.expense_date < from_date and e.payment_mode in ['CASH', 'BANK', 'UPI']
-    ])
+    # Initialize counters
+    opening_balance = 0
+    total_client_receipts = 0
+    total_expenses_outflow = 0
+    total_payments_outflow = 0
+    expenses_credit = 0
+    expenses_cash = 0
+    expenses_bank_upi = 0
+    all_transactions = []
     
-    prev_vendor_payments = sum([
-        float(p.amount) for p in project.payments
-        if p.payment_date < from_date
-    ])
-    
-    opening_balance = prev_client_payments - prev_direct_expenses - prev_vendor_payments
-    
-    # Period transactions (from_date to to_date inclusive)
-    period_client_payments = [
-        {
-            'type': 'client_payment',
-            'date': cp.payment_date.isoformat(),
-            'amount': float(cp.amount),
-            'payment_mode': cp.payment_mode,
-            'reference': cp.reference_number,
-            'remarks': cp.remarks
-        }
-        for cp in project.client_payments 
-        if from_date <= cp.payment_date <= to_date
-    ]
-    
-    # Period direct expenses (Cash/Bank/UPI)
-    period_expenses = [
-        {
-            'type': 'expense',
-            'date': e.expense_date.isoformat(),
-            'amount': float(e.amount),
-            'category': e.category,
-            'subcategory': e.subcategory,
-            'payment_mode': e.payment_mode,
-            'description': e.description
-        }
-        for e in project.expenses 
-        if from_date <= e.expense_date <= to_date and e.payment_mode in ['CASH', 'BANK', 'UPI']
-    ]
-    
-    # Period vendor payments
-    period_payments = [
-        {
-            'type': 'vendor_payment',
-            'date': p.payment_date.isoformat(),
-            'amount': float(p.amount),
-            'vendor_name': p.vendor.name,
-            'payment_mode': p.payment_mode
-        }
-        for p in project.payments 
-        if from_date <= p.payment_date <= to_date
-    ]
-    
-    # Totals for period
-    total_client_receipts = sum([t['amount'] for t in period_client_payments])
-    total_expenses_outflow = sum([t['amount'] for t in period_expenses])
-    total_payments_outflow = sum([t['amount'] for t in period_payments])
-    
-    # Split expenses by payment mode
-    expenses_credit = sum([
-        float(e.amount) for e in project.expenses
-        if from_date <= e.expense_date <= to_date and e.payment_mode == 'CREDIT'
-    ])
-    
-    expenses_paid = sum([
-        float(e.amount) for e in project.expenses
-        if from_date <= e.expense_date <= to_date and e.payment_mode in ['CASH', 'UPI', 'BANK']
-    ])
+    # Process each project
+    for project in projects:
+        # Calculate opening balance (all transactions before from_date)
+        prev_client_payments = sum([
+            float(cp.amount) for cp in project.client_payments
+            if cp.payment_date < from_date
+        ])
+        
+        prev_direct_expenses = sum([
+            float(e.amount) for e in project.expenses
+            if e.expense_date < from_date and e.payment_mode in ['CASH', 'BANK', 'UPI']
+        ])
+        
+        prev_vendor_payments = sum([
+            float(p.amount) for p in project.payments
+            if p.payment_date < from_date
+        ])
+        
+        opening_balance += prev_client_payments - prev_direct_expenses - prev_vendor_payments
+        
+        # Period transactions (from_date to to_date inclusive)
+        period_client_payments = [
+            {
+                'type': 'client_payment',
+                'date': cp.payment_date.isoformat(),
+                'amount': float(cp.amount),
+                'payment_mode': cp.payment_mode,
+                'reference': cp.reference_number,
+                'remarks': cp.remarks,
+                'project_name': project.name  # Add project name
+            }
+            for cp in project.client_payments 
+            if from_date <= cp.payment_date <= to_date
+        ]
+        
+        # Period direct expenses (Cash/Bank/UPI)
+        period_expenses = [
+            {
+                'type': 'expense',
+                'date': e.expense_date.isoformat(),
+                'amount': float(e.amount),
+                'category': e.category,
+                'subcategory': e.subcategory,
+                'payment_mode': e.payment_mode,
+                'description': e.description,
+                'project_name': project.name  # Add project name
+            }
+            for e in project.expenses 
+            if from_date <= e.expense_date <= to_date and e.payment_mode in ['CASH', 'BANK', 'UPI']
+        ]
+        
+        # Period vendor payments
+        period_payments = [
+            {
+                'type': 'vendor_payment',
+                'date': p.payment_date.isoformat(),
+                'amount': float(p.amount),
+                'vendor_name': p.vendor.name,
+                'payment_mode': p.payment_mode,
+                'project_name': project.name  # Add project name
+            }
+            for p in project.payments 
+            if from_date <= p.payment_date <= to_date
+        ]
+        
+        # Aggregate totals
+        total_client_receipts += sum([t['amount'] for t in period_client_payments])
+        total_expenses_outflow += sum([t['amount'] for t in period_expenses])
+        total_payments_outflow += sum([t['amount'] for t in period_payments])
+        
+        # Split expenses by payment mode
+        expenses_credit += sum([
+            float(e.amount) for e in project.expenses
+            if from_date <= e.expense_date <= to_date and e.payment_mode == 'CREDIT'
+        ])
+        
+        # Split paid expenses into CASH and BANK/UPI
+        expenses_cash += sum([
+            float(e.amount) for e in project.expenses
+            if from_date <= e.expense_date <= to_date and e.payment_mode == 'CASH'
+        ])
+        
+        expenses_bank_upi += sum([
+            float(e.amount) for e in project.expenses
+            if from_date <= e.expense_date <= to_date and e.payment_mode in ['UPI', 'BANK']
+        ])
+        
+        # Add to all transactions
+        all_transactions.extend(period_client_payments + period_expenses + period_payments)
     
     # Closing balance
     closing_balance = opening_balance + total_client_receipts - total_expenses_outflow - total_payments_outflow
     
-    # All transactions combined and sorted by date
-    all_transactions = period_client_payments + period_expenses + period_payments
+    # Sort all transactions by date
     all_transactions.sort(key=lambda x: x['date'])
     
     return jsonify({
-        'project_name': project.name,
+        'project_name': project_name,
         'from_date': from_date_str,
         'to_date': to_date_str,
         'opening_balance': opening_balance,
         'client_receipts': total_client_receipts,
         'expenses': total_expenses_outflow,
         'expenses_credit': expenses_credit,  # CREDIT expenses
-        'expenses_paid': expenses_paid,      # CASH/UPI/BANK expenses
+        'expenses_cash': expenses_cash,      # CASH expenses
+        'expenses_bank_upi': expenses_bank_upi,  # UPI/BANK expenses
         'vendor_payments': total_payments_outflow,
         'closing_balance': closing_balance,
         'transactions': all_transactions

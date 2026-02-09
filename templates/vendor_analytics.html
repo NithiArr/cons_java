@@ -53,6 +53,22 @@
                     </select>
                 </div>
 
+                <!-- Project-wise Balance Sheet -->
+                <h4 class="mb-2">Project-wise Balance Sheet</h4>
+                <div class="table-container mb-3">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Project</th>
+                                <th>Total Purchase</th>
+                                <th>Paid</th>
+                                <th>Outstanding</th>
+                            </tr>
+                        </thead>
+                        <tbody id="project-balance-tbody"></tbody>
+                    </table>
+                </div>
+
                 <!-- Purchase History -->
                 <h4 class="mb-2">Purchase History</h4>
                 <div class="table-container mb-3">
@@ -63,8 +79,7 @@
                                 <th>Invoice No.</th>
                                 <th>Date</th>
                                 <th>Amount</th>
-                                <th>Paid</th>
-                                <th>Outstanding</th>
+                                <th>Payment Mode</th>
                             </tr>
                         </thead>
                         <tbody id="purchase-history-tbody"></tbody>
@@ -149,6 +164,9 @@
             projectFilter.innerHTML = '<option value="">All Projects</option>' +
                 projects.map(proj => `<option value="${proj}">${proj}</option>`).join('');
 
+            // Calculate and render project-wise balance
+            renderProjectBalance(allPurchases);
+
             renderPurchaseHistory(allPurchases);
         } catch (error) {
             console.error('Error loading purchase history:', error);
@@ -164,6 +182,55 @@
         }
     }
 
+    // Render project-wise balance sheet
+    function renderProjectBalance(purchases) {
+        // Group purchases by project
+        const projectMap = {};
+
+        purchases.forEach(p => {
+            if (!projectMap[p.project_name]) {
+                projectMap[p.project_name] = {
+                    totalPurchase: 0,
+                    totalPaid: 0,
+                    outstanding: 0
+                };
+            }
+            projectMap[p.project_name].totalPurchase += parseFloat(p.amount);
+            projectMap[p.project_name].totalPaid += parseFloat(p.paid);
+            projectMap[p.project_name].outstanding += parseFloat(p.balance);
+        });
+
+        // Render to table
+        const tbody = document.getElementById('project-balance-tbody');
+        tbody.innerHTML = Object.keys(projectMap).sort().map(projectName => {
+            const data = projectMap[projectName];
+            return `
+                <tr>
+                    <td><strong>${projectName}</strong></td>
+                    <td>${formatCurrency(data.totalPurchase)}</td>
+                    <td>${formatCurrency(data.totalPaid)}</td>
+                    <td><strong>${formatCurrency(data.outstanding)}</strong></td>
+                </tr>
+            `;
+        }).join('');
+
+        // Add total row
+        const totals = Object.values(projectMap).reduce((acc, curr) => ({
+            totalPurchase: acc.totalPurchase + curr.totalPurchase,
+            totalPaid: acc.totalPaid + curr.totalPaid,
+            outstanding: acc.outstanding + curr.outstanding
+        }), { totalPurchase: 0, totalPaid: 0, outstanding: 0 });
+
+        tbody.innerHTML += `
+            <tr style="background: var(--bg-tertiary); font-weight: bold;">
+                <td>TOTAL</td>
+                <td>${formatCurrency(totals.totalPurchase)}</td>
+                <td>${formatCurrency(totals.totalPaid)}</td>
+                <td>${formatCurrency(totals.outstanding)}</td>
+            </tr>
+        `;
+    }
+
     // Render purchase history table
     function renderPurchaseHistory(purchases) {
         const tbody = document.getElementById('purchase-history-tbody');
@@ -173,8 +240,7 @@
                 <td>${p.invoice_number || '-'}</td>
                 <td>${p.invoice_date}</td>
                 <td>${formatCurrency(p.amount)}</td>
-                <td>${formatCurrency(p.paid)}</td>
-                <td><strong>${formatCurrency(p.balance)}</strong></td>
+                <td><span class="badge badge-${p.payment_mode === 'CASH' ? 'success' : p.payment_mode === 'CREDIT' ? 'warning' : 'info'}">${p.payment_mode}</span></td>
             </tr>
         `).join('');
     }
@@ -199,6 +265,11 @@
         const filteredPurchases = selectedProject
             ? allPurchases.filter(p => p.project_name === selectedProject)
             : allPurchases;
+
+        // Update project balance
+        renderProjectBalance(filteredPurchases);
+
+        // Update purchase history
         renderPurchaseHistory(filteredPurchases);
 
         // Re-fetch material summary with project filter
