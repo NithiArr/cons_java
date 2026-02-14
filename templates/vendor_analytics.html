@@ -11,15 +11,19 @@
     <div class="card mb-3">
         <div class="card-header flex-between">
             <h3 class="card-title">Vendor Summary</h3>
-            <input type="text" id="search-vendors" class="form-control" placeholder="Search vendors..."
-                style="max-width: 300px;">
         </div>
         <div class="card-body">
             <div class="table-container">
                 <table>
                     <thead>
                         <tr>
-                            <th>Vendor</th>
+                            <th>
+                                Vendor
+                                <select id="header-filter-vendor" class="form-control form-control-sm mt-1"
+                                    onchange="filterVendors()" style="width: 100%; min-width: 100px;">
+                                    <option value="">All Vendors</option>
+                                </select>
+                            </th>
                             <th>Total Purchases</th>
                             <th>Total Paid</th>
                             <th>Outstanding</th>
@@ -77,6 +81,7 @@
                             <tr>
                                 <th>Project</th>
                                 <th>Invoice No.</th>
+                                <th>Category</th>
                                 <th>Date</th>
                                 <th>Amount</th>
                                 <th>Payment Mode</th>
@@ -113,6 +118,7 @@
         try {
             const response = await fetch('/dashboard/api/vendor-summary');
             vendorsData = await response.json();
+            populateVendorFilter();
             renderVendorTable(vendorsData);
         } catch (error) {
             console.error('Error loading vendors:', error);
@@ -238,6 +244,7 @@
             <tr>
                 <td>${p.project_name}</td>
                 <td>${p.invoice_number || '-'}</td>
+                <td><span class="badge">${p.category || 'N/A'}</span></td>
                 <td>${p.invoice_date}</td>
                 <td>${formatCurrency(p.amount)}</td>
                 <td><span class="badge badge-${p.payment_mode === 'CASH' ? 'success' : p.payment_mode === 'CREDIT' ? 'warning' : 'info'}">${p.payment_mode}</span></td>
@@ -290,14 +297,25 @@
         document.getElementById('vendor-modal').classList.remove('active');
     }
 
-    // Search vendors
-    document.getElementById('search-vendors').addEventListener('input', (e) => {
-        const search = e.target.value.toLowerCase();
-        const filtered = vendorsData.filter(vendor =>
-            vendor.vendor_name.toLowerCase().includes(search)
-        );
+    // Populate vendor filter
+    function populateVendorFilter() {
+        const select = document.getElementById('header-filter-vendor');
+        // Sort vendors by name
+        const sortedVendors = [...vendorsData].sort((a, b) => a.vendor_name.localeCompare(b.vendor_name));
+
+        select.innerHTML = '<option value="">All Vendors</option>' +
+            sortedVendors.map(v => `<option value="${v.vendor_name}">${v.vendor_name}</option>`).join('');
+    }
+
+    // Filter vendors
+    function filterVendors() {
+        const selectedVendor = document.getElementById('header-filter-vendor').value;
+        const filtered = selectedVendor
+            ? vendorsData.filter(v => v.vendor_name === selectedVendor)
+            : vendorsData;
+
         renderVendorTable(filtered);
-    });
+    }
 
     // Format currency
     function formatCurrency(amount) {

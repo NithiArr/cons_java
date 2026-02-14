@@ -104,18 +104,23 @@
         try {
             const statusFilter = document.getElementById('status-filter').value;
 
-            // Fetch all data including vendor payments
-            const [projectsRes, expensesRes, clientPaymentsRes, vendorPaymentsRes] = await Promise.all([
+            // Fetch all data including vendor payments and purchases
+            const [projectsRes, expensesRes, purchasesRes, clientPaymentsRes, vendorPaymentsRes] = await Promise.all([
                 fetch('/api/projects'),
                 fetch('/api/expenses'),
+                fetch('/api/purchases'),
                 fetch('/api/client-payments'),
                 fetch('/api/payments')  // Vendor payments
             ]);
 
             let projects = await projectsRes.json();
             const expenses = await expensesRes.json();
+            const purchases = await purchasesRes.json();
             const clientPayments = await clientPaymentsRes.json();
             const vendorPayments = await vendorPaymentsRes.json();
+
+            // Combine expenses and purchases
+            const allExpenses = [...expenses, ...purchases];
 
             // Apply status filter
             if (statusFilter !== 'ALL') {
@@ -125,8 +130,8 @@
             // Get project IDs for filtering
             const projectIds = new Set(projects.map(p => p.project_id));
 
-            // Filter expenses, client payments, and vendor payments by project
-            const filteredExpenses = expenses.filter(e => projectIds.has(e.project_id));
+            // Filter expenses (now including purchases), client payments, and vendor payments by project
+            const filteredExpenses = allExpenses.filter(e => projectIds.has(e.project_id));
             const filteredClientPayments = clientPayments.filter(cp => projectIds.has(cp.project_id));
             const filteredVendorPayments = vendorPayments.filter(vp => projectIds.has(vp.project_id));
 
@@ -137,14 +142,15 @@
             const totalReceived = filteredClientPayments.reduce((sum, cp) => sum + parseFloat(cp.amount), 0);
 
             // Expenses (Paid) - Only CASH, BANK, UPI payment modes
+            // Note: For purchases, amount is total_amount
             const expensesPaid = filteredExpenses
-                .filter(e => ['CASH', 'BANK', 'UPI'].includes(e.payment_mode))
-                .reduce((sum, e) => sum + parseFloat(e.amount), 0);
+                .filter(e => ['CASH', 'BANK', 'UPI'].includes(e.payment_mode || e.payment_type))
+                .reduce((sum, e) => sum + parseFloat(e.amount || e.total_amount), 0);
 
             // Total Credit Expenses (material purchases on credit)
             const totalCreditExpenses = filteredExpenses
-                .filter(e => e.payment_mode === 'CREDIT')
-                .reduce((sum, e) => sum + parseFloat(e.amount), 0);
+                .filter(e => (e.payment_mode || e.payment_type) === 'CREDIT')
+                .reduce((sum, e) => sum + parseFloat(e.amount || e.total_amount), 0);
 
             // Total Vendor Payments Made
             const totalVendorPayments = filteredVendorPayments
@@ -195,7 +201,7 @@
                     // Calculate project-specific metrics
                     const projectExpenses = filteredExpenses
                         .filter(e => e.project_id === p.project_id)
-                        .reduce((sum, e) => sum + parseFloat(e.amount), 0);
+                        .reduce((sum, e) => sum + parseFloat(e.amount || e.total_amount), 0);
 
                     const projectReceived = filteredClientPayments
                         .filter(cp => cp.project_id === p.project_id)

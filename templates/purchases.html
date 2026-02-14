@@ -10,16 +10,7 @@
             <p class="text-secondary">Record purchase orders</p>
         </div>
         <div style="display: flex; gap: 1rem; align-items: center;">
-            <div style="min-width: 250px;">
-                <label for="project-filter"
-                    style="font-size: 0.9rem; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;">Filter
-                    by Project</label>
-                <select id="project-filter" class="form-control" onchange="filterByProject()">
-                    <option value="">All Projects</option>
-                </select>
-            </div>
-            <button class="btn btn-primary" onclick="prepareAddPurchase()" style="margin-top: 1.5rem;">+ Add
-                Purchase</button>
+            <button class="btn btn-primary" onclick="prepareAddPurchase()">+ Add Purchase</button>
         </div>
     </div>
 
@@ -30,9 +21,27 @@
                     <thead>
                         <tr>
                             <th>Invoice #</th>
-                            <th>Project</th>
-                            <th>Vendor</th>
-                            <th>Material Category</th>
+                            <th>
+                                Project
+                                <select id="header-filter-project" class="form-control form-control-sm mt-1"
+                                    onchange="filterPurchases()" style="width: 100%; min-width: 150px;">
+                                    <option value="">All Projects</option>
+                                </select>
+                            </th>
+                            <th>
+                                Vendor
+                                <select id="header-filter-vendor" class="form-control form-control-sm mt-1"
+                                    onchange="filterPurchases()" style="width: 100%; min-width: 150px;">
+                                    <option value="">All Vendors</option>
+                                </select>
+                            </th>
+                            <th>
+                                Material Category
+                                <select id="header-filter-category" class="form-control form-control-sm mt-1"
+                                    onchange="filterPurchases()" style="width: 100%; min-width: 120px;">
+                                    <option value="">All Categories</option>
+                                </select>
+                            </th>
                             <th>Total Amount</th>
                             <th>Type</th>
                             <th>Date</th>
@@ -78,8 +87,9 @@
 
                 <div class="form-group">
                     <label class="form-label">Material Category *</label>
-                    <input type="text" id="purchase-subcategory" class="form-control"
-                        placeholder="e.g., Steel, Cement, Electrical, Bricks" required>
+                    <select id="purchase-category" class="form-control" onchange="updateItemDropdown()" required>
+                        <option value="">-- Select Category --</option>
+                    </select>
                     <small class="text-secondary">Specify the type of material being purchased</small>
                 </div>
 
@@ -103,14 +113,20 @@
                     </select>
                 </div>
 
+                <!-- Shared datalist for all item inputs -->
+                <datalist id="item-suggestions"></datalist>
+
                 <hr>
                 <h4>Items</h4>
                 <div id="items-container">
                     <div class="purchase-item mb-2"
-                        style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 0.5rem; align-items: center;">
-                        <input type="text" class="form-control item-name" placeholder="Item Name" required>
+                        style="display: grid; grid-template-columns: 1.5fr 0.8fr 0.8fr 1fr 1fr auto; gap: 0.5rem; align-items: center;">
+                        <input list="item-suggestions" class="form-control item-name" placeholder="Item Name"
+                            onchange="autoFillUnit(this)" required>
+                        <!-- datalist removed from here -->
                         <input type="number" class="form-control item-quantity" placeholder="Qty" required min="0"
                             step="0.01">
+                        <input type="text" class="form-control item-unit" placeholder="Unit">
                         <input type="number" class="form-control item-price" placeholder="Unit Price" required min="0"
                             step="0.01">
                         <input type="text" class="form-control item-total" placeholder="Total" readonly>
@@ -140,19 +156,47 @@
     let allPurchases = []; // Store all purchases for filtering
     let projects = [];
     let vendors = [];
+    let masterCategories = [];
 
     async function loadData() {
         try {
-            const [purchasesRes, projectsRes, vendorsRes] = await Promise.all([
+
+
+            const [purchasesRes, projectsRes, vendorsRes, categoriesRes] = await Promise.all([
                 fetch('/api/purchases'),
                 fetch('/api/projects'),
-                fetch('/api/vendors')
+                fetch('/api/vendors'),
+                fetch('/api/master/categories?type=MATERIAL')
             ]);
 
-            purchases = await purchasesRes.json();
-            allPurchases = [...purchases]; // Store all purchases
-            projects = await projectsRes.json();
-            vendors = await vendorsRes.json();
+            // Check for auth redirects (HTML response)
+            if (purchasesRes.redirected || categoriesRes.redirected) {
+                window.location.reload(); // Reload to force login
+                return;
+            }
+
+            // Helper to safely parse JSON
+            const safeJson = async (res) => {
+                const text = await res.text();
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error('Failed to parse JSON:', text.substring(0, 100));
+                    throw new Error('Invalid server response');
+                }
+            };
+
+            purchases = await safeJson(purchasesRes);
+            allPurchases = [...purchases];
+            projects = await safeJson(projectsRes);
+            vendors = await safeJson(vendorsRes);
+            masterCategories = await safeJson(categoriesRes);
+
+            console.log('Loaded Categories:', masterCategories); // JSON Debug
+            if (masterCategories.length === 0) {
+                console.warn('No Master Categories found!');
+                showNotification('Warning: No material categories found. Please contact admin.', 'error');
+            }
 
             // Populate dropdowns
             document.getElementById('purchase-project').innerHTML = '<option value="">-- Select Project --</option>' +
@@ -161,24 +205,41 @@
             document.getElementById('purchase-vendor').innerHTML = '<option value="">-- Select Vendor --</option>' +
                 vendors.map(v => `<option value="${v.vendor_id}">${v.name}</option>`).join('');
 
-            // Populate project filter
-            document.getElementById('project-filter').innerHTML = '<option value="">All Projects</option>' +
+            // Populate filters
+            document.getElementById('header-filter-project').innerHTML = '<option value="">All Projects</option>' +
                 projects.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
+
+            document.getElementById('header-filter-vendor').innerHTML = '<option value="">All Vendors</option>' +
+                vendors.map(v => `<option value="${v.vendor_id}">${v.name}</option>`).join('');
+
+            // Populate form category dropdown
+            const categorySelect = document.getElementById('purchase-category');
+            categorySelect.innerHTML = '<option value="">-- Select Category --</option>' +
+                masterCategories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+
+            // Populate category filter (keep existing logic or use master categories? adhering to existing logic helps filter by what's used)
+            const uniqueCategories = [...new Set(allPurchases.map(p => p.category).filter(c => c))].sort();
+            document.getElementById('header-filter-category').innerHTML = '<option value="">All Categories</option>' +
+                uniqueCategories.map(c => `<option value="${c}">${c}</option>`).join('');
 
             renderPurchases();
         } catch (error) {
             console.error('Error loading data:', error);
+            showNotification('Error loading data. Please refresh.', 'error');
         }
     }
 
-    function filterByProject() {
-        const projectId = document.getElementById('project-filter').value;
+    function filterPurchases() {
+        const projectId = document.getElementById('header-filter-project').value;
+        const vendorId = document.getElementById('header-filter-vendor').value;
+        const category = document.getElementById('header-filter-category').value;
 
-        if (projectId === '') {
-            purchases = [...allPurchases];
-        } else {
-            purchases = allPurchases.filter(p => p.project_id === projectId);
-        }
+        purchases = allPurchases.filter(p => {
+            const matchProject = !projectId || p.project_id === projectId;
+            const matchVendor = !vendorId || p.vendor_id === vendorId;
+            const matchCategory = !category || p.category === category;
+            return matchProject && matchVendor && matchCategory;
+        });
 
         renderPurchases();
     }
@@ -199,7 +260,7 @@
                 <td><strong>${p.invoice_number}</strong></td>
                 <td>${project ? project.name : 'Unknown'}</td>
                 <td>${vendor ? vendor.name : 'Unknown'}</td>
-                <td><span class="badge">${p.subcategory || 'N/A'}</span></td>
+                <td><span class="badge">${p.category || 'N/A'}</span></td>
                 <td><strong>${formatCurrency(p.total_amount)}</strong></td>
                 <td><span class="badge">${p.payment_type}</span></td>
                 <td>${formatDate(p.invoice_date)}</td>
@@ -215,9 +276,10 @@
     function addItem() {
         const container = document.getElementById('items-container');
         const itemHtml = `
-        <div class="purchase-item mb-2" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 0.5rem; align-items: center;">
-            <input type="text" class="form-control item-name" placeholder="Item Name" required>
+        <div class="purchase-item mb-2" style="display: grid; grid-template-columns: 1.5fr 0.8fr 0.8fr 1fr 1fr auto; gap: 0.5rem; align-items: center;">
+            <input list="item-suggestions" class="form-control item-name" placeholder="Item Name" onchange="autoFillUnit(this)" required>
             <input type="number" class="form-control item-quantity" placeholder="Qty" required min="0" step="0.01">
+            <input type="text" class="form-control item-unit" placeholder="Unit">
             <input type="number" class="form-control item-price" placeholder="Unit Price" required min="0" step="0.01">
             <input type="text" class="form-control item-total" placeholder="Total" readonly>
             <button type="button" class="btn btn-sm btn-danger" onclick="removeItem(this)" style="padding: 0.5rem; min-width: 40px;">−</button>
@@ -225,6 +287,36 @@
     `;
         container.insertAdjacentHTML('beforeend', itemHtml);
         attachItemCalculators();
+    }
+
+    function updateItemDropdown() {
+        const categoryName = document.getElementById('purchase-category').value;
+        const selectedCategory = masterCategories.find(c => c.name === categoryName);
+        const datalist = document.getElementById('item-suggestions');
+
+        datalist.innerHTML = '';
+        if (selectedCategory && selectedCategory.subcategories) {
+            selectedCategory.subcategories.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.name;
+                option.dataset.unit = item.default_unit || '';
+                datalist.appendChild(option);
+            });
+        }
+    }
+
+    function autoFillUnit(inputElement) {
+        const itemName = inputElement.value;
+        const datalist = document.getElementById('item-suggestions');
+        const option = Array.from(datalist.options).find(o => o.value === itemName);
+
+        if (option && option.dataset.unit) {
+            const row = inputElement.closest('.purchase-item');
+            const unitInput = row.querySelector('.item-unit');
+            if (unitInput && !unitInput.value) { // Only fill if empty
+                unitInput.value = option.dataset.unit;
+            }
+        }
     }
 
     function removeItem(button) {
@@ -274,12 +366,14 @@
         document.querySelectorAll('.purchase-item').forEach(item => {
             const name = item.querySelector('.item-name').value;
             const quantity = parseFloat(item.querySelector('.item-quantity').value);
+            const unit = item.querySelector('.item-unit').value || 'Unit';
             const price = parseFloat(item.querySelector('.item-price').value);
 
             if (name && quantity && price) {
                 items.push({
                     item_name: name,
                     quantity: quantity,
+                    measuring_unit: unit,
                     unit_price: price,
                     total_price: quantity * price
                 });
@@ -299,7 +393,7 @@
         const data = {
             project_id: document.getElementById('purchase-project').value,
             vendor_id: document.getElementById('purchase-vendor').value,
-            subcategory: document.getElementById('purchase-subcategory').value,
+            category: document.getElementById('purchase-category').value,
             invoice_number: document.getElementById('purchase-invoice').value,
             invoice_date: document.getElementById('purchase-date').value,
             total_amount: totalAmount,
@@ -350,45 +444,53 @@
             // Pre-fill the form
             document.getElementById('purchase-project').value = expense.project_id;
             document.getElementById('purchase-vendor').value = expense.vendor_id;
-            document.getElementById('purchase-subcategory').value = expense.subcategory || '';
+            document.getElementById('purchase-category').value = expense.category || '';
+
+            // Trigger update for item dropdown
+            updateItemDropdown();
+
             document.getElementById('purchase-invoice').value = expense.invoice_number || '';
             document.getElementById('purchase-date').value = expense.expense_date;
             document.getElementById('purchase-type').value = expense.payment_mode;
 
+            // Clear and populate items
             // Clear and populate items
             const container = document.getElementById('items-container');
             container.innerHTML = '';
 
             // Check if items exist and is an array
             if (expense.items && Array.isArray(expense.items) && expense.items.length > 0) {
-                // First, create all item rows
-                expense.items.forEach(() => {
-                    addItem(); // Add a row for each item
-                });
-
-                // Then populate the values
-                const itemElements = container.querySelectorAll('.purchase-item');
-                expense.items.forEach((item, index) => {
-                    if (itemElements[index]) {
-                        itemElements[index].querySelector('.item-name').value = item.item_name || '';
-                        itemElements[index].querySelector('.item-quantity').value = item.quantity || 0;
-                        itemElements[index].querySelector('.item-price').value = item.unit_price || 0;
-                        itemElements[index].querySelector('.item-total').value = item.total_price || 0;
-                    }
+                // We need to add items one by one and populate them
+                expense.items.forEach(item => {
+                    const itemHtml = `
+                    <div class="purchase-item mb-2" style="display: grid; grid-template-columns: 1.5fr 0.8fr 0.8fr 1fr 1fr auto; gap: 0.5rem; align-items: center;">
+                        <input list="item-suggestions" class="form-control item-name" placeholder="Item Name" onchange="autoFillUnit(this)" required value="${item.item_name || ''}">
+                        <input type="number" class="form-control item-quantity" placeholder="Qty" required min="0" step="0.01" value="${item.quantity || ''}">
+                        <input type="text" class="form-control item-unit" placeholder="Unit" value="${item.measuring_unit || ''}">
+                        <input type="number" class="form-control item-price" placeholder="Unit Price" required min="0" step="0.01" value="${item.unit_price || ''}">
+                        <input type="text" class="form-control item-total" placeholder="Total" readonly value="${item.total_price || ''}">
+                        <button type="button" class="btn btn-sm btn-danger" onclick="removeItem(this)" style="padding: 0.5rem; min-width: 40px;">−</button>
+                    </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', itemHtml);
                 });
             } else {
                 // Add default empty item if no items
                 addItem();
             }
 
+            // Important: Update datalists for all new items
+            updateItemDropdown();
+
             attachItemCalculators();
             calculateGrandTotal();
 
             // Open modal
             openModal('add-purchase-modal');
+
         } catch (error) {
             console.error('Error loading purchase:', error);
-            showNotification('Error loading purchase data', 'error');
+            showNotification(`Error loading purchase data: ${error.message}`, 'error');
         }
     }
 
@@ -413,15 +515,16 @@
     function prepareAddPurchase() {
         resetForm('purchase-form');
         document.getElementById('purchase-id').value = '';
-        document.getElementById('purchase-modal-title').textContent = 'Add Purchase Order';
-
-        // Reset items
-        const container = document.getElementById('items-container');
-        container.innerHTML = '';
+        document.getElementById('purchase-modal-title').textContent = 'Add Purchase';
+        document.getElementById('purchase-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('items-container').innerHTML = ''; // Clear items
         addItem(); // Add one empty item
 
-        // Set default date
-        document.getElementById('purchase-date').value = new Date().toISOString().split('T')[0];
+        // Reset category dropdown
+        document.getElementById('purchase-category').value = "";
+
+        // This will clear the datalists because category is empty
+        updateItemDropdown();
 
         openModal('add-purchase-modal');
     }

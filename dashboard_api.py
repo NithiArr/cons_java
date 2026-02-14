@@ -46,7 +46,7 @@ def get_project_financials(project):
     # CREDIT Material Purchases
     credit_purchases = sum(
         e.amount for e in expenses 
-        if e.category == 'Material Purchase' and e.payment_mode == 'CREDIT'
+        if e.expense_type == 'Material Purchase' and e.payment_mode == 'CREDIT'
     )
     
     # Vendor payments made
@@ -240,7 +240,7 @@ def get_project_payment_details(project_id):
     total_expenses_amount = 0
     
     for expense in expenses:
-        if expense.category == 'Material Purchase':
+        if expense.expense_type == 'Material Purchase':
             # Calculate payments for this expense - tricky in Mongo without direct link in Payment model (unless added)
             # In new Payment model, we have `expense` ReferenceField!
             expense_payments = Payment.objects(expense=expense)
@@ -258,7 +258,7 @@ def get_project_payment_details(project_id):
                 'vendor_name': expense.vendor.name if expense.vendor else 'Unknown',
                 'invoice_number': expense.invoice_number or '-',
                 'invoice_date': expense.expense_date.isoformat(),
-                'subcategory': expense.subcategory,
+                'category': expense.category, # Material Category
                 'amount': expense.amount,
                 'payment_mode': expense.payment_mode,
                 'paid': displayed_paid,
@@ -269,8 +269,7 @@ def get_project_payment_details(project_id):
             regular_expenses.append({
                 'expense_id': str(expense.id),
                 'expense_date': expense.expense_date.isoformat(),
-                'category': expense.category,
-                'subcategory': expense.subcategory,
+                'category': expense.category, # e.g. Travel
                 'amount': expense.amount,
                 'payment_mode': expense.payment_mode,
                 'description': expense.description
@@ -305,7 +304,7 @@ def get_project_payment_details(project_id):
     total_vendor_payments = sum(p.amount for p in payments)
     
     # Credit purchases
-    credit_purchases = sum(e.amount for e in expenses if e.category == 'Material Purchase' and e.payment_mode == 'CREDIT')
+    credit_purchases = sum(e.amount for e in expenses if e.expense_type == 'Material Purchase' and e.payment_mode == 'CREDIT')
     
     vendor_outstanding = credit_purchases - total_vendor_payments
     if vendor_outstanding < 0: vendor_outstanding = 0
@@ -400,7 +399,6 @@ def get_daily_cash_balance():
                         'date': e.expense_date.isoformat(),
                         'amount': e.amount,
                         'category': e.category,
-                        'subcategory': e.subcategory,
                         'payment_mode': e.payment_mode,
                         'description': e.description,
                         'project_name': p.name
@@ -434,3 +432,44 @@ def get_daily_cash_balance():
         'closing_balance': closing_balance,
         'transactions': transactions
     })
+
+@dashboard_bp.route('/api/vendor-material-summary/<vendor_id>', methods=['GET'])
+@login_required
+def get_vendor_material_summary(vendor_id):
+    """Get material-wise summary for a vendor"""
+    vendor = Vendor.objects(id=vendor_id, company=current_user.company).first()
+    if not vendor:
+        return jsonify({'error': 'Vendor not found'}), 404
+
+    project_filter = request.args.get('project')
+    
+    expenses = Expense.objects(vendor=vendor, expense_type='Material Purchase')
+    
+    if project_filter:
+        project = Project.objects(name=project_filter, company=current_user.company).first()
+        if project:
+            expenses = expenses.filter(project=project)
+            
+    material_map = {}
+    
+    for expense in expenses:
+        # Group by Category (Material Category)
+        mat = expense.category or 'Uncategorized'
+        if mat not in material_map:
+            material_map[mat] = {'quantity': 0, 'amount': 0}
+        
+        material_map[mat]['amount'] += expense.amount
+        
+        # Sum quantities from items
+        for item in expense.items:
+            material_map[mat]['quantity'] += item.quantity
+            
+    result = []
+    for mat, data in material_map.items():
+        result.append({
+            'material': mat,
+            'total_quantity': data['quantity'],
+            'total_amount': data['amount']
+        })
+        
+    return jsonify(result)

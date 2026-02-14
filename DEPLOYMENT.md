@@ -1,11 +1,36 @@
-# Deployment Guide to Google Cloud Platform (GCP)
+# Deployment Guide (Local App + Cloud Database)
 
-This guide walks you through deploying your Construction Management App to a Google Compute Engine (VM) instance.
+Since we are skipping the full GCP deployment for now, here is how to run your app locally with the **MongoDB Atlas** cloud database.
 
-## Prerequisites
-1.  A Google Cloud Platform (GCP) Account.
-2.  A project created in GCP.
-3.  `docker-compose.prod.yml` and `deploy.sh` (provided).
+## 1. Prerequisites
+- **Python 3.11+** installed.
+- **Git** installed.
+- **MongoDB Atlas Connection String** (already in your `.env`).
+
+## 2. Run the Application
+Simply run the following command in your terminal:
+
+```bash
+python app.py
+```
+
+Your app will start at `http://localhost:5000`.
+
+## 3. Data Persistence
+All your data is now saved in the **cloud** (MongoDB Atlas).
+- You can close the app and restart it; your data will still be there.
+## 4. (Optional) Migrate Local Data
+If you have data in your local Docker container that you want to move to the cloud:
+
+1.  Make sure your local MongoDB is running:
+    ```bash
+    docker-compose up -d mongodb
+    ```
+2.  Run the migration script:
+    ```bash
+    python migrate_mongo_local_to_cloud.py
+    ```
+3.  This will copy all users, projects, and expenses to MongoDB Atlas.
 
 ---
 

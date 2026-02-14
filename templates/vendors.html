@@ -16,8 +16,6 @@
         <div class="card-header">
             <div class="flex justify-between align-center">
                 <h3 class="card-title">All Vendors</h3>
-                <input type="text" id="search-vendors" placeholder="Search vendors..." class="form-control"
-                    style="max-width: 300px;" oninput="filterVendors()">
             </div>
         </div>
         <div class="card-body">
@@ -25,7 +23,13 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Vendor Name</th>
+                            <th>
+                                Vendor Name
+                                <select id="header-filter-name" class="form-control form-control-sm mt-1"
+                                    onchange="filterVendors()" style="width: 100%; min-width: 150px;">
+                                    <option value="">All Vendors</option>
+                                </select>
+                            </th>
                             <th>Phone</th>
                             <th>Email</th>
                             <th>GST Number</th>
@@ -93,10 +97,18 @@
         try {
             const response = await fetch('/api/vendors');
             vendors = await response.json();
+            populateVendorFilter();
             renderVendors(vendors);
         } catch (error) {
             console.error('Error loading vendors:', error);
         }
+    }
+
+    function populateVendorFilter() {
+        const select = document.getElementById('header-filter-name');
+        const sortedVendors = [...vendors].sort((a, b) => a.name.localeCompare(b.name));
+        select.innerHTML = '<option value="">All Vendors</option>' +
+            sortedVendors.map(v => `<option value="${v.name}">${v.name}</option>`).join('');
     }
 
     function renderVendors(data) {
@@ -122,12 +134,10 @@
     }
 
     function filterVendors() {
-        const search = document.getElementById('search-vendors').value.toLowerCase();
-        const filtered = vendors.filter(v =>
-            v.name.toLowerCase().includes(search) ||
-            (v.email && v.email.toLowerCase().includes(search)) ||
-            (v.gst_number && v.gst_number.toLowerCase().includes(search))
-        );
+        const nameFilter = document.getElementById('header-filter-name').value;
+        const filtered = nameFilter
+            ? vendors.filter(v => v.name === nameFilter)
+            : vendors;
         renderVendors(filtered);
     }
 

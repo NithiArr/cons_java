@@ -10,16 +10,7 @@
             <p class="text-secondary">Track project expenses</p>
         </div>
         <div style="display: flex; gap: 1rem; align-items: center;">
-            <div style="min-width: 250px;">
-                <label for="project-filter"
-                    style="font-size: 0.9rem; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;">Filter
-                    by Project</label>
-                <select id="project-filter" class="form-control" onchange="filterByProject()">
-                    <option value="">All Projects</option>
-                </select>
-            </div>
-            <button class="btn btn-primary" onclick="prepareAddExpense()" style="margin-top: 1.5rem;">+ Add
-                Expense</button>
+            <button class="btn btn-primary" onclick="prepareAddExpense()">+ Add Expense</button>
         </div>
     </div>
 
@@ -29,8 +20,20 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Project</th>
-                            <th>Category / Subcategory</th>
+                            <th>
+                                Project
+                                <select id="header-filter-project" class="form-control form-control-sm mt-1"
+                                    onchange="filterExpenses()" style="width: 100%; min-width: 150px;">
+                                    <option value="">All Projects</option>
+                                </select>
+                            </th>
+                            <th>
+                                Category
+                                <select id="header-filter-category" class="form-control form-control-sm mt-1"
+                                    onchange="filterExpenses()" style="width: 100%; min-width: 120px;">
+                                    <option value="">All Categories</option>
+                                </select>
+                            </th>
                             <th>Amount</th>
                             <th>Payment Mode</th>
                             <th>Date</th>
@@ -69,14 +72,10 @@
                 <div class="grid grid-2">
                     <div class="form-group">
                         <label class="form-label">Category *</label>
-                        <input type="text" id="expense-category" class="form-control" required
-                            placeholder="e.g., Labor, Materials">
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Subcategory</label>
-                        <input type="text" id="expense-subcategory" class="form-control"
-                            placeholder="e.g., Skilled, Unskilled (optional)">
+                        <select id="expense-category" class="form-control" onchange="updateDescriptionSuggestions()"
+                            required>
+                            <option value="">-- Select Category --</option>
+                        </select>
                     </div>
                 </div>
 
@@ -103,7 +102,10 @@
 
                 <div class="form-group">
                     <label class="form-label">Description</label>
-                    <textarea id="expense-description" class="form-control" rows="3"></textarea>
+                    <label class="form-label">Description</label>
+                    <input list="description-suggestions" id="expense-description" class="form-control"
+                        placeholder="e.g., Mason, Painter">
+                    <datalist id="description-suggestions"></datalist>
                 </div>
 
                 <div class="flex gap-2">
@@ -120,17 +122,25 @@
     let expenses = [];
     let allExpenses = []; // Store all expenses for filtering
     let projects = [];
+    let masterCategories = [];
 
     async function loadData() {
         try {
-            const [expensesRes, projectsRes] = await Promise.all([
+            const [expensesRes, projectsRes, categoriesRes] = await Promise.all([
                 fetch('/api/expenses'),
-                fetch('/api/projects')
+                fetch('/api/projects'),
+                fetch('/api/master/categories?type=EXPENSE')
             ]);
 
             expenses = await expensesRes.json();
             allExpenses = [...expenses]; // Store all expenses
             projects = await projectsRes.json();
+            masterCategories = await categoriesRes.json();
+
+            // Populate category dropdown
+            const categorySelect = document.getElementById('expense-category');
+            categorySelect.innerHTML = '<option value="">-- Select Category --</option>' +
+                masterCategories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
 
             // Populate project dropdown
             const select = document.getElementById('expense-project');
@@ -138,24 +148,35 @@
                 projects.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
 
             // Populate project filter
-            document.getElementById('project-filter').innerHTML = '<option value="">All Projects</option>' +
+            document.getElementById('header-filter-project').innerHTML = '<option value="">All Projects</option>' +
                 projects.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
 
+            populateExpenseFilters();
             renderExpenses();
         } catch (error) {
             console.error('Error loading data:', error);
         }
     }
 
-    function filterByProject() {
-        const projectId = document.getElementById('project-filter').value;
+    function populateExpenseFilters() {
+        const categorySelect = document.getElementById('header-filter-category');
+        // Use unique categories from actual data + master categories? sticking to actual data for filter
+        const uniqueCategories = [...new Set(expenses.map(e => e.category))].sort();
+        categorySelect.innerHTML = '<option value="">All Categories</option>' +
+            uniqueCategories.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
 
-        if (projectId === '') {
-            expenses = [...allExpenses];
-        } else {
-            expenses = allExpenses.filter(e => e.project_id === projectId);
-        }
+    function filterExpenses() {
+        const projectId = document.getElementById('header-filter-project').value;
+        const category = document.getElementById('header-filter-category').value;
 
+        const filteredExpenses = allExpenses.filter(e => {
+            const matchProject = !projectId || e.project_id === projectId;
+            const matchCategory = !category || e.category === category;
+            return matchProject && matchCategory;
+        });
+
+        expenses = filteredExpenses;
         renderExpenses();
     }
 
@@ -169,11 +190,10 @@
 
         tbody.innerHTML = expenses.map(e => {
             const project = projects.find(p => p.project_id === e.project_id);
-            const categoryDisplay = e.subcategory ? `${e.category} / ${e.subcategory}` : e.category;
             return `
             <tr>
                 <td>${project ? project.name : 'Unknown'}</td>
-                <td>${categoryDisplay}</td>
+                <td>${e.category}</td>
                 <td><strong>${formatCurrency(e.amount)}</strong></td>
                 <td><span class="badge">${e.payment_mode}</span></td>
                 <td>${formatDate(e.expense_date)}</td>
@@ -183,7 +203,7 @@
                     <button class="btn btn-sm btn-danger" onclick="deleteExpense('${e.expense_id}')">Delete</button>
                 </td>
             </tr>
-        `;
+            `;
         }).join('');
     }
 
@@ -196,7 +216,6 @@
         const data = {
             project_id: document.getElementById('expense-project').value,
             category: document.getElementById('expense-category').value,
-            subcategory: document.getElementById('expense-subcategory').value || null,
             amount: parseFloat(document.getElementById('expense-amount').value),
             payment_mode: document.getElementById('expense-mode').value,
             expense_date: document.getElementById('expense-date').value,
@@ -246,7 +265,7 @@
             // Pre-fill the form
             document.getElementById('expense-project').value = expense.project_id;
             document.getElementById('expense-category').value = expense.category;
-            document.getElementById('expense-subcategory').value = expense.subcategory || '';
+            updateDescriptionSuggestions(); // Populate datalist
             document.getElementById('expense-amount').value = expense.amount;
             document.getElementById('expense-mode').value = expense.payment_mode;
             document.getElementById('expense-date').value = expense.expense_date;
@@ -278,11 +297,30 @@
         }
     }
 
+    function updateDescriptionSuggestions() {
+        const categoryName = document.getElementById('expense-category').value;
+        const selectedCategory = masterCategories.find(c => c.name === categoryName);
+        const datalist = document.getElementById('description-suggestions');
+
+        datalist.innerHTML = '';
+        if (selectedCategory && selectedCategory.subcategories) {
+            selectedCategory.subcategories.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.name;
+                datalist.appendChild(option);
+            });
+        }
+    }
+
     function prepareAddExpense() {
         resetForm('expense-form');
         document.getElementById('expense-id').value = '';
         document.getElementById('expense-modal-title').textContent = 'Add Expense';
         document.getElementById('expense-date').value = new Date().toISOString().split('T')[0];
+
+        document.getElementById('expense-category').value = "";
+        document.getElementById('description-suggestions').innerHTML = "";
+
         openModal('add-expense-modal');
     }
 

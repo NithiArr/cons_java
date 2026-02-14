@@ -4,8 +4,21 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from mongoengine import (
     Document, EmbeddedDocument, 
     StringField, IntField, FloatField, DateTimeField, DateField,
-    ReferenceField, EmbeddedDocumentListField, ListField, CASCADE
+    ReferenceField, EmbeddedDocumentListField, ListField, CASCADE, BooleanField
 )
+
+class SubCategoryItem(EmbeddedDocument):
+    name = StringField(required=True)
+    default_unit = StringField(max_length=20) # e.g. "kg", "bag", "nos"
+
+class MasterCategory(Document):
+    name = StringField(required=True, unique=True)
+    type = StringField(required=True, choices=['MATERIAL', 'EXPENSE']) # 'MATERIAL' or 'EXPENSE'
+    subcategories = EmbeddedDocumentListField(SubCategoryItem)
+    is_active = BooleanField(default=True)
+
+    def __repr__(self):
+        return f'<MasterCategory {self.name} ({self.type})>'
 
 class Company(Document):
     """Company model for multi-tenant isolation"""
@@ -95,6 +108,7 @@ class ExpenseItem(EmbeddedDocument):
     """Embedded expense item for line items"""
     item_name = StringField(required=True, max_length=200)
     quantity = FloatField(required=True)
+    measuring_unit = StringField(default='Unit', max_length=50)
     unit_price = FloatField(required=True)
     total_price = FloatField(required=True)
     
@@ -110,8 +124,8 @@ class Expense(Document):
     project = ReferenceField(Project, required=True, reverse_delete_rule=CASCADE)
     vendor = ReferenceField(Vendor, reverse_delete_rule=CASCADE)  # Nullable for regular expenses
     
-    category = StringField(required=True, max_length=100)  # 'Regular Expense' or 'Material Purchase'
-    subcategory = StringField(max_length=100)  # Detailed type or Material name
+    expense_type = StringField(required=True, max_length=100)  # 'Regular Expense' or 'Material Purchase'
+    category = StringField(max_length=100)  # Main category (e.g. Cement, Travel)
     
     amount = FloatField(required=True)
     payment_mode = StringField(required=True, max_length=20, choices=['CASH', 'BANK', 'UPI', 'CREDIT'])
@@ -126,7 +140,7 @@ class Expense(Document):
     created_at = DateTimeField(default=datetime.utcnow)
     
     def __repr__(self):
-        return f'<Expense {self.category} - {self.amount}>'
+        return f'<Expense {self.expense_type} - {self.amount}>'
 
 
 class Payment(Document):

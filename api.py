@@ -1,8 +1,11 @@
 from flask import Blueprint, request, jsonify, abort
 from flask_login import login_required, current_user
-from models_mongo import Project, Vendor, Expense, ExpenseItem, Payment, ClientPayment
+from models_mongo import Company, Project, Vendor, Expense, ExpenseItem, Payment, ClientPayment, MasterCategory
 from functools import wraps
 from datetime import datetime
+from mongoengine.queryset.visitor import Q
+from bson import ObjectId
+
 
 api_bp = Blueprint('api', __name__)
 
@@ -166,8 +169,8 @@ def delete_vendor(vendor_id):
 @api_bp.route('/purchases', methods=['GET'])
 @login_required
 def get_purchases():
-    """Get all purchases (Expenses with category 'Material Purchase')"""
-    purchases = Expense.objects(company=current_user.company, category='Material Purchase')
+    """Get all purchases (Expenses with expense_type 'Material Purchase')"""
+    purchases = Expense.objects(company=current_user.company, expense_type='Material Purchase')
     return jsonify([{
         'purchase_id': str(p.id),
         'expense_id': str(p.id),
@@ -179,10 +182,11 @@ def get_purchases():
         'invoice_date': p.expense_date.isoformat(),
         'total_amount': float(p.amount),
         'payment_type': p.payment_mode,
-        'subcategory': p.subcategory,
+        'category': p.category, # This is the Material Category (e.g. Cement)
         'items': [{
             'item_name': item.item_name,
             'quantity': float(item.quantity),
+            'measuring_unit': item.measuring_unit,
             'unit_price': float(item.unit_price),
             'total_price': float(item.total_price)
         } for item in p.items]
@@ -195,9 +199,7 @@ def create_purchase():
     """Create new purchase (Expense + Items)"""
     data = request.get_json()
     
-    subcategory = data.get('subcategory')
-    if not subcategory and data.get('items'):
-        subcategory = data['items'][0]['item_name']
+
     
     # Get project and vendor references
     project = get_or_404(Project, id=data['project_id'])
@@ -208,18 +210,25 @@ def create_purchase():
         ExpenseItem(
             item_name=item_data['item_name'],
             quantity=item_data['quantity'],
+            measuring_unit=item_data.get('measuring_unit', 'Unit'),
             unit_price=item_data['unit_price'],
             total_price=item_data['total_price']
         )
         for item_data in data.get('items', [])
     ]
     
+    # Determine subcategory (Item Name) from first item if not provided
+    # But usually for purchase, subcategory is the specific item
+    # subcategory = data.get('subcategory') # Specific item name
+    # if not subcategory and items:
+    #     subcategory = items[0].item_name
+
     purchase = Expense(
         company=current_user.company,
         project=project,
         vendor=vendor,
-        category='Material Purchase',
-        subcategory=subcategory,
+        expense_type='Material Purchase',
+        category=data.get('category'), # Material Category (e.g. Cement)
         invoice_number=data.get('invoice_number'),
         expense_date=datetime.fromisoformat(data['invoice_date']),
         amount=data['total_amount'],
@@ -236,7 +245,7 @@ def create_purchase():
 @role_required('OWNER', 'ADMIN')
 def delete_purchase(purchase_id):
     """Delete purchase (Expense)"""
-    purchase = get_or_404(Expense, id=purchase_id, company=current_user.company, category='Material Purchase')
+    purchase = get_or_404(Expense, id=purchase_id, company=current_user.company, expense_type='Material Purchase')
     purchase.delete()
     return jsonify({'message': 'Purchase deleted'})
 
@@ -245,13 +254,12 @@ def delete_purchase(purchase_id):
 @login_required
 def get_expenses():
     """Get all regular expenses"""
-    expenses = Expense.objects(company=current_user.company, category='Regular Expense')
+    expenses = Expense.objects(company=current_user.company, expense_type='Regular Expense')
     return jsonify([{
         'expense_id': str(e.id),
         'project_id': str(e.project.id),
         'project_name': e.project.name,
-        'category': e.category,
-        'subcategory': e.subcategory,
+        'category': e.category, # e.g. Travel
         'amount': float(e.amount),
         'payment_mode': e.payment_mode,
         'expense_date': e.expense_date.isoformat(),
@@ -271,8 +279,8 @@ def create_expense():
     expense = Expense(
         company=current_user.company,
         project=project,
-        category='Regular Expense',
-        subcategory=data.get('subcategory'),
+        expense_type='Regular Expense',
+        category=data.get('category'), # e.g. Travel
         amount=data['amount'],
         payment_mode=data['payment_mode'],
         expense_date=datetime.fromisoformat(data['expense_date']),
@@ -293,8 +301,8 @@ def get_expense(expense_id):
         'expense_id': str(expense.id),
         'project_id': str(expense.project.id),
         'vendor_id': str(expense.vendor.id) if expense.vendor else None,
+        'expense_type': expense.expense_type,
         'category': expense.category,
-        'subcategory': expense.subcategory,
         'amount': float(expense.amount),
         'payment_mode': expense.payment_mode,
         'expense_date': expense.expense_date.isoformat(),
@@ -303,10 +311,11 @@ def get_expense(expense_id):
         'bill_url': expense.bill_url
     }
     
-    if expense.category == 'Material Purchase':
+    if expense.expense_type == 'Material Purchase':
         result['items'] = [{
             'item_name': item.item_name,
             'quantity': float(item.quantity),
+            'measuring_unit': item.measuring_unit,
             'unit_price': float(item.unit_price),
             'total_price': float(item.total_price)
         } for item in expense.items]
@@ -326,7 +335,8 @@ def update_expense(expense_id):
     if data.get('vendor_id'):
         expense.vendor = get_or_404(Vendor, id=data['vendor_id'])
     
-    expense.subcategory = data.get('subcategory', expense.subcategory)
+    
+    expense.category = data.get('category', expense.category)
     expense.amount = data.get('total_amount', data.get('amount', expense.amount))
     expense.payment_mode = data.get('payment_type', data.get('payment_mode', expense.payment_mode))
     
@@ -338,11 +348,12 @@ def update_expense(expense_id):
     expense.description = data.get('description', expense.description)
     
     # Update items if provided (for purchases)
-    if 'items' in data and expense.category == 'Material Purchase':
+    if 'items' in data and expense.expense_type == 'Material Purchase':
         expense.items = [
             ExpenseItem(
                 item_name=item_data['item_name'],
                 quantity=item_data['quantity'],
+                measuring_unit=item_data.get('measuring_unit', 'Unit'),
                 unit_price=item_data['unit_price'],
                 total_price=item_data['total_price']
             )
@@ -412,6 +423,47 @@ def delete_payment(payment_id):
     payment = get_or_404(Payment, id=payment_id, company=current_user.company)
     payment.delete()
     return jsonify({'message': 'Payment deleted'})
+
+@api_bp.route('/projects/<project_id>/payments', methods=['GET'])
+@login_required
+def get_project_payments(project_id):
+    """Get payments for a specific project"""
+    project = Project.objects(id=project_id, company=current_user.company).first()
+    if not project:
+        return jsonify({'error': 'Project not found'}), 404
+        
+    payments = Payment.objects(project=project).order_by('-payment_date')
+    
+    return jsonify([{
+        'payment_id': str(p.id),
+        'vendor_name': p.vendor.name if p.vendor else 'Unknown',
+        'amount': float(p.amount),
+        'payment_date': p.payment_date.isoformat(),
+        'payment_mode': p.payment_mode,
+        'reference': p.reference_number
+    } for p in payments])
+
+@api_bp.route('/master/categories', methods=['GET'])
+@login_required
+def get_master_categories():
+    """Get all master categories"""
+    type_filter = request.args.get('type')
+    
+    query = MasterCategory.objects(is_active=True)
+    if type_filter:
+        query = query.filter(type=type_filter)
+        
+    categories = query.order_by('name')
+    
+    return jsonify([{
+        'id': str(c.id),
+        'name': c.name,
+        'type': c.type,
+        'subcategories': [{
+            'name': s.name,
+            'default_unit': s.default_unit
+        } for s in c.subcategories]
+    } for c in categories])
 
 # ==================== CLIENT PAYMENTS API ====================
 @api_bp.route('/client-payments', methods=['GET'])
