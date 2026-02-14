@@ -78,8 +78,16 @@ def create_app():
                 return redirect(url_for('dashboard.main_dashboard'))
         return redirect(url_for('auth.login'))
     
-    # Create upload directory if it doesn't exist
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    # Create upload directory
+    # On Vercel, the file system is read-only except for /tmp
+    # We check if we are on Vercel or if the default location is not writable
+    try:
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    except OSError:
+        # Fallback to /tmp if default location is read-only (common in serverless)
+        app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        print(f"Read-only file system detected. Switched upload folder to: {app.config['UPLOAD_FOLDER']}")
     
     return app
 
