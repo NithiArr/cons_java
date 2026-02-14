@@ -19,7 +19,12 @@ def create_app():
     
     # MongoDB Connection
     mongodb_host = os.environ.get('MONGODB_HOST', 'mongodb://localhost:27017/construction_db')
-    connect(host=mongodb_host)
+    try:
+        connect(host=mongodb_host)
+        print(f"MongoDB connected successfully to: {mongodb_host.split('@')[-1] if '@' in mongodb_host else 'localhost'}")
+    except Exception as e:
+        print(f"Error connecting to MongoDB: {e}")
+
     
     # Setup Flask-Login
     login_manager = LoginManager()
