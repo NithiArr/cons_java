@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+
+{% block title %}Master Categories{% endblock %}
+
+{% block content %}
+<div class="container fade-in">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <div>
+            <h1>⚙️ Master Categories</h1>
+            <p class="text-secondary">Manage categories, items, and default units</p>
+        </div>
+        <button class="btn btn-primary" onclick="prepareAddCategory()">+ Add Category</button>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-3">
+        <div class="card-body" style="padding: 1rem;">
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <strong>Filter:</strong>
+                <button class="btn btn-sm btn-outline-primary active" onclick="filterType('ALL', this)">All</button>
+                <button class="btn btn-sm btn-outline-primary" onclick="filterType('MATERIAL', this)">Material</button>
+                <button class="btn btn-sm btn-outline-primary" onclick="filterType('EXPENSE', this)">Expense</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="categories-container" class="grid grid-3">
+        <!-- Categories will be loaded here -->
+        <div class="text-center" style="grid-column: 1/-1; padding: 2rem;">Loading...</div>
+    </div>
+</div>
+
+<!-- Add/Edit Category Modal -->
+<div id="category-modal" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3 id="modal-title">Add Category</h3>
+            <span class="close" onclick="closeModal('category-modal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="category-form">
+                <input type="hidden" id="category-id">
+
+                <div class="form-group">
+                    <label class="form-label">Category Name *</label>
+                    <input type="text" id="cat-name" class="form-control" required placeholder="e.g. Steel, Labour">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Type *</label>
+                    <select id="cat-type" class="form-control" required>
+                        <option value="MATERIAL">Material (Purchases)</option>
+                        <option value="EXPENSE">Expense (Regular)</option>
+                    </select>
+                </div>
+
+                <hr>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <label class="form-label" style="margin-bottom: 0;">Subcategories / Items</label>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="addSubItem()">+ Add Item</button>
+                </div>
+
+                <div id="subitems-container" style="max-height: 300px; overflow-y: auto; padding-right: 5px;">
+                    <!-- Subitems rows -->
+                </div>
+
+                <div class="flex gap-2 mt-3">
+                    <button type="submit" class="btn btn-primary">Save Category</button>
+                    <button type="button" class="btn btn-secondary"
+                        onclick="closeModal('category-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    let allCategories = [];
+    let currentFilter = 'ALL';
+
+    async function loadCategories() {
+        try {
+            const response = await fetch('/api/master/categories');
+            if (response.redirected) {
+                window.location.reload();
+                return;
+            }
+            allCategories = await response.json();
+            renderCategories();
+        } catch (error) {
+            console.error('Error loading categories:', error);
+            showNotification('Error loading categories', 'error');
+        }
+    }
+
+    function filterType(type, btn) {
+        currentFilter = type;
+
+        // Update active button
+        document.querySelectorAll('.btn-outline-primary').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+
+        renderCategories();
+    }
+
+    function renderCategories() {
+        const container = document.getElementById('categories-container');
+        const filtered = currentFilter === 'ALL'
+            ? allCategories
+            : allCategories.filter(c => c.type === currentFilter);
+
+        if (filtered.length === 0) {
+            container.innerHTML = `<div class="text-center text-secondary" style="grid-column: 1/-1; padding: 2rem;">No categories found</div>`;
+            return;
+        }
+
+        container.innerHTML = filtered.map(cat => `
+            <div class="card">
+                <div class="card-body">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            <h3 style="margin: 0;">${cat.name}</h3>
+                            <span class="badge ${cat.type === 'MATERIAL' ? 'badge-primary' : 'badge-warning'}" 
+                                  style="font-size: 0.7rem; margin-top: 5px;">
+                                ${cat.type}
+                            </span>
+                        </div>
+                        <div class="flex gap-1">
+                            <button class="btn btn-sm btn-outline-primary" onclick="editCategory('${cat.id}')">✏️</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteCategory('${cat.id}')">🗑️</button>
+                        </div>
+                    </div>
+                    
+                    <hr style="margin: 0.8rem 0;">
+                    
+                    <small class="text-secondary">Items (${cat.subcategories.length}):</small>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem;">
+                        ${cat.subcategories.slice(0, 10).map(s => `
+                            <span style="background: var(--bg-secondary); padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;">
+                                ${s.name} ${s.default_unit ? `<span class="text-secondary">(${s.default_unit})</span>` : ''}
+                            </span>
+                        `).join('')}
+                        ${cat.subcategories.length > 10 ? `<span style="font-size: 0.8rem; color: var(--text-secondary);">+${cat.subcategories.length - 10} more</span>` : ''}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function prepareAddCategory() {
+        document.getElementById('category-id').value = '';
+        document.getElementById('modal-title').textContent = 'Add Category';
+        document.getElementById('cat-name').value = '';
+        document.getElementById('cat-type').value = 'MATERIAL';
+        document.getElementById('subitems-container').innerHTML = '';
+        addSubItem(); // Add one empty row
+        openModal('category-modal');
+    }
+
+    function editCategory(id) {
+        const cat = allCategories.find(c => c.id === id);
+        if (!cat) return;
+
+        document.getElementById('category-id').value = cat.id;
+        document.getElementById('modal-title').textContent = 'Edit Category';
+        document.getElementById('cat-name').value = cat.name;
+        document.getElementById('cat-type').value = cat.type;
+
+        const container = document.getElementById('subitems-container');
+        container.innerHTML = '';
+
+        if (cat.subcategories && cat.subcategories.length > 0) {
+            cat.subcategories.forEach(s => addSubItem(s.name, s.default_unit));
+        } else {
+            addSubItem();
+        }
+
+        openModal('category-modal');
+    }
+
+    function addSubItem(name = '', unit = '') {
+        const container = document.getElementById('subitems-container');
+        const div = document.createElement('div');
+        div.className = 'flex gap-2 mb-2 sub-item-row';
+        div.innerHTML = `
+            <input type="text" class="form-control item-name" placeholder="Item Name" value="${name}" required style="flex: 2;">
+            <input type="text" class="form-control item-unit" placeholder="Default Unit (opt)" value="${unit || ''}" style="flex: 1;">
+            <button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()" style="padding: 0 0.6rem;">×</button>
+        `;
+        container.appendChild(div);
+    }
+
+    async function deleteCategory(id) {
+        if (!confirm('Are you sure? This will affect Purchase/Expense forms that use this category.')) return;
+
+        try {
+            const res = await fetch(`/api/master/categories/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                showNotification('Category deleted', 'success');
+                loadCategories();
+            } else {
+                showNotification('Error deleting category', 'error');
+            }
+        } catch (e) {
+            console.error(e);
+            showNotification('Error deleting category', 'error');
+        }
+    }
+
+    document.getElementById('category-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const id = document.getElementById('category-id').value;
+        const name = document.getElementById('cat-name').value;
+        const type = document.getElementById('cat-type').value;
+
+        const subcategories = [];
+        document.querySelectorAll('.sub-item-row').forEach(row => {
+            const itemName = row.querySelector('.item-name').value.trim();
+            const itemUnit = row.querySelector('.item-unit').value.trim();
+            if (itemName) {
+                subcategories.push({ name: itemName, default_unit: itemUnit });
+            }
+        });
+
+        const data = { name, type, subcategories };
+        const method = id ? 'PUT' : 'POST';
+        const url = id ? `/api/master/categories/${id}` : '/api/master/categories';
+
+        try {
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await res.json();
+
+            if (res.ok) {
+                showNotification(id ? 'Category updated' : 'Category created', 'success');
+                closeModal('category-modal');
+                loadCategories();
+            } else {
+                showNotification(result.error || 'Error saving category', 'error');
+            }
+        } catch (e) {
+            console.error(e);
+            showNotification('Error saving category', 'error');
+        }
+    });
+
+    // Initial load
+    loadCategories();
+</script>
+
+<style>
+    .btn-outline-primary.active {
+        background-color: var(--primary);
+        color: white;
+    }
+</style>
+{% endblock %}

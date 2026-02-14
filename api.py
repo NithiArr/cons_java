@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, abort
 from flask_login import login_required, current_user
-from models_mongo import Company, Project, Vendor, Expense, ExpenseItem, Payment, ClientPayment, MasterCategory
+from models_mongo import Company, Project, Vendor, Expense, ExpenseItem, Payment, ClientPayment, MasterCategory, SubCategoryItem
 from functools import wraps
 from datetime import datetime
 from mongoengine.queryset.visitor import Q
@@ -464,6 +464,60 @@ def get_master_categories():
             'default_unit': s.default_unit
         } for s in c.subcategories]
     } for c in categories])
+
+@api_bp.route('/master/categories', methods=['POST'])
+@login_required
+@role_required('OWNER', 'ADMIN')
+def create_master_category():
+    """Create new master category"""
+    data = request.get_json()
+    
+    if MasterCategory.objects(name=data['name']).first():
+        return jsonify({'error': 'Category already exists'}), 400
+        
+    subcategories = [
+        SubCategoryItem(name=item['name'], default_unit=item.get('default_unit'))
+        for item in data.get('subcategories', [])
+    ]
+    
+    category = MasterCategory(
+        name=data['name'],
+        type=data['type'],
+        subcategories=subcategories,
+        is_active=True
+    )
+    category.save()
+    
+    return jsonify({'message': 'Category created', 'id': str(category.id)}), 201
+
+@api_bp.route('/master/categories/<category_id>', methods=['PUT'])
+@login_required
+@role_required('OWNER', 'ADMIN')
+def update_master_category(category_id):
+    """Update master category"""
+    category = get_or_404(MasterCategory, id=category_id)
+    data = request.get_json()
+    
+    category.name = data.get('name', category.name)
+    category.type = data.get('type', category.type)
+    
+    if 'subcategories' in data:
+        category.subcategories = [
+            SubCategoryItem(name=item['name'], default_unit=item.get('default_unit'))
+            for item in data['subcategories']
+        ]
+        
+    category.save()
+    return jsonify({'message': 'Category updated'})
+
+@api_bp.route('/master/categories/<category_id>', methods=['DELETE'])
+@login_required
+@role_required('OWNER', 'ADMIN')
+def delete_master_category(category_id):
+    """Delete master category"""
+    category = get_or_404(MasterCategory, id=category_id)
+    category.delete()
+    return jsonify({'message': 'Category deleted'})
 
 # ==================== CLIENT PAYMENTS API ====================
 @api_bp.route('/client-payments', methods=['GET'])

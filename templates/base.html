@@ -38,6 +38,14 @@
                     </li>
                     {% endif %}
 
+                    {% if current_user.role in ['OWNER', 'ADMIN'] %}
+                    <li class="nav-item">
+                        <a href="/master-categories" class="nav-link">
+                            ⚙️ Master Data
+                        </a>
+                    </li>
+                    {% endif %}
+
                     {% if current_user.role in ['ADMIN', 'MANAGER'] %}
                     <li class="nav-item">
                         <a href="/projects" class="nav-link">

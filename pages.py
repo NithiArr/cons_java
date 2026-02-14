@@ -33,3 +33,7 @@ def payments_page():
 @login_required
 def client_payments_page():
     return render_template('client_payments.html', user=current_user)
+@pages_bp.route('/master-categories')
+@login_required
+def master_categories_page():
+    return render_template('master_categories.html', user=current_user)
