@@ -80,14 +80,16 @@ def create_app():
     
     # Create upload directory
     # On Vercel, the file system is read-only except for /tmp
-    # We check if we are on Vercel or if the default location is not writable
+    if os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME'):
+        app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
+    
     try:
         os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     except OSError:
-        # Fallback to /tmp if default location is read-only (common in serverless)
+        # Fallback if detection failed
+        print(f"Read-only file system detected at {app.config['UPLOAD_FOLDER']}. Switching to /tmp/uploads")
         app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
         os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-        print(f"Read-only file system detected. Switched upload folder to: {app.config['UPLOAD_FOLDER']}")
     
     return app
 
