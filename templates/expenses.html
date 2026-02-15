@@ -28,6 +28,11 @@
                                 </select>
                             </th>
                             <th>
+                                Date
+                                <input type="date" id="header-filter-date" class="form-control form-control-sm mt-1"
+                                    onchange="filterExpenses()" style="width: 100%;">
+                            </th>
+                            <th>
                                 Category
                                 <select id="header-filter-category" class="form-control form-control-sm mt-1"
                                     onchange="filterExpenses()" style="width: 100%; min-width: 120px;">
@@ -36,7 +41,6 @@
                             </th>
                             <th>Amount</th>
                             <th>Payment Mode</th>
-                            <th>Date</th>
                             <th>Description</th>
                             <th>Actions</th>
                         </tr>
@@ -101,11 +105,10 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Description</label>
-                    <label class="form-label">Description</label>
-                    <input list="description-suggestions" id="expense-description" class="form-control"
-                        placeholder="e.g., Mason, Painter">
-                    <datalist id="description-suggestions"></datalist>
+                    <label class="form-label">Description (Sub-Category)</label>
+                    <select id="expense-description" class="form-control" required>
+                        <option value="">-- Select Description --</option>
+                    </select>
                 </div>
 
                 <div class="flex gap-2">
@@ -173,7 +176,8 @@
         const filteredExpenses = allExpenses.filter(e => {
             const matchProject = !projectId || e.project_id === projectId;
             const matchCategory = !category || e.category === category;
-            return matchProject && matchCategory;
+            const matchDate = !document.getElementById('header-filter-date').value || e.expense_date === document.getElementById('header-filter-date').value;
+            return matchProject && matchCategory && matchDate;
         });
 
         expenses = filteredExpenses;
@@ -193,10 +197,10 @@
             return `
             <tr>
                 <td>${project ? project.name : 'Unknown'}</td>
+                <td>${formatDate(e.expense_date)}</td>
                 <td>${e.category}</td>
                 <td><strong>${formatCurrency(e.amount)}</strong></td>
                 <td><span class="badge">${e.payment_mode}</span></td>
-                <td>${formatDate(e.expense_date)}</td>
                 <td>${e.description || '-'}</td>
                 <td style="white-space: nowrap;">
                     <button class="btn btn-sm btn-primary" onclick="editExpense('${e.expense_id}')" style="margin-right: 0.5rem;">Edit</button>
@@ -219,7 +223,7 @@
             amount: parseFloat(document.getElementById('expense-amount').value),
             payment_mode: document.getElementById('expense-mode').value,
             expense_date: document.getElementById('expense-date').value,
-            description: document.getElementById('expense-description').value || null
+            description: document.getElementById('expense-description').value
         };
 
         try {
@@ -265,10 +269,7 @@
             // Pre-fill the form
             document.getElementById('expense-project').value = expense.project_id;
             document.getElementById('expense-category').value = expense.category;
-            updateDescriptionSuggestions(); // Populate datalist
-            document.getElementById('expense-amount').value = expense.amount;
-            document.getElementById('expense-mode').value = expense.payment_mode;
-            document.getElementById('expense-date').value = expense.expense_date;
+            updateDescriptionSuggestions(); // Populate dropdown
             document.getElementById('expense-description').value = expense.description || '';
 
             // Open modal
@@ -300,14 +301,16 @@
     function updateDescriptionSuggestions() {
         const categoryName = document.getElementById('expense-category').value;
         const selectedCategory = masterCategories.find(c => c.name === categoryName);
-        const datalist = document.getElementById('description-suggestions');
+        const select = document.getElementById('expense-description');
 
-        datalist.innerHTML = '';
-        if (selectedCategory && selectedCategory.subcategories) {
+        select.innerHTML = '<option value="">-- Select Description --</option>';
+
+        if (selectedCategory && selectedCategory.subcategories && selectedCategory.subcategories.length > 0) {
             selectedCategory.subcategories.forEach(item => {
                 const option = document.createElement('option');
                 option.value = item.name;
-                datalist.appendChild(option);
+                option.textContent = item.name;
+                select.appendChild(option);
             });
         }
     }
@@ -319,7 +322,7 @@
         document.getElementById('expense-date').value = new Date().toISOString().split('T')[0];
 
         document.getElementById('expense-category').value = "";
-        document.getElementById('description-suggestions').innerHTML = "";
+        document.getElementById('expense-description').innerHTML = '<option value="">-- Select Description --</option>';
 
         openModal('add-expense-modal');
     }

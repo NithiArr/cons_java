@@ -70,6 +70,38 @@ class User(UserMixin, db.Model):
         return f'<User {self.email} - {self.role}>'
 
 
+class MasterCategory(db.Model):
+    """Master Category for grouped expenses/materials"""
+    __tablename__ = 'master_category'
+    
+    category_id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    type = db.Column(db.String(50), nullable=False) # 'MATERIAL' or 'EXPENSE'
+    is_active = db.Column(db.Boolean, default=True)
+    
+    # Relationships
+    subcategories = db.relationship('SubCategory', back_populates='parent_category', cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<MasterCategory {self.name} ({self.type})>'
+
+
+class SubCategory(db.Model):
+    """Subcategories for MasterCategory"""
+    __tablename__ = 'sub_category'
+    
+    subcategory_id = db.Column(db.Integer, primary_key=True)
+    parent_category_id = db.Column(db.Integer, db.ForeignKey('master_category.category_id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    default_unit = db.Column(db.String(20)) # e.g. "kg", "bag", "nos"
+    
+    # Relationships
+    parent_category = db.relationship('MasterCategory', back_populates='subcategories')
+    
+    def __repr__(self):
+        return f'<SubCategory {self.name}>'
+
+
 class Project(db.Model):
     """Project model with status tracking"""
     __tablename__ = 'project'
@@ -124,8 +156,8 @@ class Expense(db.Model):
     project_id = db.Column(db.Integer, db.ForeignKey('project.project_id'), nullable=False)
     vendor_id = db.Column(db.Integer, db.ForeignKey('vendor.vendor_id'), nullable=True) # Nullable for regular expenses
     
-    category = db.Column(db.String(100), nullable=False) # 'Regular Expense' or 'Material Purchase'
-    subcategory = db.Column(db.String(100)) # Detailed type or Material name
+    expense_type = db.Column(db.String(100), nullable=False) # 'Regular Expense' or 'Material Purchase'
+    category = db.Column(db.String(100)) # Main category from MasterCategory
     
     amount = db.Column(db.Numeric(15, 2), nullable=False)
     payment_mode = db.Column(db.String(20), nullable=False) # CASH, BANK, UPI, CREDIT
@@ -145,7 +177,7 @@ class Expense(db.Model):
     payments = db.relationship('Payment', back_populates='expense')
     
     def __repr__(self):
-        return f'<Expense {self.category} - {self.amount}>'
+        return f'<Expense {self.expense_type} - {self.amount}>'
 
 
 class ExpenseItem(db.Model):
@@ -156,6 +188,7 @@ class ExpenseItem(db.Model):
     expense_id = db.Column(db.Integer, db.ForeignKey('expense.expense_id'), nullable=False)
     item_name = db.Column(db.String(200), nullable=False)
     quantity = db.Column(db.Numeric(10, 2), nullable=False)
+    measuring_unit = db.Column(db.String(20), default='Unit')
     unit_price = db.Column(db.Numeric(15, 2), nullable=False)
     total_price = db.Column(db.Numeric(15, 2), nullable=False)
     

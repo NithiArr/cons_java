@@ -30,10 +30,10 @@
                     <thead>
                         <tr>
                             <th>Project</th>
+                            <th>Date</th>
                             <th>Amount</th>
                             <th>Payment Mode</th>
                             <th>Reference #</th>
-                            <th>Date</th>
                             <th>Remarks</th>
                             <th>Actions</th>
                         </tr>
@@ -165,10 +165,10 @@
             return `
             <tr>
                 <td><strong>${project ? project.name : 'Unknown'}</strong></td>
+                <td>${formatDate(cp.payment_date)}</td>
                 <td><strong style="color: var(--success);">${formatCurrency(cp.amount)}</strong></td>
                 <td><span class="badge">${cp.payment_mode}</span></td>
                 <td>${cp.reference_number || '-'}</td>
-                <td>${formatDate(cp.payment_date)}</td>
                 <td>${cp.remarks || '-'}</td>
                 <td>
                     <button class="btn btn-sm btn-danger" onclick="deleteClientPayment('${cp.client_payment_id}')">Delete</button>

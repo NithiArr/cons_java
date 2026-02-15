@@ -80,9 +80,9 @@
                         <thead>
                             <tr>
                                 <th>Project</th>
+                                <th>Date</th>
                                 <th>Invoice No.</th>
                                 <th>Category</th>
-                                <th>Date</th>
                                 <th>Amount</th>
                                 <th>Payment Mode</th>
                             </tr>
@@ -243,9 +243,9 @@
         tbody.innerHTML = purchases.map(p => `
             <tr>
                 <td>${p.project_name}</td>
+                <td>${p.invoice_date}</td>
                 <td>${p.invoice_number || '-'}</td>
                 <td><span class="badge">${p.category || 'N/A'}</span></td>
-                <td>${p.invoice_date}</td>
                 <td>${formatCurrency(p.amount)}</td>
                 <td><span class="badge badge-${p.payment_mode === 'CASH' ? 'success' : p.payment_mode === 'CREDIT' ? 'warning' : 'info'}">${p.payment_mode}</span></td>
             </tr>

@@ -28,6 +28,7 @@
                                     <option value="">All Projects</option>
                                 </select>
                             </th>
+                            <th>Date</th>
                             <th>
                                 Vendor
                                 <select id="header-filter-vendor" class="form-control form-control-sm mt-1"
@@ -44,7 +45,6 @@
                             </th>
                             <th>Total Amount</th>
                             <th>Type</th>
-                            <th>Date</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -114,16 +114,17 @@
                 </div>
 
                 <!-- Shared datalist for all item inputs -->
-                <datalist id="item-suggestions"></datalist>
+                <!-- Removed datalist id="item-suggestions" -->
 
                 <hr>
                 <h4>Items</h4>
                 <div id="items-container">
                     <div class="purchase-item mb-2"
                         style="display: grid; grid-template-columns: 1.5fr 0.8fr 0.8fr 1fr 1fr auto; gap: 0.5rem; align-items: center;">
-                        <input list="item-suggestions" class="form-control item-name" placeholder="Item Name"
-                            onchange="autoFillUnit(this)" required>
-                        <!-- datalist removed from here -->
+                        <select class="form-control item-name" onchange="autoFillUnit(this)" required>
+                            <option value="">-- Select Item --</option>
+                        </select>
+                        <!-- datalist removed -->
                         <input type="number" class="form-control item-quantity" placeholder="Qty" required min="0"
                             step="0.01">
                         <input type="text" class="form-control item-unit" placeholder="Unit">
@@ -156,7 +157,9 @@
     let allPurchases = []; // Store all purchases for filtering
     let projects = [];
     let vendors = [];
+
     let masterCategories = [];
+    let currentItemOptions = '<option value="">-- Select Item --</option>';
 
     async function loadData() {
         try {
@@ -259,11 +262,11 @@
             <tr>
                 <td><strong>${p.invoice_number}</strong></td>
                 <td>${project ? project.name : 'Unknown'}</td>
+                <td>${formatDate(p.invoice_date)}</td>
                 <td>${vendor ? vendor.name : 'Unknown'}</td>
                 <td><span class="badge">${p.category || 'N/A'}</span></td>
                 <td><strong>${formatCurrency(p.total_amount)}</strong></td>
                 <td><span class="badge">${p.payment_type}</span></td>
-                <td>${formatDate(p.invoice_date)}</td>
                 <td style="white-space: nowrap;">
                     <button class="btn btn-sm btn-primary" onclick="editPurchase('${p.expense_id}')" style="margin-right: 0.5rem;">Edit</button>
                     <button class="btn btn-sm btn-danger" onclick="deletePurchase('${p.expense_id}')">Delete</button>
@@ -277,7 +280,9 @@
         const container = document.getElementById('items-container');
         const itemHtml = `
         <div class="purchase-item mb-2" style="display: grid; grid-template-columns: 1.5fr 0.8fr 0.8fr 1fr 1fr auto; gap: 0.5rem; align-items: center;">
-            <input list="item-suggestions" class="form-control item-name" placeholder="Item Name" onchange="autoFillUnit(this)" required>
+            <select class="form-control item-name" onchange="autoFillUnit(this)" required>
+                ${currentItemOptions}
+            </select>
             <input type="number" class="form-control item-quantity" placeholder="Qty" required min="0" step="0.01">
             <input type="text" class="form-control item-unit" placeholder="Unit">
             <input type="number" class="form-control item-price" placeholder="Unit Price" required min="0" step="0.01">
@@ -292,29 +297,31 @@
     function updateItemDropdown() {
         const categoryName = document.getElementById('purchase-category').value;
         const selectedCategory = masterCategories.find(c => c.name === categoryName);
-        const datalist = document.getElementById('item-suggestions');
 
-        datalist.innerHTML = '';
+        let optionsHtml = '<option value="">-- Select Item --</option>';
         if (selectedCategory && selectedCategory.subcategories) {
             selectedCategory.subcategories.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item.name;
-                option.dataset.unit = item.default_unit || '';
-                datalist.appendChild(option);
+                optionsHtml += `<option value="${item.name}" data-unit="${item.default_unit || ''}">${item.name} ${item.default_unit ? '(' + item.default_unit + ')' : ''}</option>`;
             });
         }
+        currentItemOptions = optionsHtml;
+
+        // Update existing dropdowns
+        document.querySelectorAll('.item-name').forEach(select => {
+            const currentVal = select.value;
+            select.innerHTML = currentItemOptions;
+            select.value = currentVal;
+        });
     }
 
-    function autoFillUnit(inputElement) {
-        const itemName = inputElement.value;
-        const datalist = document.getElementById('item-suggestions');
-        const option = Array.from(datalist.options).find(o => o.value === itemName);
+    function autoFillUnit(selectElement) {
+        const selectedOption = selectElement.options[selectElement.selectedIndex];
 
-        if (option && option.dataset.unit) {
-            const row = inputElement.closest('.purchase-item');
+        if (selectedOption && selectedOption.dataset.unit) {
+            const row = selectElement.closest('.purchase-item');
             const unitInput = row.querySelector('.item-unit');
-            if (unitInput && !unitInput.value) { // Only fill if empty
-                unitInput.value = option.dataset.unit;
+            if (unitInput) {
+                unitInput.value = selectedOption.dataset.unit;
             }
         }
     }
@@ -464,7 +471,9 @@
                 expense.items.forEach(item => {
                     const itemHtml = `
                     <div class="purchase-item mb-2" style="display: grid; grid-template-columns: 1.5fr 0.8fr 0.8fr 1fr 1fr auto; gap: 0.5rem; align-items: center;">
-                        <input list="item-suggestions" class="form-control item-name" placeholder="Item Name" onchange="autoFillUnit(this)" required value="${item.item_name || ''}">
+                        <select class="form-control item-name" onchange="autoFillUnit(this)" required>
+                            ${currentItemOptions}
+                        </select>
                         <input type="number" class="form-control item-quantity" placeholder="Qty" required min="0" step="0.01" value="${item.quantity || ''}">
                         <input type="text" class="form-control item-unit" placeholder="Unit" value="${item.measuring_unit || ''}">
                         <input type="number" class="form-control item-price" placeholder="Unit Price" required min="0" step="0.01" value="${item.unit_price || ''}">
@@ -473,6 +482,13 @@
                     </div>
                     `;
                     container.insertAdjacentHTML('beforeend', itemHtml);
+
+                    // Set value for the Select element
+                    const lastItem = container.lastElementChild;
+                    const select = lastItem.querySelector('.item-name');
+                    if (select) {
+                        select.value = item.item_name || '';
+                    }
                 });
             } else {
                 // Add default empty item if no items

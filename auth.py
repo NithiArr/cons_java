@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
-from models_mongo import User, Company
+from models import User, Company, db
+
 from functools import wraps
 
 auth_bp = Blueprint('auth', __name__)
@@ -22,7 +23,8 @@ def login():
         email = request.form.get('email')
         password = request.form.get('password')
         
-        user = User.objects(email=email).first()
+        # SQLAlchemy query
+        user = db.session.query(User).filter_by(email=email).first()
         
         if user and user.check_password(password):
             login_user(user)
@@ -60,21 +62,22 @@ def register():
                 phone=company_phone,
                 email=company_email
             )
-            company.save()
+            db.session.add(company)
+            db.session.commit()
             
             # First user of a new company should be OWNER
             role = 'OWNER'
         else:
             # Join existing company
             company_id = request.form.get('company_id')
-            company = Company.objects(id=company_id).first()
+            company = db.session.get(Company, int(company_id))
             
             if not company:
                 flash('Invalid company selected', 'error')
                 return render_template('login.html')
         
         # Check if email already exists
-        if User.objects(email=email).first():
+        if db.session.query(User).filter_by(email=email).first():
             flash('Email already registered', 'error')
             return render_template('login.html')
         
@@ -86,13 +89,14 @@ def register():
             company=company
         )
         user.set_password(password)
-        user.save()
+        db.session.add(user)
+        db.session.commit()
         
         flash(f'Account created successfully! You can now login.', 'success')
         return redirect(url_for('auth.login'))
     
     # GET request - show companies for selection
-    companies = Company.objects.all()
+    companies = db.session.query(Company).all()
     return render_template('login.html', companies=companies)
 
 @auth_bp.route('/logout')

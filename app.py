@@ -1,7 +1,6 @@
 from flask import Flask, render_template, redirect, url_for
 from flask_login import LoginManager, current_user
-from mongoengine import connect
-from models_mongo import User
+from models import db
 import os
 from dotenv import load_dotenv
 
@@ -17,18 +16,12 @@ def create_app():
     app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', 'uploads')
     app.config['MAX_CONTENT_LENGTH'] = int(os.environ.get('MAX_CONTENT_LENGTH', 16777216))
     
-    # MongoDB Connection
-    mongodb_host = os.environ.get('MONGODB_HOST', 'mongodb://localhost:27017/construction_db')
-    try:
-        connect(host=mongodb_host)
-        # Force a connection attempt to fail fast if config is wrong
-        # We need to import get_connection to do this properly or just trust connect() for now
-        # But for the health-db route we will be explicit
-        print(f"MongoDB connected successfully to: {mongodb_host.split('@')[-1] if '@' in mongodb_host else 'localhost'}")
-    except Exception as e:
-        print(f"Error connecting to MongoDB: {e}")
-
     
+    # PostgreSQL Connection
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI', 'postgresql://postgres:admin123@localhost:5432/construction_db')
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    db.init_app(app)
+
     # Setup Flask-Login
     login_manager = LoginManager()
     login_manager.init_app(app)
@@ -36,10 +29,8 @@ def create_app():
     
     @login_manager.user_loader
     def load_user(user_id):
-        try:
-            return User.objects(id=user_id).first()
-        except:
-            return None
+        from models import User
+        return db.session.get(User, int(user_id)) if user_id.isdigit() else None
     
     # Register blueprints
     from auth import auth_bp

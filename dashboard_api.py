@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for
 from flask_login import login_required, current_user
-from models_mongo import Project, Vendor, Expense, Payment, ClientPayment, ExpenseItem
-from datetime import datetime
+from models import Project, Vendor, Expense, Payment, ClientPayment, ExpenseItem, db
+from datetime import datetime, date
 import collections
 
 dashboard_bp = Blueprint('dashboard', __name__)
@@ -36,9 +36,9 @@ def daily_cash():
 # ==================== HELPER FUNCTIONS ====================
 def get_project_financials(project):
     """Calculate financials for a project"""
-    expenses = Expense.objects(project=project)
-    payments = Payment.objects(project=project)
-    client_payments = ClientPayment.objects(project=project)
+    expenses = Expense.query.filter_by(project_id=project.project_id).all()
+    payments = Payment.query.filter_by(project_id=project.project_id).all()
+    client_payments = ClientPayment.query.filter_by(project_id=project.project_id).all()
     
     total_spent = sum(e.amount for e in expenses)
     total_received = sum(cp.amount for cp in client_payments)
@@ -74,9 +74,9 @@ def get_project_financials(project):
 @login_required
 def get_owner_kpis():
     """Get high-level KPIs for owner dashboard"""
-    projects = Project.objects(company=current_user.company)
+    projects = Project.query.filter_by(company_id=current_user.company_id).all()
     
-    total_projects = projects.count()
+    total_projects = len(projects)
     total_budget = sum(p.budget for p in projects)
     
     status_counts = collections.Counter(p.status for p in projects)
@@ -100,20 +100,20 @@ def get_owner_kpis():
     return jsonify({
         'total_projects': total_projects,
         'status_breakdown': dict(status_counts),
-        'total_budget': total_budget,
-        'total_spent': total_spent,
-        'total_vendor_payments': total_vendor_payments,
-        'total_received': total_received,
-        'vendor_outstanding': vendor_outstanding,
-        'client_outstanding': client_outstanding,
-        'balance_budget': balance_budget
+        'total_budget': float(total_budget) if total_budget else 0,
+        'total_spent': float(total_spent),
+        'total_vendor_payments': float(total_vendor_payments),
+        'total_received': float(total_received),
+        'vendor_outstanding': float(vendor_outstanding),
+        'client_outstanding': float(client_outstanding),
+        'balance_budget': float(balance_budget)
     })
 
 @dashboard_bp.route('/api/project-financial-table', methods=['GET'])
 @login_required
 def get_project_financial_table():
     """Get detailed financial table for all projects"""
-    projects = Project.objects(company=current_user.company)
+    projects = Project.query.filter_by(company_id=current_user.company_id).all()
     data = []
     
     for project in projects:
@@ -123,23 +123,27 @@ def get_project_financial_table():
         budget = project.budget
         
         # Color indicator
-        if amount_spent > budget:
+        # Convert to float for comparison and response
+        amount_spent_f = float(amount_spent)
+        budget_f = float(budget if budget else 0)
+        
+        if amount_spent_f > budget_f:
             indicator = 'over'  # Red
-        elif amount_spent > budget * 0.9:
+        elif amount_spent_f > budget_f * 0.9:
             indicator = 'near'  # Yellow
         else:
             indicator = 'healthy'  # Green
             
         data.append({
-            'project_id': str(project.id),
+            'project_id': str(project.project_id),
             'project_name': project.name,
             'status': project.status,
-            'budget': budget,
-            'amount_spent': amount_spent,
-            'amount_received': fins['total_received'],
-            'vendor_outstanding': fins['vendor_outstanding'],
-            'client_outstanding': fins['client_outstanding'],
-            'balance_budget': budget - amount_spent,
+            'budget': budget_f,
+            'amount_spent': amount_spent_f,
+            'amount_received': float(fins['total_received']),
+            'vendor_outstanding': float(fins['vendor_outstanding']),
+            'client_outstanding': float(fins['client_outstanding']),
+            'balance_budget': float(budget_f - amount_spent_f),
             'indicator': indicator
         })
         
@@ -149,12 +153,12 @@ def get_project_financial_table():
 @login_required
 def get_vendor_summary():
     """Get vendor summary"""
-    vendors = Vendor.objects(company=current_user.company)
+    vendors = Vendor.query.filter_by(company_id=current_user.company_id).all()
     data = []
     
     for vendor in vendors:
-        expenses = Expense.objects(vendor=vendor)
-        payments = Payment.objects(vendor=vendor)
+        expenses = Expense.query.filter_by(vendor_id=vendor.vendor_id).all()
+        payments = Payment.query.filter_by(vendor_id=vendor.vendor_id).all()
         
         total_purchases = sum(e.amount for e in expenses)
         total_paid = sum(p.amount for p in payments)
@@ -166,11 +170,11 @@ def get_vendor_summary():
         outstanding = credit_purchases - total_paid
         
         data.append({
-            'vendor_id': str(vendor.id),
+            'vendor_id': str(vendor.vendor_id),
             'vendor_name': vendor.name,
-            'total_purchases': total_purchases,
-            'total_paid': total_paid,
-            'outstanding': outstanding
+            'total_purchases': float(total_purchases),
+            'total_paid': float(total_paid),
+            'outstanding': float(outstanding)
         })
         
     return jsonify(data)
@@ -179,11 +183,11 @@ def get_vendor_summary():
 @login_required
 def get_vendor_purchase_history(vendor_id):
     """Get purchase history for a specific vendor"""
-    vendor = Vendor.objects(id=vendor_id, company=current_user.company).first()
+    vendor = Vendor.query.filter_by(vendor_id=vendor_id, company_id=current_user.company_id).first()
     if not vendor:
         return jsonify({'error': 'Vendor not found'}), 404
         
-    expenses = Expense.objects(vendor=vendor)
+    expenses = Expense.query.filter_by(vendor_id=vendor.vendor_id).all()
     data = []
     
     for expense in expenses:
@@ -194,10 +198,10 @@ def get_vendor_purchase_history(vendor_id):
         else:
             # For CREDIT, we need to approximate based on total payments to vendor for this project
             # This logic mimics the old SQLAlchemy version
-            project_payments = Payment.objects(vendor=vendor, project=expense.project)
+            project_payments = Payment.query.filter_by(vendor_id=vendor.vendor_id, project_id=expense.project_id).all()
             total_project_payments = sum(p.amount for p in project_payments)
             
-            project_expenses = Expense.objects(vendor=vendor, project=expense.project, payment_mode='CREDIT')
+            project_expenses = Expense.query.filter_by(vendor_id=vendor.vendor_id, project_id=expense.project_id, payment_mode='CREDIT').all()
             total_project_credit = sum(e.amount for e in project_expenses)
             
             if total_project_credit > 0:
@@ -209,14 +213,14 @@ def get_vendor_purchase_history(vendor_id):
             balance = expense.amount - paid
             
         data.append({
-            'purchase_id': str(expense.id),
+            'purchase_id': str(expense.expense_id),
             'project_name': expense.project.name,
             'invoice_number': expense.invoice_number or '-',
             'invoice_date': expense.expense_date.isoformat(),
-            'amount': expense.amount,
+            'amount': float(expense.amount),
             'payment_mode': expense.payment_mode,
-            'paid': paid,
-            'balance': balance
+            'paid': float(paid),
+            'balance': float(balance)
         })
         
     return jsonify(data)
@@ -225,13 +229,13 @@ def get_vendor_purchase_history(vendor_id):
 @login_required
 def get_project_payment_details(project_id):
     """Get comprehensive payment details for a specific project"""
-    project = Project.objects(id=project_id, company=current_user.company).first()
+    project = Project.query.filter_by(project_id=project_id, company_id=current_user.company_id).first()
     if not project:
         return jsonify({'error': 'Project not found'}), 404
         
-    expenses = Expense.objects(project=project)
-    payments = Payment.objects(project=project)
-    client_payments = ClientPayment.objects(project=project)
+    expenses = Expense.query.filter_by(project_id=project.project_id).all()
+    payments = Payment.query.filter_by(project_id=project.project_id).all()
+    client_payments = ClientPayment.query.filter_by(project_id=project.project_id).all()
     
     purchase_history = []
     regular_expenses = []
@@ -243,7 +247,7 @@ def get_project_payment_details(project_id):
         if expense.expense_type == 'Material Purchase':
             # Calculate payments for this expense - tricky in Mongo without direct link in Payment model (unless added)
             # In new Payment model, we have `expense` ReferenceField!
-            expense_payments = Payment.objects(expense=expense)
+            expense_payments = Payment.query.filter_by(expense_id=expense.expense_id).all()
             payment_sum = sum(p.amount for p in expense_payments)
             
             if expense.payment_mode in ['CASH', 'UPI', 'BANK']:
@@ -254,23 +258,23 @@ def get_project_payment_details(project_id):
                 displayed_balance = expense.amount - payment_sum
                 
             purchase_history.append({
-                'purchase_id': str(expense.id),
+                'purchase_id': str(expense.expense_id),
                 'vendor_name': expense.vendor.name if expense.vendor else 'Unknown',
                 'invoice_number': expense.invoice_number or '-',
                 'invoice_date': expense.expense_date.isoformat(),
                 'category': expense.category, # Material Category
-                'amount': expense.amount,
+                'amount': float(expense.amount),
                 'payment_mode': expense.payment_mode,
-                'paid': displayed_paid,
-                'balance': displayed_balance
+                'paid': float(displayed_paid),
+                'balance': float(displayed_balance)
             })
             total_purchases_amount += expense.amount
         else:
             regular_expenses.append({
-                'expense_id': str(expense.id),
+                'expense_id': str(expense.expense_id),
                 'expense_date': expense.expense_date.isoformat(),
                 'category': expense.category, # e.g. Travel
-                'amount': expense.amount,
+                'amount': float(expense.amount),
                 'payment_mode': expense.payment_mode,
                 'description': expense.description
             })
@@ -279,10 +283,10 @@ def get_project_payment_details(project_id):
     vendor_payments_list = []
     for p in payments:
         vendor_payments_list.append({
-            'payment_id': str(p.id),
+            'payment_id': str(p.payment_id),
             'payment_date': p.payment_date.isoformat(),
             'vendor_name': p.vendor.name,
-            'amount': p.amount,
+            'amount': float(p.amount),
             'payment_mode': p.payment_mode,
             'purchase_invoice': p.expense.invoice_number if p.expense else '-'
         })
@@ -290,9 +294,9 @@ def get_project_payment_details(project_id):
     client_payments_list = []
     for cp in client_payments:
         client_payments_list.append({
-            'client_payment_id': str(cp.id),
+            'client_payment_id': str(cp.client_payment_id),
             'payment_date': cp.payment_date.isoformat(),
-            'amount': cp.amount,
+            'amount': float(cp.amount),
             'payment_mode': cp.payment_mode,
             'reference_number': cp.reference_number,
             'remarks': cp.remarks
@@ -319,13 +323,13 @@ def get_project_payment_details(project_id):
         'expenses': regular_expenses,
         'client_payments': client_payments_list,
         'financial_summary': {
-            'total_purchases': total_purchases_amount,
-            'total_expenses': total_expenses_amount,
-            'total_spent': total_spent,
-            'total_received': total_received,
-            'vendor_outstanding': vendor_outstanding,
-            'client_outstanding': client_outstanding,
-            'total_vendor_payments': total_vendor_payments
+            'total_purchases': float(total_purchases_amount),
+            'total_expenses': float(total_expenses_amount),
+            'total_spent': float(total_spent),
+            'total_received': float(total_received),
+            'vendor_outstanding': float(vendor_outstanding),
+            'client_outstanding': float(client_outstanding),
+            'total_vendor_payments': float(total_vendor_payments)
         }
     })
 
@@ -348,10 +352,10 @@ def get_daily_cash_balance():
     to_date = datetime.fromisoformat(to_date_str).date()
     
     if project_id_param == 'all':
-        projects = Project.objects(company=current_user.company)
+        projects = Project.query.filter_by(company_id=current_user.company_id).all()
         project_name = 'All Projects'
     else:
-        project = Project.objects(id=project_id_param, company=current_user.company).first()
+        project = Project.query.filter_by(project_id=project_id_param, company_id=current_user.company_id).first()
         if not project:
             return jsonify({'error': 'Project not found'}), 404
         projects = [project]
@@ -367,9 +371,9 @@ def get_daily_cash_balance():
     
     for p in projects:
         # Fetch all related documents
-        cps = ClientPayment.objects(project=p)
-        exps = Expense.objects(project=p)
-        pays = Payment.objects(project=p)
+        cps = ClientPayment.query.filter_by(project_id=p.project_id).all()
+        exps = Expense.query.filter_by(project_id=p.project_id).all()
+        pays = Payment.query.filter_by(project_id=p.project_id).all()
         
         # Calculate opening balance (prior to from_date)
         for cp in cps:
@@ -380,7 +384,7 @@ def get_daily_cash_balance():
                 transactions.append({
                     'type': 'client_payment',
                     'date': cp.payment_date.isoformat(),
-                    'amount': cp.amount,
+                    'amount': float(cp.amount),
                     'payment_mode': cp.payment_mode,
                     'reference': cp.reference_number,
                     'remarks': cp.remarks,
@@ -397,7 +401,7 @@ def get_daily_cash_balance():
                     transactions.append({
                         'type': 'expense',
                         'date': e.expense_date.isoformat(),
-                        'amount': e.amount,
+                        'amount': float(e.amount),
                         'category': e.category,
                         'payment_mode': e.payment_mode,
                         'description': e.description,
@@ -412,7 +416,7 @@ def get_daily_cash_balance():
                 transactions.append({
                     'type': 'vendor_payment',
                     'date': py.payment_date.isoformat(),
-                    'amount': py.amount,
+                    'amount': float(py.amount),
                     'vendor_name': py.vendor.name,
                     'payment_mode': py.payment_mode,
                     'project_name': p.name
@@ -425,11 +429,11 @@ def get_daily_cash_balance():
         'project_name': project_name,
         'from_date': from_date_str,
         'to_date': to_date_str,
-        'opening_balance': opening_balance,
-        'client_receipts': client_receipts,
-        'expenses': expenses_outflow,
-        'vendor_payments': payments_outflow,
-        'closing_balance': closing_balance,
+        'opening_balance': float(opening_balance),
+        'client_receipts': float(client_receipts),
+        'expenses': float(expenses_outflow),
+        'vendor_payments': float(payments_outflow),
+        'closing_balance': float(closing_balance),
         'transactions': transactions
     })
 
@@ -437,18 +441,20 @@ def get_daily_cash_balance():
 @login_required
 def get_vendor_material_summary(vendor_id):
     """Get material-wise summary for a vendor"""
-    vendor = Vendor.objects(id=vendor_id, company=current_user.company).first()
+    vendor = Vendor.query.filter_by(vendor_id=vendor_id, company_id=current_user.company_id).first()
     if not vendor:
         return jsonify({'error': 'Vendor not found'}), 404
 
     project_filter = request.args.get('project')
     
-    expenses = Expense.objects(vendor=vendor, expense_type='Material Purchase')
+    query = Expense.query.filter_by(vendor_id=vendor.vendor_id, expense_type='Material Purchase')
     
     if project_filter:
-        project = Project.objects(name=project_filter, company=current_user.company).first()
+        project = Project.query.filter_by(name=project_filter, company_id=current_user.company_id).first()
         if project:
-            expenses = expenses.filter(project=project)
+            query = query.filter_by(project_id=project.project_id)
+            
+    expenses = query.all()
             
     material_map = {}
     
@@ -468,8 +474,8 @@ def get_vendor_material_summary(vendor_id):
     for mat, data in material_map.items():
         result.append({
             'material': mat,
-            'total_quantity': data['quantity'],
-            'total_amount': data['amount']
+            'total_quantity': float(data['quantity']),
+            'total_amount': float(data['amount'])
         })
         
     return jsonify(result)

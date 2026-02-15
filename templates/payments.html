@@ -34,6 +34,11 @@
                                     <option value="">All Projects</option>
                                 </select>
                             </th>
+                            <th>
+                                Date
+                                <input type="date" id="header-filter-date" class="form-control form-control-sm mt-1"
+                                    onchange="filterPayments()" style="width: 100%;">
+                            </th>
                             <th>Amount</th>
                             <th>
                                 Payment Mode
@@ -44,11 +49,6 @@
                                     <option value="BANK">Bank</option>
                                     <option value="UPI">UPI</option>
                                 </select>
-                            </th>
-                            <th>
-                                Date
-                                <input type="date" id="header-filter-date" class="form-control form-control-sm mt-1"
-                                    onchange="filterPayments()" style="width: 100%;">
                             </th>
                             <th>
                                 Invoice Ref
@@ -200,9 +200,9 @@
             <tr>
                 <td><strong>${vendor ? vendor.name : 'Unknown'}</strong></td>
                 <td>${project ? project.name : 'Unknown'}</td>
+                <td>${formatDate(p.payment_date)}</td>
                 <td><strong>${formatCurrency(p.amount)}</strong></td>
                 <td><span class="badge">${p.payment_mode}</span></td>
-                <td>${formatDate(p.payment_date)}</td>
                 <td>${p.purchase_invoice || '-'}</td>
                 <td>
                     <button class="btn btn-sm btn-danger" onclick="deletePayment('${p.payment_id}')">Delete</button>

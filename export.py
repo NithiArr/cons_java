@@ -1,6 +1,6 @@
 from flask import Blueprint, send_file, request, jsonify
 from flask_login import login_required, current_user
-from models_mongo import Project, Expense, Payment, ClientPayment
+from models import Project, Expense, Payment, ClientPayment
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -21,7 +21,7 @@ def export_daily_balance_pdf():
     project_id = data.get('project_id')
     date_str = data.get('date')
     
-    project = Project.objects(id=project_id, company=current_user.company).first()
+    project = Project.query.filter_by(project_id=project_id, company_id=current_user.company_id).first()
     if not project:
         return jsonify({'error': 'Project not found'}), 404
     
@@ -107,7 +107,7 @@ def export_daily_balance_excel():
     project_id = data.get('project_id')
     date_str = data.get('date')
     
-    project = Project.objects(id=project_id, company=current_user.company).first()
+    project = Project.query.filter_by(project_id=project_id, company_id=current_user.company_id).first()
     if not project:
         return jsonify({'error': 'Project not found'}), 404
     
