@@ -16,15 +16,23 @@ def create_app():
     app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', 'uploads')
     app.config['MAX_CONTENT_LENGTH'] = int(os.environ.get('MAX_CONTENT_LENGTH', 16777216))
     
-    
     # PostgreSQL Connection
     database_uri = os.environ.get('SQLALCHEMY_DATABASE_URI', 'postgresql://postgres:admin123@localhost:5432/construction_db')
-    # Fix for SQLAlchemy requiring 'postgresql://' instead of 'postgres://' (common in cloud providers like Supabase/Heroku)
+    # Fix for SQLAlchemy requiring 'postgresql://' instead of 'postgres://'
     if database_uri and database_uri.startswith('postgres://'):
         database_uri = database_uri.replace('postgres://', 'postgresql://', 1)
     
     app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # Serverless Optimization: Use NullPool to prevent idle connections in Lambda
+    # This is critical when using Supabase Connection Pooler (Port 6543)
+    from sqlalchemy.pool import NullPool
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'poolclass': NullPool,
+        'pool_pre_ping': True
+    }
+    
     db.init_app(app)
 
     # Setup Flask-Login
