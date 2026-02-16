@@ -83,18 +83,17 @@ TEMPLATES = [
 WSGI_APPLICATION = 'construction_cms.wsgi.application'
 
 
+import dj_database_url
+import os
+
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'construction_db',
-        'USER': 'postgres',
-        'PASSWORD': 'admin123',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
+    'default': dj_database_url.config(
+        default='postgresql://postgres:admin123@localhost:5432/construction_db',
+        conn_max_age=600
+    )
 }
 
 
