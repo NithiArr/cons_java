@@ -54,14 +54,42 @@ def create_app():
     @app.route('/health-db')
     def health_db():
         try:
-            # Attempt to list collections or just ping
-            # This forces a round-trip to the DB
-            from mongoengine.connection import get_connection
-            conn = get_connection()
-            conn.admin.command('ping')
-            return {"status": "success", "message": "MongoDB is connected!"}, 200
+            # Simple query to check connection
+            db.session.execute(db.text('SELECT 1'))
+            return {"status": "success", "message": "Database is connected!"}, 200
         except Exception as e:
             return {"status": "error", "message": str(e)}, 500
+
+    @app.route('/init-db')
+    def init_db():
+        try:
+            db.create_all()
+            
+            # Check if Owner exists
+            from models import Company, User
+            from werkzeug.security import generate_password_hash
+            
+            if not Company.query.first():
+                # Create Default Company
+                company = Company(name="Construction Co", address="Head Office")
+                db.session.add(company)
+                db.session.flush() # Get ID
+                
+                # Create Owner
+                owner = User(
+                    company_id=company.company_id,
+                    name="Owner",
+                    email="owner@example.com",
+                    role="OWNER"
+                )
+                owner.set_password("admin123")
+                db.session.add(owner)
+                db.session.commit()
+                return "Database initialized! Tables created and default Owner (owner@example.com / admin123) created.", 200
+            
+            return "Database already initialized.", 200
+        except Exception as e:
+            return f"Error initializing database: {str(e)}", 500
 
     # Home route
     @app.route('/')
