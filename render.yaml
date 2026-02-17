@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: construction-cms
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn construction_cms.wsgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.18
+      - key: SECRET_KEY
+        generateValue: true
+      - key: WEB_CONCURRENCY
+        value: 4
