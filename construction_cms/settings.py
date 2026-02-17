@@ -31,7 +31,7 @@ DEBUG = not os.environ.get('VERCEL')
 if 'DEBUG' in os.environ:
     DEBUG = os.environ['DEBUG'] == 'True'
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '.vercel.app', '.now.sh']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '.vercel.app', '.now.sh', '.onrender.com', '*']
 
 
 # Application definition
