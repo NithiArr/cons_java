@@ -96,13 +96,25 @@ DATABASE_URL = os.environ.get('DATABASE_URL') or \
                os.environ.get('POSTGRES_URL_NON_POOLING') or \
                os.environ.get('SQLALCHEMY_DATABASE_URI')
 
-DATABASES = {
-    'default': dj_database_url.config(
-        default=DATABASE_URL or 'postgresql://postgres:admin123@localhost:5432/construction_db',
-        conn_max_age=600,
-        ssl_require=True if DATABASE_URL else False
-    )
-}
+# Database Configuration
+# Vercel Build Shim: Use SQLite during build to avoid PostgreSQL driver errors
+if os.environ.get('VERCEL') and not os.environ.get('DATABASE_URL'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+        }
+    }
+else:
+    # Standard PostgreSQL Configuration
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=DATABASE_URL or 'postgresql://postgres:admin123@localhost:5432/construction_db',
+            conn_max_age=600,
+            ssl_require=True if DATABASE_URL else False,
+            engine='django.db.backends.postgresql'
+        )
+    }
 
 
 # Password validation
