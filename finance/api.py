@@ -18,8 +18,114 @@ def purchases_list(request):
 
 @login_required
 def purchase_detail(request, purchase_id):
-    if request.method == 'DELETE':
+    if request.method == 'GET':
+        return get_purchase_detail(request, purchase_id)
+    elif request.method == 'PUT':
+        return update_purchase(request, purchase_id)
+    elif request.method == 'DELETE':
         return delete_purchase(request, purchase_id)
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+def get_purchase_detail(request, purchase_id):
+    try:
+        p = Expense.objects.get(expense_id=purchase_id, company=request.user.company, expense_type='Material Purchase')
+        
+        items = [{
+            'item_name': item.item_name,
+            'quantity': float(item.quantity),
+            'measuring_unit': item.measuring_unit,
+            'unit_price': float(item.unit_price),
+            'total_price': float(item.total_price)
+        } for item in p.items.all()]
+        
+        data = {
+            'purchase_id': str(p.expense_id),
+            'expense_id': str(p.expense_id),
+            'project_id': str(p.project.project_id),
+            'project_name': p.project.name,
+            'vendor_id': str(p.vendor.vendor_id) if p.vendor else None,
+            'vendor_name': p.vendor.name if p.vendor else None,
+            'invoice_number': p.invoice_number,
+            'expense_date': p.expense_date.isoformat(),
+            'total_amount': float(p.amount),
+            'payment_mode': p.payment_mode,
+            'category': p.category,
+            'items': items
+        }
+        return JsonResponse(data)
+    except Expense.DoesNotExist:
+        return JsonResponse({'error': 'Purchase not found'}, status=404)
+
+@transaction.atomic
+def update_purchase(request, purchase_id):
+    try:
+        p = Expense.objects.get(expense_id=purchase_id, company=request.user.company, expense_type='Material Purchase')
+        data = json.loads(request.body)
+        
+        if 'project_id' in data:
+            p.project = Project.objects.get(project_id=data['project_id'], company=request.user.company)
+        if 'vendor_id' in data:
+            p.vendor = Vendor.objects.get(vendor_id=data['vendor_id'], company=request.user.company)
+        if 'category' in data:
+            p.category = data['category']
+        if 'invoice_number' in data:
+            p.invoice_number = data['invoice_number']
+        if 'invoice_date' in data:
+             p.expense_date = datetime.fromisoformat(data['invoice_date']).date()
+        if 'total_amount' in data:
+            p.amount = data['total_amount']
+        if 'payment_type' in data:
+            p.payment_mode = data['payment_type']
+            
+        p.save()
+        
+        # Update items: Delete all and recreate
+        if 'items' in data:
+            p.items.all().delete()
+            for item_data in data['items']:
+                ExpenseItem.objects.create(
+                    expense=p,
+                    item_name=item_data['item_name'],
+                    quantity=item_data['quantity'],
+                    measuring_unit=item_data.get('measuring_unit', 'Unit'),
+                    unit_price=item_data['unit_price'],
+                    total_price=item_data['total_price']
+                )
+                
+        return JsonResponse({'message': 'Purchase updated'})
+    except Expense.DoesNotExist:
+        return JsonResponse({'error': 'Purchase not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+def delete_purchase(request, purchase_id):
+    try:
+        purchase = Expense.objects.get(
+            expense_id=purchase_id, 
+            company=request.user.company, 
+            expense_type='Material Purchase'
+        )
+        purchase.delete()
+        return JsonResponse({'message': 'Purchase deleted'})
+    except Expense.DoesNotExist:
+        return JsonResponse({'error': 'Purchase not found'}, status=404)
+
+# ================= EXPENSE API (Regular Expenses) =================
+
+@login_required
+def expenses_list(request):
+    if request.method == 'POST':
+        return create_expense(request)
+    return get_expenses(request)
+
+@login_required
+def expense_detail(request, expense_id):
+    if request.method == 'GET':
+        return get_expense_detail(request, expense_id)
+    elif request.method == 'PUT':
+        return update_expense(request, expense_id)
+    elif request.method == 'DELETE':
+        return delete_expense(request, expense_id)
     return JsonResponse({'error': 'Method not allowed'}, status=405)
 
 def get_purchases(request):
@@ -50,83 +156,56 @@ def get_purchases(request):
             'invoice_date': p.expense_date.isoformat(),
             'total_amount': float(p.amount),
             'payment_type': p.payment_mode,
-            'category': p.category, # Material Category
+            'category': p.category, 
             'items': items
         })
         
     return JsonResponse(data, safe=False)
 
-@transaction.atomic
-def create_purchase(request):
+def get_expense_detail(request, expense_id):
     try:
-        data = json.loads(request.body)
-        print(f"Received purchase data: {data}")  # Debug log
-        
-        project = Project.objects.get(project_id=data['project_id'], company=request.user.company)
-        vendor = None
-        if data.get('vendor_id'):
-            vendor = Vendor.objects.get(vendor_id=data['vendor_id'], company=request.user.company)
-            
-        purchase = Expense.objects.create(
-            company=request.user.company,
-            project=project,
-            vendor=vendor,
-            expense_type='Material Purchase',
-            category=data.get('category'),
-            invoice_number=data.get('invoice_number'),
-            expense_date=datetime.fromisoformat(data['invoice_date']).date() if 'invoice_date' in data else timezone.now().date(),
-            amount=data['total_amount'],
-            payment_mode=data['payment_type'],
-            description=f"Invoice #{data.get('invoice_number')}"
-        )
-        
-        items_data = data.get('items', [])
-        for item_data in items_data:
-            ExpenseItem.objects.create(
-                expense=purchase,
-                item_name=item_data['item_name'],
-                quantity=item_data['quantity'],
-                measuring_unit=item_data.get('measuring_unit', 'Unit'),
-                unit_price=item_data['unit_price'],
-                total_price=item_data['total_price']
-            )
-            
-        return JsonResponse({'message': 'Purchase created', 'purchase_id': str(purchase.expense_id)}, status=201)
-    except Project.DoesNotExist:
-        return JsonResponse({'error': 'Project not found'}, status=404)
-    except Vendor.DoesNotExist:
-        return JsonResponse({'error': 'Vendor not found'}, status=404)
-    except Exception as e:
-        print(f"Error creating purchase: {str(e)}")  # Debug log
-        import traceback
-        traceback.print_exc()  # Print full stack trace
-        return JsonResponse({'error': str(e)}, status=400)
-
-def delete_purchase(request, purchase_id):
-    try:
-        purchase = Expense.objects.get(
-            expense_id=purchase_id, 
-            company=request.user.company, 
-            expense_type='Material Purchase'
-        )
-        purchase.delete()
-        return JsonResponse({'message': 'Purchase deleted'})
+        e = Expense.objects.get(expense_id=expense_id, company=request.user.company, expense_type='Regular Expense')
+        data = {
+            'expense_id': str(e.expense_id),
+            'project_id': str(e.project.project_id),
+            'project_name': e.project.name,
+            'category': e.category,
+            'amount': float(e.amount),
+            'payment_mode': e.payment_mode,
+            'expense_date': e.expense_date.isoformat(),
+            'description': e.description,
+            'bill_url': e.bill_url
+        }
+        return JsonResponse(data)
     except Expense.DoesNotExist:
-        return JsonResponse({'error': 'Purchase not found'}, status=404)
+        return JsonResponse({'error': 'Expense not found'}, status=404)
 
-# ================= EXPENSE API (Regular Expenses) =================
-
-@login_required
-def expenses_list(request):
-    if request.method == 'POST':
-        return create_expense(request)
-    return get_expenses(request)
-
-@login_required
-def expense_detail(request, expense_id):
-    if request.method == 'DELETE':
-        return delete_expense(request, expense_id)
-    return JsonResponse({'error': 'Method not allowed'}, status=405)
+def update_expense(request, expense_id):
+    try:
+        e = Expense.objects.get(expense_id=expense_id, company=request.user.company, expense_type='Regular Expense')
+        data = json.loads(request.body)
+        
+        if 'project_id' in data:
+            e.project = Project.objects.get(project_id=data['project_id'], company=request.user.company)
+        if 'category' in data:
+            e.category = data['category']
+        if 'amount' in data:
+            e.amount = data['amount']
+        if 'payment_mode' in data:
+            e.payment_mode = data['payment_mode']
+        if 'expense_date' in data:
+            e.expense_date = datetime.fromisoformat(data['expense_date']).date()
+        if 'description' in data:
+            e.description = data['description']
+        if 'bill_url' in data:
+            e.bill_url = data['bill_url']
+            
+        e.save()
+        return JsonResponse({'message': 'Expense updated'})
+    except Expense.DoesNotExist:
+         return JsonResponse({'error': 'Expense not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
 
 def get_expenses(request):
     expenses = Expense.objects.filter(
