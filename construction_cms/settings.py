@@ -100,7 +100,8 @@ DATABASES = {
     'default': dj_database_url.config(
         default=DATABASE_URL or 'postgresql://postgres:admin123@localhost:5432/construction_db',
         conn_max_age=600,
-        ssl_require=True if DATABASE_URL else False
+        ssl_require=True if DATABASE_URL else False,
+        engine='django.db.backends.postgresql'  # Works with both psycopg2 and psycopg3
     )
 }
 
