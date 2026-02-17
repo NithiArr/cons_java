@@ -6,4 +6,8 @@ pip install -r requirements.txt
 
 python manage.py collectstatic --noinput
 
-python manage.py migrate
+echo "🔧 Show Migrations State..."
+python manage.py showmigrations
+
+echo "🚀 Running Migrations (Verbose)..."
+python manage.py migrate --noinput -v 2
