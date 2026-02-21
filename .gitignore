@@ -32,6 +32,8 @@ ENV/
 *.sqlite
 *.sqlite3
 instance/
+construction_dump.dump
+*.dump
 
 
 # IDE

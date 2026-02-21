@@ -1,0 +1,59 @@
+# 3 containers: Database, Backend (Django), Frontend (Nginx)
+# Run: docker compose up -d --build
+
+services:
+  # 1. Database - PostgreSQL (official image, no custom build)
+  db:
+    image: postgres:15
+    container_name: construction-db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: construction_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    # No ports exposed to host - only backend connects internally
+
+  # 2. Backend - Django app
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: construction-backend
+    command: >
+      sh -c "python manage.py collectstatic --noinput &&
+             gunicorn --bind 0.0.0.0:8000 --workers 2 construction_cms.wsgi:application"
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/uploads
+    environment:
+      DEBUG: ${DEBUG:-False}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-admin123}@db:5432/construction_db
+    depends_on:
+      db:
+        condition: service_healthy
+    # No ports to host - frontend proxies to this
+
+  # 3. Frontend - Nginx (serves static, proxies to backend)
+  frontend:
+    image: nginx:alpine
+    container_name: construction-frontend
+    volumes:
+      - static_volume:/app/staticfiles:ro
+      - media_volume:/app/uploads:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:

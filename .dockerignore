@@ -1,0 +1,26 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*.pyo
+venv
+.venv
+env
+.env
+.env.local
+
+# IDE
+.vscode
+.idea
+
+# Docs (not needed in image)
+*.md
+!README.md
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
