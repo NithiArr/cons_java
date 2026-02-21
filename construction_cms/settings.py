@@ -113,11 +113,15 @@ if 'collectstatic' in sys.argv:
     }
 else:
     # Standard PostgreSQL Configuration
+    ssl_default = bool(os.environ.get('VERCEL'))
+    if 'REQUIRE_SSL' in os.environ:
+        ssl_default = os.environ.get('REQUIRE_SSL') == 'True'
+
     DATABASES = {
         'default': dj_database_url.config(
             default=DATABASE_URL or 'postgresql://postgres:admin123@localhost:5432/construction_db',
             conn_max_age=600,
-            ssl_require=True if DATABASE_URL else False,
+            ssl_require=ssl_default,
             engine='django.db.backends.postgresql'
         )
     }
