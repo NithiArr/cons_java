@@ -401,21 +401,25 @@
         const selectedCategory = masterCategories.find(c => c.name === categoryName);
         const select = document.getElementById('expense-subcategory');
 
-        select.innerHTML = '<option value="">-- Select Sub-Category --</option>';
-
+        // Build new options list
+        const newOptions = [{ value: '', text: '-- Select Sub-Category --' }];
         if (selectedCategory && selectedCategory.subcategories && selectedCategory.subcategories.length > 0) {
             selectedCategory.subcategories.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item.name;
-                option.textContent = item.name;
-                select.appendChild(option);
+                newOptions.push({ value: item.name, text: item.name });
             });
         }
 
-        // Re-initialize or sync Tom Select
         if (select.tomselect) {
-            select.tomselect.sync();
+            // Properly clear and repopulate Tom Select
+            select.tomselect.clearOptions();
+            newOptions.forEach(opt => select.tomselect.addOption(opt));
+            select.tomselect.setValue('');
+            select.tomselect.refreshOptions(false);
         } else {
+            // Fallback: update native select and init Tom Select
+            select.innerHTML = newOptions.map(opt =>
+                `<option value="${opt.value}">${opt.text}</option>`
+            ).join('');
             initSearchableDropdowns('#expense-subcategory');
         }
     }

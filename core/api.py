@@ -672,6 +672,56 @@ def get_vendor_purchase_history(request, vendor_id):
     return JsonResponse(data, safe=False)
 
 
+@login_required
+def get_vendor_outstanding(request, vendor_id):
+    """
+    Returns outstanding balance for a vendor (company-scoped).
+    Optional query param: project_id — returns project-specific outstanding too.
+    Outstanding = CREDIT purchases - vendor payments made
+    """
+    try:
+        vendor = Vendor.objects.get(vendor_id=vendor_id, company=request.user.company)
+    except Vendor.DoesNotExist:
+        return JsonResponse({'error': 'Vendor not found'}, status=404)
+
+    project_id = request.GET.get('project_id')
+
+    # --- Total outstanding for this vendor (across all projects) ---
+    all_credit = Expense.objects.filter(
+        vendor=vendor, company=request.user.company, payment_mode='CREDIT'
+    ).aggregate(s=Sum('amount'))['s'] or Decimal('0')
+
+    all_payments = Payment.objects.filter(
+        vendor=vendor, company=request.user.company
+    ).aggregate(s=Sum('amount'))['s'] or Decimal('0')
+
+    total_outstanding = max(all_credit - all_payments, Decimal('0'))
+
+    response = {
+        'vendor_name': vendor.name,
+        'total_outstanding': float(total_outstanding),
+    }
+
+    # --- Project-specific outstanding ---
+    if project_id:
+        try:
+            project = Project.objects.get(project_id=project_id, company=request.user.company)
+            proj_credit = Expense.objects.filter(
+                vendor=vendor, project=project, company=request.user.company, payment_mode='CREDIT'
+            ).aggregate(s=Sum('amount'))['s'] or Decimal('0')
+
+            proj_payments = Payment.objects.filter(
+                vendor=vendor, project=project, company=request.user.company
+            ).aggregate(s=Sum('amount'))['s'] or Decimal('0')
+
+            project_outstanding = max(proj_credit - proj_payments, Decimal('0'))
+            response['project_outstanding'] = float(project_outstanding)
+            response['project_name'] = project.name
+        except Project.DoesNotExist:
+            pass
+
+    return JsonResponse(response)
+
 
 @login_required
 def daily_cash_balance(request):

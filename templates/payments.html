@@ -109,16 +109,29 @@
                 <div class="grid grid-2">
                     <div class="form-group">
                         <label class="form-label">Vendor *</label>
-                        <select id="payment-vendor" class="form-control" required>
+                        <select id="payment-vendor" class="form-control" required onchange="fetchOutstanding()">
                             <option value="">-- Select Vendor --</option>
                         </select>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Project *</label>
-                        <select id="payment-project" class="form-control" required>
+                        <select id="payment-project" class="form-control" required onchange="fetchOutstanding()">
                             <option value="">-- Select Project --</option>
                         </select>
+                    </div>
+                </div>
+
+                <!-- Outstanding Balance Banner -->
+                <div id="outstanding-banner"
+                    style="display:none; margin-bottom: 1rem; padding: 0.85rem 1.1rem; border-radius: 8px; background: var(--bg-secondary); border-left: 4px solid var(--warning);">
+                    <div
+                        style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+                        <div id="outstanding-vendor-text" style="font-size:0.9rem; color:var(--text-secondary);"></div>
+                        <div id="outstanding-project-text" style="font-size:0.9rem; color:var(--text-secondary);"></div>
+                    </div>
+                    <div id="outstanding-error"
+                        style="display:none; margin-top:0.5rem; color:var(--danger); font-weight:600; font-size:0.9rem;">
                     </div>
                 </div>
 
@@ -272,13 +285,71 @@
         }).join('');
     }
 
+    // Track current outstanding values
+    let currentVendorOutstanding = null;
+    let currentProjectOutstanding = null;
+
+    async function fetchOutstanding() {
+        const vendorId = document.getElementById('payment-vendor').value;
+        const projectId = document.getElementById('payment-project').value;
+        const banner = document.getElementById('outstanding-banner');
+        const vendorText = document.getElementById('outstanding-vendor-text');
+        const projectText = document.getElementById('outstanding-project-text');
+        const errDiv = document.getElementById('outstanding-error');
+
+        currentVendorOutstanding = null;
+        currentProjectOutstanding = null;
+        errDiv.style.display = 'none';
+
+        if (!vendorId) {
+            banner.style.display = 'none';
+            return;
+        }
+
+        try {
+            let url = `/api/vendors/${vendorId}/outstanding`;
+            if (projectId) url += `?project_id=${projectId}`;
+            const res = await fetch(url);
+            if (!res.ok) { banner.style.display = 'none'; return; }
+            const d = await res.json();
+
+            currentVendorOutstanding = d.total_outstanding;
+            vendorText.innerHTML = `<strong>${d.vendor_name}</strong> — Total Outstanding: <strong style="color:var(--warning)">${formatCurrency(d.total_outstanding)}</strong>`;
+
+            if (projectId && d.project_outstanding !== undefined) {
+                currentProjectOutstanding = d.project_outstanding;
+                projectText.innerHTML = `Outstanding for <strong>${d.project_name}</strong>: <strong style="color:var(--warning)">${formatCurrency(d.project_outstanding)}</strong>`;
+            } else {
+                projectText.innerHTML = '';
+                currentProjectOutstanding = null;
+            }
+
+            banner.style.display = 'block';
+        } catch (err) {
+            banner.style.display = 'none';
+        }
+    }
+
     document.getElementById('payment-form').addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        const amount = parseAmount(document.getElementById('payment-amount').value);
+        const errDiv = document.getElementById('outstanding-error');
+        errDiv.style.display = 'none';
+
+        // Validate amount against outstanding
+        const limitToCheck = currentProjectOutstanding !== null ? currentProjectOutstanding : currentVendorOutstanding;
+        if (limitToCheck !== null && amount > limitToCheck) {
+            errDiv.textContent = `Payment amount exceeds the outstanding balance of ${formatCurrency(limitToCheck)}. Please enter a lower amount.`;
+            errDiv.style.display = 'block';
+            document.getElementById('outstanding-banner').style.display = 'block';
+            return;
+        }
 
         const data = {
             vendor_id: document.getElementById('payment-vendor').value,
             project_id: document.getElementById('payment-project').value,
-            amount: parseAmount(document.getElementById('payment-amount').value),
+            amount: amount,
             payment_mode: document.getElementById('payment-mode').value,
             payment_date: document.getElementById('payment-date').value
         };
@@ -297,9 +368,12 @@
                 showNotification('Payment recorded successfully', 'success');
                 closeModal('add-payment-modal');
                 resetForm('payment-form');
+                currentVendorOutstanding = null;
+                currentProjectOutstanding = null;
                 loadData();
             } else {
-                showNotification('Error recording payment', 'error');
+                const errData = await response.json();
+                showNotification(errData.error || 'Error recording payment', 'error');
             }
         } catch (error) {
             console.error('Error:', error);
@@ -334,6 +408,10 @@
     function prepareAddPayment() {
         resetForm('payment-form');
         document.getElementById('payment-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('outstanding-banner').style.display = 'none';
+        document.getElementById('outstanding-error').style.display = 'none';
+        currentVendorOutstanding = null;
+        currentProjectOutstanding = null;
         openModal('add-payment-modal');
     }
 

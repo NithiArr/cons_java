@@ -32,4 +32,5 @@ urlpatterns = [
     path('dashboard/api/vendor-material-summary/<str:vendor_id>', api.get_vendor_material_summary, name='api_vendor_material_summary'),
     path('dashboard/api/vendor-summary', api.get_vendor_summary, name='api_vendor_summary'),
     path('dashboard/api/vendor-purchase-history/<str:vendor_id>', api.get_vendor_purchase_history, name='api_vendor_purchase_history'),
+    path('api/vendors/<str:vendor_id>/outstanding', api.get_vendor_outstanding, name='api_vendor_outstanding'),
 ]
