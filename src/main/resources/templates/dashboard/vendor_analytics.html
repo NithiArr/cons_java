@@ -161,7 +161,7 @@ Vendor Analytics
     // Load vendor summary
     async function loadVendorSummary() {
         try {
-            const response = await fetch("/api_vendor_summary");
+            const response = await fetch("/dashboard/api/vendor-summary");
             vendorsData = await response.json();
             populateVendorFilter();
 
@@ -211,7 +211,7 @@ Vendor Analytics
         // Load purchase history
         try {
             // Construct URL via JS for dynamic ID
-            const url = "/api_vendor_purchase_history' 'VENDOR_ID".replace('VENDOR_ID', vendorId);
+            const url = `/dashboard/api/vendor-purchase-history/${vendorId}`;
             const response = await fetch(url);
             allPurchases = await response.json();
 
@@ -235,7 +235,7 @@ Vendor Analytics
         // Load material summary
         try {
             // Construct URL via JS for dynamic ID
-            const url = "/api_vendor_material_summary' 'VENDOR_ID".replace('VENDOR_ID', vendorId);
+            const url = `/dashboard/api/vendor-material-summary/${vendorId}`;
             const response = await fetch(url);
             allMaterials = await response.json();
             renderMaterialSummary(allMaterials);
@@ -482,7 +482,7 @@ Vendor Analytics
 
         // Re-fetch material summary with project filter
         try {
-            const baseUrl = "/api_vendor_material_summary' 'VENDOR_ID".replace('VENDOR_ID', currentVendorId);
+            const baseUrl = `/dashboard/api/vendor-material-summary/${currentVendorId}`;
             const url = selectedProject
                 ? `${baseUrl}?project=${encodeURIComponent(selectedProject)}`
                 : baseUrl;

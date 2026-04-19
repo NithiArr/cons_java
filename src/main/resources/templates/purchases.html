@@ -434,26 +434,26 @@ Purchases
                   ).join('')
                 : '');
 
-        // Update all existing item rows
+        // Update all existing item rows — destroy & recreate to avoid auto-open bug
         document.querySelectorAll('.item-name').forEach(select => {
-            if (select.tomselect) {
-                const currentVal = select.tomselect.getValue();
-                select.tomselect.clearOptions();
-                options.forEach(opt => select.tomselect.addOption(opt));
-                select.tomselect.refreshOptions(false);
-                if (currentVal) select.tomselect.setValue(currentVal);
-            } else {
-                // Not yet initialized — just update the HTML
-                select.innerHTML = currentItemOptions;
-                new TomSelect(select, {
-                    plugins: ['dropdown_input'],
-                    sortField: { field: 'text', direction: 'asc' },
-                    dropdownParent: 'body',
-                    create: false,
-                    maxOptions: null,
-                    onChange: function(value) { autoFillUnitFromTomSelect(this, selectedCategory); }
-                });
+            const prevVal = select.tomselect ? select.tomselect.getValue() : select.value;
+            if (select.tomselect) select.tomselect.destroy();
+
+            select.innerHTML = currentItemOptions;
+            // Restore previous value if still valid in new options
+            if (prevVal && selectedCategory && selectedCategory.subcategories &&
+                selectedCategory.subcategories.find(s => s.name === prevVal)) {
+                select.value = prevVal;
             }
+
+            const ts = new TomSelect(select, {
+                plugins: ['dropdown_input'],
+                sortField: { field: 'text', direction: 'asc' },
+                dropdownParent: 'body',
+                create: false,
+                maxOptions: null,
+                onChange: function(value) { autoFillUnitByValue(select, value); }
+            });
         });
     }
 
@@ -589,49 +589,55 @@ Purchases
 
     async function editPurchase(id) {
         try {
-            // Fetch the expense data
             const url = "/api_purchases_list/" + id;
             const response = await fetch(url);
             if (!response.ok) throw new Error('Failed to fetch purchase');
 
             const expense = await response.json();
 
-            // Set the ID for update
+            // Set hidden ID and modal title
             document.getElementById('purchase-id').value = expense.expense_id;
-
-            // Change modal title
             document.getElementById('purchase-modal-title').textContent = 'Edit Purchase Order';
 
-            // Pre-fill the form
-            document.getElementById('purchase-project').value = expense.project_id;
-            document.getElementById('purchase-vendor').value = expense.vendor_id;
-            document.getElementById('purchase-category').value = expense.category || '';
+            // Set project using TomSelect API (values are numbers → convert to string)
+            const projEl = document.getElementById('purchase-project');
+            if (projEl.tomselect) projEl.tomselect.setValue(String(expense.project_id || ''));
+            else projEl.value = expense.project_id;
 
-            // Trigger update for item dropdown
-            updateItemDropdown();
+            // Set vendor using TomSelect API
+            const vendEl = document.getElementById('purchase-vendor');
+            if (vendEl.tomselect) vendEl.tomselect.setValue(String(expense.vendor_id || ''));
+            else vendEl.value = expense.vendor_id;
 
+            // Set category via TomSelect — this triggers onChange → updateItemDropdown()
+            // which populates currentItemOptions with the correct subcategories
+            const catEl = document.getElementById('purchase-category');
+            if (catEl.tomselect) {
+                catEl.tomselect.setValue(expense.category || '');
+            } else {
+                catEl.value = expense.category || '';
+                updateItemDropdown();
+            }
+
+            // Set invoice and date
             document.getElementById('purchase-invoice').value = expense.invoice_number || '';
             document.getElementById('purchase-date').value = expense.expense_date;
-            document.getElementById('purchase-type').value = expense.payment_mode;
 
-            // Sync main form dropdowns
-            ['purchase-project', 'purchase-vendor', 'purchase-category', 'purchase-type'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el && el.tomselect) el.tomselect.sync();
-            });
+            // Set payment type via TomSelect API
+            const typeEl = document.getElementById('purchase-type');
+            if (typeEl.tomselect) typeEl.tomselect.setValue(expense.payment_mode || '');
+            else typeEl.value = expense.payment_mode;
 
-            // Clear and populate items
-            // Clear and populate items
+            // Clear and repopulate items container
             const container = document.getElementById('items-container');
             container.innerHTML = '';
 
-            // Check if items exist and is an array
             if (expense.items && Array.isArray(expense.items) && expense.items.length > 0) {
-                // We need to add items one by one and populate them
                 expense.items.forEach(item => {
+                    // Add item row HTML (with currentItemOptions already populated above)
                     const itemHtml = `
                     <div class="purchase-item mb-2" style="display: grid; grid-template-columns: 1.5fr 1fr 0.8fr 0.8fr 1fr 1fr auto; gap: 0.5rem; align-items: center;">
-                        <select class="form-control item-name" onchange="autoFillUnit(this)" required data-placeholder="-- Select Item --">
+                        <select class="form-control item-name" required>
                             ${currentItemOptions}
                         </select>
                         <input type="text" class="form-control item-brand" placeholder="Brand" value="${item.brand || ''}">
@@ -640,32 +646,33 @@ Purchases
                         <input type="text" class="form-control item-price amount-input" placeholder="Unit Price" required value="${formatNumber(item.unit_price) || ''}">
                         <input type="text" class="form-control item-total amount-input" placeholder="Total" readonly value="${formatNumber(item.total_price) || ''}">
                         <button type="button" class="btn btn-sm btn-danger" onclick="removeItem(this)" style="padding: 0.5rem; min-width: 40px;">−</button>
-                    </div>
-                    `;
+                    </div>`;
                     container.insertAdjacentHTML('beforeend', itemHtml);
 
-                    // Set value for the Select element
+                    // Initialize TomSelect on the new item-name select with proper value
                     const lastItem = container.lastElementChild;
                     const select = lastItem.querySelector('.item-name');
                     if (select) {
+                        // Set value before init so TomSelect reads it as initial selection
                         select.value = item.item_name || '';
+                        const ts = new TomSelect(select, {
+                            plugins: ['dropdown_input'],
+                            sortField: { field: 'text', direction: 'asc' },
+                            dropdownParent: 'body',
+                            create: false,
+                            maxOptions: null,
+                            onChange: function(value) { autoFillUnitByValue(select, value); }
+                        });
+                        // Force TomSelect to display the correct item
+                        if (item.item_name) ts.setValue(item.item_name, true);
                     }
                 });
-
-                // Initialize Tom Select for all added items
-                initSearchableDropdowns('.item-name');
             } else {
-                // Add default empty item if no items
                 addItem();
             }
 
-            // Important: Update datalists for all new items
-            updateItemDropdown();
-
             attachItemCalculators();
             calculateGrandTotal();
-
-            // Open modal
             openModal('add-purchase-modal');
 
         } catch (error) {

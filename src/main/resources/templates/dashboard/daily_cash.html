@@ -40,56 +40,48 @@ Daily Cash Balance
                 <button class="btn btn-sm btn-secondary" onclick="setCurrentMonth()">This Month</button>
                 <button class="btn btn-sm btn-secondary" onclick="setLastMonth()">Last Month</button>
                 <button class="btn btn-primary" onclick="validateAndLoad()">Load Balance</button>
+                <button id="btn-export-excel" class="btn btn-success" onclick="exportToExcel()" style="display:none;">
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
+                    Export to Excel
+                </button>
             </div>
         </div>
     </div>
 
     <!-- Balance Tracker -->
     <div id="balance-display" style="display: none;">
-        <div class="grid grid-2 mb-3">
-            <div class="card">
-                <h4 class="mb-2"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6 9 12.75l4.286-4.286a11.948 11.948 0 0 1 4.306 6.43l.776 2.898m0 0 3.182-5.514m-3.182 5.514-5.514-3.182" /></svg> Balance Tracker</h4>
-                <table class="w-full">
-                    <tr>
-                        <td><strong>Opening Balance:</strong></td>
-                        <td id="opening-balance" class="text-right">₹0.00</td>
-                    </tr>
-                    <tr style="background: rgba(16, 185, 129, 0.1);">
-                        <td><strong>Client Receipts (Period):</strong></td>
-                        <td id="client-receipts" class="text-right" style="color: var(--success);">₹0.00</td>
-                    </tr>
-                    <tr style="background: rgba(239, 68, 68, 0.1);">
-                        <td><strong>Payments Made (Period):</strong></td>
-                        <td id="vendor-payments" class="text-right" style="color: var(--danger);">₹0.00</td>
-                    </tr>
-                    <tr style="background: rgba(239, 68, 68, 0.1);">
-                        <td><strong>Expenses - Credit (Period):</strong></td>
-                        <td id="expenses-credit" class="text-right" style="color: var(--danger);">₹0.00</td>
-                    </tr>
-                    <tr style="background: rgba(239, 68, 68, 0.1);">
-                        <td><strong>Expenses - Cash (Period):</strong></td>
-                        <td id="expenses-cash" class="text-right" style="color: var(--danger);">₹0.00</td>
-                    </tr>
-                    <tr style="background: rgba(239, 68, 68, 0.1);">
-                        <td><strong>Expenses - UPI/Bank (Period):</strong></td>
-                        <td id="expenses-bank-upi" class="text-right" style="color: var(--danger);">₹0.00</td>
-                    </tr>
-                    <tr style="background: var(--bg-tertiary);">
-                        <td><strong>Closing Balance:</strong></td>
-                        <td id="closing-balance" class="text-right"><strong>₹0.00</strong></td>
-                    </tr>
-                </table>
-            </div>
-
-            <div class="card">
-                <h4 class="mb-2"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg> Export Options</h4>
-                <button class="btn btn-success btn-sm mb-2 w-full" onclick="exportPDF()">
-                    📄 Download PDF
-                </button>
-                <button class="btn btn-success btn-sm w-full" onclick="exportExcel()">
-                    📊 Download Excel
-                </button>
-            </div>
+        <div class="card mb-3">
+            <h4 class="mb-2"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6 9 12.75l4.286-4.286a11.948 11.948 0 0 1 4.306 6.43l.776 2.898m0 0 3.182-5.514m-3.182 5.514-5.514-3.182" /></svg> Balance Tracker</h4>
+            <table class="w-full">
+                <tr>
+                    <td><strong>Opening Balance:</strong></td>
+                    <td id="opening-balance" class="text-right">₹0.00</td>
+                </tr>
+                <tr style="background: rgba(16, 185, 129, 0.1);">
+                    <td><strong>Client Receipts (Period):</strong></td>
+                    <td id="client-receipts" class="text-right" style="color: var(--success);">₹0.00</td>
+                </tr>
+                <tr style="background: rgba(239, 68, 68, 0.1);">
+                    <td><strong>Payments Made (Period):</strong></td>
+                    <td id="vendor-payments" class="text-right" style="color: var(--danger);">₹0.00</td>
+                </tr>
+                <tr style="background: rgba(239, 68, 68, 0.1);">
+                    <td><strong>Expenses - Credit (Period):</strong></td>
+                    <td id="expenses-credit" class="text-right" style="color: var(--danger);">₹0.00</td>
+                </tr>
+                <tr style="background: rgba(239, 68, 68, 0.1);">
+                    <td><strong>Expenses - Cash (Period):</strong></td>
+                    <td id="expenses-cash" class="text-right" style="color: var(--danger);">₹0.00</td>
+                </tr>
+                <tr style="background: rgba(239, 68, 68, 0.1);">
+                    <td><strong>Expenses - UPI/Bank (Period):</strong></td>
+                    <td id="expenses-bank-upi" class="text-right" style="color: var(--danger);">₹0.00</td>
+                </tr>
+                <tr style="background: var(--bg-tertiary);">
+                    <td><strong>Closing Balance:</strong></td>
+                    <td id="closing-balance" class="text-right"><strong>₹0.00</strong></td>
+                </tr>
+            </table>
         </div>
 
         <!-- Transaction Breakdown -->
@@ -170,7 +162,7 @@ Daily Cash Balance
                 '<option value="all">🏢 All Projects</option>' +
                 projects.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
 
-            // Init TomSelect with checkbox_options for multi-select
+            // Auto-select "All Projects" after loading
             let _busy = false;
             if (!select.tomselect) {
                 const ts = new TomSelect(select, {
@@ -185,19 +177,18 @@ Daily Cash Balance
                         const ts = this;
                         setTimeout(() => {
                             if (value === 'all') {
-                                // Replace whole selection with just 'All Projects'
-                                // _busy prevents this setValue from re-triggering onItemAdd
                                 _busy = true;
-                                ts.setValue(['all']); // no silent flag → checkboxes stay in sync
+                                ts.setValue(['all']);
                                 _busy = false;
                             } else {
-                                // Individual chosen — drop 'All Projects' if it was ticked
                                 const current = ts.getValue();
                                 if (current.includes('all')) ts.removeItem('all', true);
                             }
                         }, 0);
                     }
                 });
+                // Default: select All Projects so the user can click Load Balance right away
+                ts.setValue(['all']);
             } else {
                 select.tomselect.sync();
             }
@@ -285,6 +276,10 @@ Daily Cash Balance
     // Store all transactions globally for filtering
     let allTransactions = [];
     let currentFilter = 'all';
+    // Track the exact project/date that was last loaded (for export)
+    let lastLoadedProjectIds = null;
+    let lastLoadedFromDate   = null;
+    let lastLoadedToDate     = null;
 
     // Explicitly validate and load
     function validateAndLoad() {
@@ -320,7 +315,7 @@ Daily Cash Balance
         }
 
         try {
-            const url = "/api_daily_cash_balance";
+            const url = "/dashboard/api/daily-cash-balance";
             const response = await fetch(`${url}?project_ids=${projectIds}&from_date=${fromDate}&to_date=${toDate}`);
             const data = await response.json();
 
@@ -357,6 +352,11 @@ Daily Cash Balance
             displayTransactions(allTransactions);
 
             document.getElementById('balance-display').style.display = 'block';
+            document.getElementById('btn-export-excel').style.display = 'inline-flex';
+            // Remember exactly what was loaded so Export always matches the view
+            lastLoadedProjectIds = projectIds;
+            lastLoadedFromDate   = fromDate;
+            lastLoadedToDate     = toDate;
         } catch (error) {
             console.error('Error loading cash balance:', error);
             alert('Error loading data');
@@ -457,7 +457,8 @@ Daily Cash Balance
 
     // View transaction details in modal
     function viewTransactionDetails(id, type) {
-        const transaction = allTransactions.find(t => t.id === id && t.type === type);
+        // t.id comes from JSON as a number; id param is a string from onclick attr — compare as strings
+        const transaction = allTransactions.find(t => String(t.id) === String(id) && t.type === type);
 
         if (!transaction) {
             console.error('Transaction not found:', id, type);
@@ -636,33 +637,6 @@ Daily Cash Balance
     });
 
 
-    // Export functions (placeholder - would need backend integration)
-    function exportPDF() {
-        const projectId = document.getElementById('project-select').value;
-        const fromDate = document.getElementById('from-date').value;
-        const toDate = document.getElementById('to-date').value;
-
-        if (!projectId || !fromDate || !toDate) {
-            alert('Please load data first');
-            return;
-        }
-
-        window.open(`/export/balance-pdf?project_id=${projectId}&from_date=${fromDate}&to_date=${toDate}`, '_blank');
-    }
-
-    function exportExcel() {
-        const projectIds = getSelectedProjects();
-        const fromDate = document.getElementById('from-date').value;
-        const toDate = document.getElementById('to-date').value;
-
-        if (!projectIds || !fromDate || !toDate) {
-            alert('Please load data first');
-            return;
-        }
-
-        window.open(`/export/balance-excel?project_ids=${projectIds}&from_date=${fromDate}&to_date=${toDate}`, '_blank');
-    }
-
     // Format currency
     function formatCurrency(amount) {
         return '₹' + parseFloat(amount).toLocaleString('en-IN', {
@@ -671,10 +645,30 @@ Daily Cash Balance
         });
     }
 
-    // Initialize
-    initRangePicker();
-    setDateRange(30);
-    loadProjects(); // This is async and will call initSearchableDropdowns when done
+    // Export to Excel — exports exactly the project/date range currently shown
+    function exportToExcel() {
+        if (!lastLoadedFromDate || !lastLoadedToDate) {
+            alert('Please click "Load Balance" first.');
+            return;
+        }
+
+        const params = new URLSearchParams();
+        if (lastLoadedProjectIds) params.append('project_ids', lastLoadedProjectIds);
+        params.append('from_date', lastLoadedFromDate);
+        params.append('to_date',   lastLoadedToDate);
+
+        downloadExcel('/export_cash_balance?' + params.toString(),
+                      'cash_balance_' + lastLoadedFromDate + '_to_' + lastLoadedToDate + '.xlsx');
+    }
+
+    // Defer init: main.js / flatpickr / TomSelect are loaded by base.html AFTER this
+    // content fragment, so we wait for 'load' to guarantee they are available.
+    window.addEventListener('load', function () {
+        initRangePicker();
+        setDateRange(30);
+        loadProjects();
+    });
+
 </script>
 
     </div>

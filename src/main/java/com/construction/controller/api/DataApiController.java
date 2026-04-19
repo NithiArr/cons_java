@@ -2,9 +2,11 @@ package com.construction.controller.api;
 
 import com.construction.domain.*;
 import com.construction.repository.*;
+import com.construction.service.AuditService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -24,6 +26,7 @@ public class DataApiController {
     private final MasterCategoryRepository masterCategoryRepository;
     private final SubCategoryRepository subCategoryRepository;
     private final UserRepository userRepository;
+    private final AuditService auditService;
 
     // ─── HELPER ─────────────────────────────────────────────────────────
     private User currentUser(Authentication auth) {
@@ -68,6 +71,8 @@ public class DataApiController {
         if (body.get("end_date") != null && !body.get("end_date").toString().isBlank())
             project.setEndDate(java.time.LocalDate.parse(body.get("end_date").toString()));
         projectRepository.save(project);
+        auditService.log(currentUser(auth), "CREATE", "PROJECT", project.getName(),
+                "Created project: " + project.getName());
         return ResponseEntity.ok(Map.of("success", true));
     }
 
@@ -86,6 +91,8 @@ public class DataApiController {
                 if (body.get("end_date") != null && !body.get("end_date").toString().isBlank())
                     p.setEndDate(java.time.LocalDate.parse(body.get("end_date").toString()));
                 projectRepository.save(p);
+                auditService.log(currentUser(auth), "UPDATE", "PROJECT", p.getName(),
+                        "Updated project: " + p.getName());
                 return ResponseEntity.ok(Map.of("success", true));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -96,7 +103,10 @@ public class DataApiController {
         Company company = currentCompany(auth);
         return projectRepository.findById(id)
             .filter(p -> p.getCompany().getCompanyId().equals(company.getCompanyId()))
-            .map(p -> { projectRepository.delete(p); return ResponseEntity.ok(Map.of("success", true)); })
+            .map(p -> { projectRepository.delete(p);
+                auditService.log(currentUser(auth), "DELETE", "PROJECT", p.getName(),
+                        "Deleted project: " + p.getName());
+                return ResponseEntity.ok(Map.of("success", true)); })
             .orElse(ResponseEntity.notFound().build());
     }
 
@@ -127,6 +137,8 @@ public class DataApiController {
         vendor.setEmail((String) body.get("email"));
         if (body.get("gst_number") != null) vendor.setGstNumber((String) body.get("gst_number"));
         vendorRepository.save(vendor);
+        auditService.log(currentUser(auth), "CREATE", "VENDOR", vendor.getName(),
+                "Created vendor: " + vendor.getName());
         return ResponseEntity.ok(Map.of("success", true));
     }
 
@@ -141,6 +153,8 @@ public class DataApiController {
                 if (body.get("email") != null) v.setEmail((String) body.get("email"));
                 if (body.get("gst_number") != null) v.setGstNumber((String) body.get("gst_number"));
                 vendorRepository.save(v);
+                auditService.log(currentUser(auth), "UPDATE", "VENDOR", v.getName(),
+                        "Updated vendor: " + v.getName());
                 return ResponseEntity.ok(Map.of("success", true));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -151,7 +165,10 @@ public class DataApiController {
         Company company = currentCompany(auth);
         return vendorRepository.findById(id)
             .filter(v -> v.getCompany().getCompanyId().equals(company.getCompanyId()))
-            .map(v -> { vendorRepository.delete(v); return ResponseEntity.ok(Map.of("success", true)); })
+            .map(v -> { vendorRepository.delete(v);
+                auditService.log(currentUser(auth), "DELETE", "VENDOR", v.getName(),
+                        "Deleted vendor: " + v.getName());
+                return ResponseEntity.ok(Map.of("success", true)); })
             .orElse(ResponseEntity.notFound().build());
     }
 
@@ -237,6 +254,9 @@ public class DataApiController {
         Company company = currentCompany(auth);
         Expense expense = buildExpense(body, company, "Material Purchase");
         expenseRepository.save(expense);
+        String proj = expense.getProject() != null ? expense.getProject().getName() : "—";
+        auditService.log(currentUser(auth), "CREATE", "PURCHASE",
+                proj, "Created purchase for project: " + proj + " | ₹" + expense.getAmount());
         return ResponseEntity.ok(Map.of("success", true));
     }
 
@@ -250,6 +270,9 @@ public class DataApiController {
                 if (e.getItems() != null) e.getItems().clear();
                 addItems(e, body);
                 expenseRepository.save(e);
+                String pName = e.getProject() != null ? e.getProject().getName() : "—";
+                auditService.log(currentUser(auth), "UPDATE", "PURCHASE",
+                        pName, "Updated purchase for project: " + pName + " | ₹" + e.getAmount());
                 return ResponseEntity.ok(Map.of("success", true));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -260,7 +283,11 @@ public class DataApiController {
         Company company = currentCompany(auth);
         return expenseRepository.findById(id)
             .filter(e -> e.getCompany().getCompanyId().equals(company.getCompanyId()))
-            .map(e -> { expenseRepository.delete(e); return ResponseEntity.ok(Map.of("success", true)); })
+            .map(e -> { expenseRepository.delete(e);
+                auditService.log(currentUser(auth), "DELETE", "PURCHASE",
+                        e.getProject() != null ? e.getProject().getName() : "—",
+                        "Deleted purchase #" + e.getExpenseId());
+                return ResponseEntity.ok(Map.of("success", true)); })
             .orElse(ResponseEntity.notFound().build());
     }
 
@@ -304,6 +331,9 @@ public class DataApiController {
             expense.getItems().add(item);
         }
         expenseRepository.save(expense);
+        String cat = expense.getCategory() != null ? expense.getCategory() : "Expense";
+        auditService.log(currentUser(auth), "CREATE", "EXPENSE", cat,
+                "Created expense: " + cat + " | ₹" + expense.getAmount());
         return ResponseEntity.ok(Map.of("success", true));
     }
 
@@ -329,6 +359,9 @@ public class DataApiController {
                     e.getItems().add(item);
                 }
                 expenseRepository.save(e);
+                auditService.log(currentUser(auth), "UPDATE", "EXPENSE",
+                        e.getCategory() != null ? e.getCategory() : "Expense",
+                        "Updated expense #" + e.getExpenseId() + " | ₹" + e.getAmount());
                 return ResponseEntity.ok(Map.of("success", true));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -339,7 +372,11 @@ public class DataApiController {
         Company company = currentCompany(auth);
         return expenseRepository.findById(id)
             .filter(e -> e.getCompany().getCompanyId().equals(company.getCompanyId()))
-            .map(e -> { expenseRepository.delete(e); return ResponseEntity.ok(Map.of("success", true)); })
+            .map(e -> { expenseRepository.delete(e);
+                auditService.log(currentUser(auth), "DELETE", "EXPENSE",
+                        e.getCategory() != null ? e.getCategory() : "Expense",
+                        "Deleted expense #" + e.getExpenseId());
+                return ResponseEntity.ok(Map.of("success", true)); })
             .orElse(ResponseEntity.notFound().build());
     }
 
@@ -384,6 +421,9 @@ public class DataApiController {
         payment.setPaymentDate(java.time.LocalDate.parse(body.get("payment_date").toString()));
         payment.setPaymentMode((String) body.getOrDefault("payment_mode", "CASH"));
         paymentRepository.save(payment);
+        String vName = payment.getVendor() != null ? payment.getVendor().getName() : "—";
+        auditService.log(currentUser(auth), "CREATE", "PAYMENT", vName,
+                "Vendor payment to: " + vName + " | ₹" + payment.getAmount());
         return ResponseEntity.ok(Map.of("success", true));
     }
 
@@ -403,6 +443,9 @@ public class DataApiController {
                 if (body.get("payment_date") != null) p.setPaymentDate(java.time.LocalDate.parse(body.get("payment_date").toString()));
                 if (body.get("payment_mode") != null) p.setPaymentMode((String) body.get("payment_mode"));
                 paymentRepository.save(p);
+                auditService.log(currentUser(auth), "UPDATE", "PAYMENT",
+                        p.getVendor() != null ? p.getVendor().getName() : "—",
+                        "Updated vendor payment #" + p.getPaymentId() + " | ₹" + p.getAmount());
                 return ResponseEntity.ok(Map.of("success", true));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -413,7 +456,11 @@ public class DataApiController {
         Company company = currentCompany(auth);
         return paymentRepository.findById(id)
             .filter(p -> p.getCompany().getCompanyId().equals(company.getCompanyId()))
-            .map(p -> { paymentRepository.delete(p); return ResponseEntity.ok(Map.of("success", true)); })
+            .map(p -> { paymentRepository.delete(p);
+                auditService.log(currentUser(auth), "DELETE", "PAYMENT",
+                        p.getVendor() != null ? p.getVendor().getName() : "—",
+                        "Deleted payment #" + p.getPaymentId());
+                return ResponseEntity.ok(Map.of("success", true)); })
             .orElse(ResponseEntity.notFound().build());
     }
 
@@ -454,6 +501,9 @@ public class DataApiController {
         cp.setRemarks((String) body.get("remarks"));
         cp.setReferenceNumber((String) body.get("reference_number"));
         clientPaymentRepository.save(cp);
+        String cpProj = cp.getProject() != null ? cp.getProject().getName() : "—";
+        auditService.log(currentUser(auth), "CREATE", "CLIENT_PAYMENT", cpProj,
+                "Client payment for: " + cpProj + " | ₹" + cp.getAmount());
         return ResponseEntity.ok(Map.of("success", true));
     }
 
@@ -471,6 +521,9 @@ public class DataApiController {
                 if (body.containsKey("reference_number")) p.setReferenceNumber((String) body.get("reference_number"));
                 if (body.containsKey("remarks")) p.setRemarks((String) body.get("remarks"));
                 clientPaymentRepository.save(p);
+                auditService.log(currentUser(auth), "UPDATE", "CLIENT_PAYMENT",
+                        p.getProject() != null ? p.getProject().getName() : "—",
+                        "Updated client payment #" + p.getClientPaymentId() + " | ₹" + p.getAmount());
                 return ResponseEntity.ok(Map.of("success", true));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -481,7 +534,11 @@ public class DataApiController {
         Company company = currentCompany(auth);
         return clientPaymentRepository.findById(id)
             .filter(p -> p.getCompany().getCompanyId().equals(company.getCompanyId()))
-            .map(p -> { clientPaymentRepository.delete(p); return ResponseEntity.ok(Map.of("success", true)); })
+            .map(p -> { clientPaymentRepository.delete(p);
+                auditService.log(currentUser(auth), "DELETE", "CLIENT_PAYMENT",
+                        p.getProject() != null ? p.getProject().getName() : "—",
+                        "Deleted client payment #" + p.getClientPaymentId());
+                return ResponseEntity.ok(Map.of("success", true)); })
             .orElse(ResponseEntity.notFound().build());
     }
 
@@ -535,6 +592,8 @@ public class DataApiController {
         addSubcategories(category, body);
         masterCategoryRepository.save(category);
 
+        auditService.log(currentUser(auth), "CREATE", "MASTER_CATEGORY", name,
+                "Created category: " + name);
         return ResponseEntity.ok(Map.of("success", true, "category_id", category.getCategoryId()));
     }
 
@@ -555,6 +614,8 @@ public class DataApiController {
                     addSubcategories(category, body);
                 }
                 masterCategoryRepository.save(category);
+                auditService.log(currentUser(auth), "UPDATE", "MASTER_CATEGORY", category.getName(),
+                        "Updated category: " + category.getName());
                 return ResponseEntity.ok(Map.of("success", true));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -567,7 +628,10 @@ public class DataApiController {
             return ResponseEntity.status(403).body(Map.of("error", "Permission denied"));
         }
         return masterCategoryRepository.findById(id)
-            .map(c -> { masterCategoryRepository.delete(c); return ResponseEntity.ok(Map.of("success", true)); })
+            .map(c -> { masterCategoryRepository.delete(c);
+                auditService.log(currentUser(auth), "DELETE", "MASTER_CATEGORY", c.getName(),
+                        "Deleted category: " + c.getName());
+                return ResponseEntity.ok(Map.of("success", true)); })
             .orElse(ResponseEntity.notFound().build());
     }
 
@@ -626,6 +690,7 @@ public class DataApiController {
     }
 
     // ─── VENDOR OUTSTANDING ──────────────────────────────────────────────
+    @Transactional(readOnly = true)
     @GetMapping("/api_vendor_outstanding")
     public ResponseEntity<?> vendorOutstanding(
             @RequestParam Long vendor_id,
@@ -660,12 +725,20 @@ public class DataApiController {
         BigDecimal totalOutstanding = allCredit.subtract(allPaid);
         if (totalOutstanding.compareTo(BigDecimal.ZERO) < 0) totalOutstanding = BigDecimal.ZERO;
 
+        // Resolve project name if project_id provided
+        String projectName = null;
+        if (project_id != null) {
+            projectName = projectRepository.findById(project_id)
+                .map(p -> p.getName()).orElse(null);
+        }
+
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("vendor_name", vendor.get().getName());
         response.put("outstanding", outstanding);
         response.put("total_outstanding", totalOutstanding);
         if (project_id != null) {
             response.put("project_outstanding", outstanding);
+            response.put("project_name", projectName);
         }
         return ResponseEntity.ok(response);
     }

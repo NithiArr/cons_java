@@ -299,8 +299,8 @@ Vendor Payments
         }
 
         try {
-            let url = `/api/vendors/${vendorId}/outstanding`;
-            if (projectId) url += `?project_id=${projectId}`;
+            let url = `/api_vendor_outstanding?vendor_id=${vendorId}`;
+            if (projectId) url += `&project_id=${projectId}`;
             const res = await fetch(url);
             if (!res.ok) { banner.style.display = 'none'; return; }
             const d = await res.json();
@@ -310,7 +310,7 @@ Vendor Payments
 
             if (projectId && d.project_outstanding !== undefined) {
                 currentProjectOutstanding = d.project_outstanding;
-                projectText.innerHTML = `Outstanding for <strong>${d.project_name}</strong>: <strong style="color:var(--warning)">${formatCurrency(d.project_outstanding)}</strong>`;
+                projectText.innerHTML = `Outstanding for <strong>${d.project_name || 'this project'}</strong>: <strong style="color:var(--warning)">${formatCurrency(d.project_outstanding)}</strong>`;
             } else {
                 projectText.innerHTML = '';
                 currentProjectOutstanding = null;
@@ -322,6 +322,15 @@ Vendor Payments
         }
     }
 
+    // Helper: set select value safely (handles TomSelect-wrapped and plain selects)
+    function setVal(id, value) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const v = String(value ?? '');
+        if (el.tomselect) el.tomselect.setValue(v);
+        else el.value = v;
+    }
+
     async function openEditPayment(id) {
         editingPaymentId = id;
         document.getElementById('modal-title').textContent = 'Edit Vendor Payment';
@@ -329,19 +338,17 @@ Vendor Payments
         document.getElementById('outstanding-error').style.display = 'none';
         currentVendorOutstanding = null;
         currentProjectOutstanding = null;
-        try {
-            const url = "/api_payments_list/" + id;
-            const res = await fetch(url);
-            if (!res.ok) { showNotification('Failed to load payment', 'error'); return; }
-            const p = await res.json();
-            document.getElementById('payment-vendor').value = p.vendor_id;
-            document.getElementById('payment-project').value = p.project_id;
-            document.getElementById('payment-amount').value = p.amount;
-            document.getElementById('payment-mode').value = p.payment_mode;
-            document.getElementById('payment-date').value = p.payment_date;
-        } catch (err) {
-            showNotification('Error loading payment', 'error'); return;
-        }
+
+        // Use local data — no extra API call needed
+        const p = allPayments.find(p => String(p.payment_id) === String(id));
+        if (!p) { showNotification('Payment not found', 'error'); return; }
+
+        setVal('payment-vendor',  p.vendor_id);
+        setVal('payment-project', p.project_id);
+        setVal('payment-mode',    p.payment_mode);
+        document.getElementById('payment-amount').value = p.amount;
+        document.getElementById('payment-date').value   = p.payment_date;
+
         openModal('add-payment-modal');
     }
 

@@ -5,10 +5,18 @@ services:
     plan: free
     dockerfilePath: ./Dockerfile
     envVars:
-      - key: DATABASE_URL
+      - key: DB_HOST
         fromDatabase:
           name: construction-db
-          property: connectionString
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: construction-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: construction-db
+          property: database
       - key: DB_USERNAME
         fromDatabase:
           name: construction-db

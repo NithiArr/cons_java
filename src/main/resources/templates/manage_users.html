@@ -1,65 +1,160 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{base}">
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{base}">
 <head>
-    <title>Elite Page</title>
+    <title>Manage Users – Elite Build</title>
+    <style>
+        .role-badge-ADMIN    { background: rgba(239,68,68,.15);   color: #f87171; border: 1px solid rgba(239,68,68,.3); }
+        .role-badge-MANAGER  { background: rgba(99,102,241,.15);  color: #818cf8; border: 1px solid rgba(99,102,241,.3); }
+        .role-badge-EMPLOYEE { background: rgba(16,185,129,.15);  color: #34d399; border: 1px solid rgba(16,185,129,.3); }
+        .role-pill {
+            display: inline-flex; align-items: center; gap: .35rem;
+            padding: .25rem .75rem; border-radius: 999px;
+            font-size: .75rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+        }
+        .uid-chip {
+            background: rgba(255,255,255,.06);
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: .4rem; padding: .15rem .55rem;
+            font-family: monospace; font-size: .8rem; color: #94a3b8;
+        }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .status-dot.active   { background: #34d399; box-shadow: 0 0 6px #34d399; }
+        .status-dot.inactive { background: #f87171; }
+        .you-tag {
+            font-size: .7rem; background: rgba(99,102,241,.2); color: #818cf8;
+            border-radius: 999px; padding: .1rem .5rem; margin-left: .5rem;
+        }
+        .access-desc { font-size: .75rem; color: #64748b; margin-top: .15rem; }
+    </style>
 </head>
 <body>
-    <div layout:fragment="content">
+<div layout:fragment="content">
 
-Manage Users - Construction Management
-
-
-<div class="page-header">
-    <div>
-        <h2><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg> Manage Users</h2>
-        <p class="text-secondary">All users in ${request.user.company.name}</p>
+    <div class="page-header">
+        <div>
+            <h1>
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"/>
+                </svg>
+                Manage Users
+            </h1>
+            <p class="text-secondary" th:text="'All users in ' + ${companyName}">Company</p>
+        </div>
+        <a th:href="@{/register}" class="btn btn-primary">
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+            </svg>
+            Add User
+        </a>
     </div>
-    <a th:href="/register" class="btn btn-primary">+ Add User</a>
-</div>
 
-<div class="card glass">
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            
-            <tr>
-                <td>${u.name}</td>
-                <td>${u.email}</td>
-                <td>
-                    <span class="role-badge role-adminrole-managerrole-employee">
-                        ${u.get_role_display}
-                    </span>
-                </td>
-                <td>
-                    
-                    <form method="POST" action=""
-                        onsubmit="return confirm('Delete ${u.name}? This cannot be undone.');">
-                        
-                        <button type="submit" class="btn btn-danger btn-sm"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg> Delete</button>
-                    </form>
-                    
-                    <span class="text-secondary" style="font-size: 0.8rem;">You</span>
-                    
-                </td>
-            </tr>
-            
-            <tr>
-                <td colspan="4" style="text-align: center; color: var(--text-secondary);">No users found.</td>
-            </tr>
-            
-        </tbody>
-    </table>
-</div>
-
-
-
+    <!-- Success flash -->
+    <div th:if="${success}"
+         style="background:rgba(16,185,129,.15); border:1px solid rgba(16,185,129,.35); border-radius:.75rem;
+                padding:.85rem 1.2rem; margin-bottom:1rem; color:#34d399; font-size:.9rem;">
+        ✓ <span th:text="${success}">Success</span>
     </div>
+
+    <!-- Access Level Legend -->
+    <div class="card mb-3" style="padding: 1rem 1.5rem;">
+        <div class="flex gap-3" style="flex-wrap:wrap; align-items:center;">
+            <span style="font-size:.8rem; color:#64748b; font-weight:600;">Access Levels:</span>
+            <span class="role-pill role-badge-ADMIN">🔴 Admin — Full Access</span>
+            <span class="role-pill role-badge-MANAGER">🔵 Manager — Finance &amp; Analytics</span>
+            <span class="role-pill role-badge-EMPLOYEE">🟢 Employee — Purchases Only</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <table class="w-full" style="border-collapse:collapse;">
+            <thead>
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.08);">
+                    <th style="padding:.75rem 1rem; text-align:left; font-size:.75rem; text-transform:uppercase; color:#64748b; letter-spacing:.05em;">User ID</th>
+                    <th style="padding:.75rem 1rem; text-align:left; font-size:.75rem; text-transform:uppercase; color:#64748b; letter-spacing:.05em;">Name</th>
+                    <th style="padding:.75rem 1rem; text-align:left; font-size:.75rem; text-transform:uppercase; color:#64748b; letter-spacing:.05em;">Email</th>
+                    <th style="padding:.75rem 1rem; text-align:left; font-size:.75rem; text-transform:uppercase; color:#64748b; letter-spacing:.05em;">Role / Access</th>
+                    <th style="padding:.75rem 1rem; text-align:center; font-size:.75rem; text-transform:uppercase; color:#64748b; letter-spacing:.05em;">Status</th>
+                    <th style="padding:.75rem 1rem; text-align:center; font-size:.75rem; text-transform:uppercase; color:#64748b; letter-spacing:.05em;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="u : ${users}"
+                    style="border-bottom: 1px solid rgba(255,255,255,0.04); transition: background .15s;"
+                    onmouseover="this.style.background='rgba(255,255,255,0.03)'"
+                    onmouseout="this.style.background=''">
+
+                    <!-- User ID -->
+                    <td style="padding:.85rem 1rem;">
+                        <span class="uid-chip" th:text="'#' + ${u.userId}">#1</span>
+                    </td>
+
+                    <!-- Name + (You) tag -->
+                    <td style="padding:.85rem 1rem;">
+                        <span th:text="${u.name}" style="font-weight:500; color:#e2e8f0;">Name</span>
+                        <span th:if="${u.userId == currentUserId}" class="you-tag">You</span>
+                    </td>
+
+                    <!-- Email -->
+                    <td style="padding:.85rem 1rem; color:#94a3b8;" th:text="${u.email}">email</td>
+
+                    <!-- Role badge + access description -->
+                    <td style="padding:.85rem 1rem;">
+                        <span class="role-pill"
+                              th:classappend="'role-badge-' + ${u.role}"
+                              th:text="${u.role}">ROLE</span>
+                        <div class="access-desc"
+                             th:text="${u.role == 'ADMIN'} ? 'Full access to all modules and settings'
+                                    : (${u.role == 'MANAGER'} ? 'Finance, analytics, projects &amp; vendors'
+                                    : 'Material purchases only')">desc</div>
+                    </td>
+
+                    <!-- Status -->
+                    <td style="padding:.85rem 1rem; text-align:center;">
+                        <span class="status-dot" th:classappend="${u.active} ? 'active' : 'inactive'"></span>
+                        <span style="font-size:.8rem; margin-left:.4rem;"
+                              th:text="${u.active} ? 'Active' : 'Inactive'"
+                              th:style="${u.active} ? 'color:#34d399' : 'color:#f87171'">Active</span>
+                    </td>
+
+                    <!-- Edit action -->
+                    <td style="padding:.85rem 1rem; text-align:center;">
+                        <a th:href="@{/users/{id}/edit(id=${u.userId})}"
+                           style="display:inline-flex; align-items:center; gap:.4rem; padding:.35rem .85rem;
+                                  background:rgba(99,102,241,.15); border:1px solid rgba(99,102,241,.3);
+                                  border-radius:.5rem; color:#818cf8; font-size:.8rem; font-weight:600;
+                                  text-decoration:none; transition:all .2s;"
+                           onmouseover="this.style.background='rgba(99,102,241,.3)'"
+                           onmouseout="this.style.background='rgba(99,102,241,.15)'">
+                            <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:14px;height:14px;">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125"/>
+                            </svg>
+                            Edit
+                        </a>
+                    </td>
+                </tr>
+
+                <!-- Empty state -->
+                <tr th:if="${#lists.isEmpty(users)}">
+                    <td colspan="6" style="padding:3rem; text-align:center; color:#475569;">
+                        No users found.
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Summary footer -->
+        <div style="padding:.75rem 1rem; border-top:1px solid rgba(255,255,255,0.06); display:flex; gap:2rem; font-size:.8rem; color:#64748b;">
+            <span>Total: <strong th:text="${#lists.size(users)}" style="color:#e2e8f0;">0</strong></span>
+            <span>Admins: <strong th:text="${#lists.size(users.?[role == 'ADMIN'])}" style="color:#f87171;">0</strong></span>
+            <span>Managers: <strong th:text="${#lists.size(users.?[role == 'MANAGER'])}" style="color:#818cf8;">0</strong></span>
+            <span>Employees: <strong th:text="${#lists.size(users.?[role == 'EMPLOYEE'])}" style="color:#34d399;">0</strong></span>
+        </div>
+    </div>
+
+</div>
 </body>
 </html>

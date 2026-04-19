@@ -5,6 +5,7 @@ import lombok.Data;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -34,12 +35,28 @@ public class User implements UserDetails {
     private String role; // ADMIN, MANAGER, EMPLOYEE
 
     // Needed by Django AbstractUser mapping
+    @Column(name = "first_name", length = 150, nullable = false)
+    private String firstName = "";
+
+    @Column(name = "last_name", length = 150, nullable = false)
+    private String lastName = "";
+
+    @Column(name = "date_joined", nullable = false)
+    private OffsetDateTime dateJoined;
+
     @Column(name = "is_active")
     private boolean isActive = true;
     @Column(name = "is_staff")
     private boolean isStaff = false;
     @Column(name = "is_superuser")
     private boolean isSuperuser = false;
+
+    @PrePersist
+    protected void onCreate() {
+        if (dateJoined == null) dateJoined = OffsetDateTime.now();
+        if (firstName == null) firstName = "";
+        if (lastName == null)  lastName = "";
+    }
 
     // Spring Security UserDetails methods
     @Override

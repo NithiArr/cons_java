@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{base}">
+<head>
+    <title>Activity Log – Elite Build</title>
+    <style>
+        .badge-CREATE { background:rgba(16,185,129,.15); color:#34d399; border:1px solid rgba(16,185,129,.3); }
+        .badge-UPDATE { background:rgba(99,102,241,.15);  color:#818cf8; border:1px solid rgba(99,102,241,.3); }
+        .badge-DELETE { background:rgba(239,68,68,.15);   color:#f87171; border:1px solid rgba(239,68,68,.3); }
+        .badge {
+            display:inline-block; padding:.2rem .65rem; border-radius:999px;
+            font-size:.7rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+        }
+        .mod-PROJECT        { color:#60a5fa; }
+        .mod-VENDOR         { color:#a78bfa; }
+        .mod-PURCHASE       { color:#fbbf24; }
+        .mod-EXPENSE        { color:#f97316; }
+        .mod-PAYMENT        { color:#34d399; }
+        .mod-CLIENT_PAYMENT { color:#22d3ee; }
+        .mod-USER           { color:#f472b6; }
+        .mod-MASTER_CATEGORY{ color:#94a3b8; }
+        .mod-chip { font-size:.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+        .log-row { border-bottom:1px solid rgba(255,255,255,.04); transition:background .15s; }
+        .log-row:hover { background:rgba(255,255,255,.025); }
+        .ts { font-size:.72rem; color:#475569; font-family:monospace; }
+        .user-name { font-weight:600; font-size:.85rem; color:#e2e8f0; }
+        .role-dot-ADMIN    { background:#f87171; }
+        .role-dot-MANAGER  { background:#818cf8; }
+        .role-dot-EMPLOYEE { background:#34d399; }
+        .role-dot { width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:.3rem; }
+
+        /* Filter bar — same style as other pages */
+        .filter-bar {
+            display:flex; flex-wrap:wrap; gap:.75rem;
+            align-items:flex-end; padding:1rem 1.25rem;
+            background:rgba(255,255,255,.03);
+            border-bottom:1px solid rgba(255,255,255,.06);
+        }
+        .filter-group { display:flex; flex-direction:column; gap:.3rem; min-width:130px; }
+        .filter-label { font-size:.7rem; color:#64748b; font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
+        .filter-bar select, .filter-bar input[type=date] {
+            background:rgba(255,255,255,.06);
+            border:1px solid rgba(255,255,255,.1);
+            color:#e2e8f0; border-radius:.5rem;
+            padding:.4rem .7rem; font-size:.83rem;
+            outline:none; cursor:pointer;
+        }
+        .filter-bar select:focus, .filter-bar input[type=date]:focus {
+            border-color:rgba(99,102,241,.5);
+        }
+        .filter-actions { display:flex; gap:.5rem; align-items:flex-end; margin-left:auto; }
+        .btn-filter {
+            padding:.45rem 1.1rem; border-radius:.5rem; font-size:.83rem;
+            font-weight:600; cursor:pointer; border:none;
+            background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff;
+            transition:opacity .2s;
+        }
+        .btn-filter:hover { opacity:.85; }
+        .btn-clear {
+            padding:.45rem 1.1rem; border-radius:.5rem; font-size:.83rem;
+            font-weight:600; cursor:pointer;
+            background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1);
+            color:#94a3b8; text-decoration:none;
+            transition:background .2s;
+        }
+        .btn-clear:hover { background:rgba(255,255,255,.1); }
+
+        /* Active filter indicator */
+        .active-filter-chip {
+            display:inline-flex; align-items:center; gap:.35rem;
+            background:rgba(99,102,241,.15); border:1px solid rgba(99,102,241,.3);
+            color:#818cf8; border-radius:999px; padding:.2rem .65rem;
+            font-size:.72rem; font-weight:600;
+        }
+    </style>
+</head>
+<body>
+<div layout:fragment="content">
+
+    <!-- Page header -->
+    <div class="page-header">
+        <div>
+            <h1>
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z"/>
+                </svg>
+                Activity Log
+            </h1>
+            <p class="text-secondary">
+                Showing <strong th:text="${logs.totalElements}" style="color:#e2e8f0;">0</strong> events
+                <!-- Active filter chips -->
+                <span th:if="${fAction != ''}" class="active-filter-chip" th:text="${fAction}"></span>
+                <span th:if="${fModule != ''}" class="active-filter-chip" th:text="${fModule.replace('_',' ')}"></span>
+                <span th:if="${fDateFrom != ''}" class="active-filter-chip" th:text="'From ' + ${fDateFrom}"></span>
+                <span th:if="${fDateTo   != ''}" class="active-filter-chip" th:text="'To '   + ${fDateTo}"></span>
+            </p>
+        </div>
+    </div>
+
+    <!-- ── Filter bar ── -->
+    <div class="card" style="margin-bottom:1rem; padding:0; overflow:hidden;">
+        <form method="GET" th:action="@{/activity-log}" class="filter-bar" id="filter-form">
+
+            <!-- Action -->
+            <div class="filter-group">
+                <label class="filter-label">Action</label>
+                <select name="action" onchange="this.form.submit()">
+                    <option value="" th:selected="${fAction == ''}">All Actions</option>
+                    <option value="CREATE" th:selected="${fAction == 'CREATE'}">🟢 Create</option>
+                    <option value="UPDATE" th:selected="${fAction == 'UPDATE'}">🔵 Update</option>
+                    <option value="DELETE" th:selected="${fAction == 'DELETE'}">🔴 Delete</option>
+                </select>
+            </div>
+
+            <!-- Module -->
+            <div class="filter-group">
+                <label class="filter-label">Module</label>
+                <select name="module" onchange="this.form.submit()">
+                    <option value="" th:selected="${fModule == ''}">All Modules</option>
+                    <option value="PROJECT"         th:selected="${fModule == 'PROJECT'}">Project</option>
+                    <option value="VENDOR"          th:selected="${fModule == 'VENDOR'}">Vendor</option>
+                    <option value="PURCHASE"        th:selected="${fModule == 'PURCHASE'}">Purchase</option>
+                    <option value="EXPENSE"         th:selected="${fModule == 'EXPENSE'}">Expense</option>
+                    <option value="PAYMENT"         th:selected="${fModule == 'PAYMENT'}">Vendor Payment</option>
+                    <option value="CLIENT_PAYMENT"  th:selected="${fModule == 'CLIENT_PAYMENT'}">Client Payment</option>
+                    <option value="USER"            th:selected="${fModule == 'USER'}">User</option>
+                    <option value="MASTER_CATEGORY" th:selected="${fModule == 'MASTER_CATEGORY'}">Category</option>
+                </select>
+            </div>
+
+            <!-- User -->
+            <div class="filter-group">
+                <label class="filter-label">User</label>
+                <select name="userId" onchange="this.form.submit()">
+                    <option value="" th:selected="${fUserId == null}">All Users</option>
+                    <option th:each="u : ${companyUsers}"
+                            th:value="${u.userId}"
+                            th:text="${u.name} + ' (' + ${u.role} + ')'"
+                            th:selected="${fUserId != null and fUserId == u.userId}">User</option>
+                </select>
+            </div>
+
+            <!-- Date From -->
+            <div class="filter-group">
+                <label class="filter-label">From Date</label>
+                <input type="date" name="dateFrom" th:value="${fDateFrom}" onchange="this.form.submit()">
+            </div>
+
+            <!-- Date To -->
+            <div class="filter-group">
+                <label class="filter-label">To Date</label>
+                <input type="date" name="dateTo" th:value="${fDateTo}" onchange="this.form.submit()">
+            </div>
+
+            <!-- Actions -->
+            <div class="filter-actions">
+                <a th:href="@{/activity-log}" class="btn-clear">Clear</a>
+            </div>
+
+        </form>
+    </div>
+
+    <!-- ── Results table ── -->
+    <div class="card" style="padding:0; overflow:hidden;">
+        <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="border-bottom:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.03);">
+                        <th style="padding:.7rem 1rem; text-align:left; font-size:.7rem; color:#64748b; text-transform:uppercase; letter-spacing:.06em; white-space:nowrap;">Timestamp</th>
+                        <th style="padding:.7rem 1rem; text-align:left; font-size:.7rem; color:#64748b; text-transform:uppercase; letter-spacing:.06em;">User</th>
+                        <th style="padding:.7rem 1rem; text-align:center; font-size:.7rem; color:#64748b; text-transform:uppercase; letter-spacing:.06em;">Action</th>
+                        <th style="padding:.7rem 1rem; text-align:left; font-size:.7rem; color:#64748b; text-transform:uppercase; letter-spacing:.06em;">Module</th>
+                        <th style="padding:.7rem 1rem; text-align:left; font-size:.7rem; color:#64748b; text-transform:uppercase; letter-spacing:.06em;">Resource</th>
+                        <th style="padding:.7rem 1rem; text-align:left; font-size:.7rem; color:#64748b; text-transform:uppercase; letter-spacing:.06em;">Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="log-row" th:each="log : ${logs.content}">
+
+                        <!-- Timestamp -->
+                        <td style="padding:.75rem 1rem; white-space:nowrap;">
+                            <span class="ts"
+                                  th:text="${#temporals.format(
+                                      log.createdAt.atZoneSameInstant(T(java.time.ZoneId).of('Asia/Kolkata')).toLocalDateTime(),
+                                      'dd MMM yy')}">--</span>
+                            <br>
+                            <span class="ts" style="color:#334155;"
+                                  th:text="${#temporals.format(
+                                      log.createdAt.atZoneSameInstant(T(java.time.ZoneId).of('Asia/Kolkata')).toLocalDateTime(),
+                                      'HH:mm:ss')}">--</span>
+                        </td>
+
+                        <!-- User -->
+                        <td style="padding:.75rem 1rem; white-space:nowrap;">
+                            <span class="role-dot" th:classappend="'role-dot-' + ${log.performedBy.role}"></span>
+                            <span class="user-name" th:text="${log.performedBy.name}">User</span>
+                            <div style="font-size:.7rem; color:#475569;" th:text="${log.performedBy.role}">ROLE</div>
+                        </td>
+
+                        <!-- Action badge -->
+                        <td style="padding:.75rem 1rem; text-align:center; white-space:nowrap;">
+                            <span class="badge" th:classappend="'badge-' + ${log.action}" th:text="${log.action}">ACTION</span>
+                        </td>
+
+                        <!-- Module chip -->
+                        <td style="padding:.75rem 1rem; white-space:nowrap;">
+                            <span class="mod-chip"
+                                  th:classappend="'mod-' + ${log.module}"
+                                  th:text="${log.module.replace('_', ' ')}">MODULE</span>
+                        </td>
+
+                        <!-- Resource name -->
+                        <td style="padding:.75rem 1rem; color:#cbd5e1; font-size:.85rem;"
+                            th:text="${log.resourceName}">—</td>
+
+                        <!-- Details -->
+                        <td style="padding:.75rem 1rem; color:#64748b; font-size:.8rem; max-width:280px;"
+                            th:text="${log.details}">—</td>
+                    </tr>
+
+                    <!-- Empty state -->
+                    <tr th:if="${logs.totalElements == 0}">
+                        <td colspan="6" style="padding:4rem; text-align:center; color:#475569;">
+                            <div style="font-size:2rem; margin-bottom:.5rem;">📋</div>
+                            No events match the current filters.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination — preserves filter params -->
+        <div th:if="${totalPages > 1}"
+             style="padding:.75rem 1rem; border-top:1px solid rgba(255,255,255,.06);
+                    display:flex; gap:.5rem; align-items:center; justify-content:center; flex-wrap:wrap;">
+
+            <a th:if="${currentPage > 0}"
+               th:href="@{/activity-log(page=${currentPage - 1}, action=${fAction}, module=${fModule}, userId=${fUserId}, dateFrom=${fDateFrom}, dateTo=${fDateTo})}"
+               style="padding:.35rem .85rem; background:rgba(255,255,255,.06); border-radius:.5rem;
+                      color:#94a3b8; text-decoration:none; font-size:.85rem;">← Prev</a>
+
+            <span style="font-size:.8rem; color:#64748b;">
+                Page <strong th:text="${currentPage + 1}" style="color:#e2e8f0;"></strong>
+                of <strong th:text="${totalPages}" style="color:#e2e8f0;"></strong>
+            </span>
+
+            <a th:if="${currentPage < totalPages - 1}"
+               th:href="@{/activity-log(page=${currentPage + 1}, action=${fAction}, module=${fModule}, userId=${fUserId}, dateFrom=${fDateFrom}, dateTo=${fDateTo})}"
+               style="padding:.35rem .85rem; background:rgba(255,255,255,.06); border-radius:.5rem;
+                      color:#94a3b8; text-decoration:none; font-size:.85rem;">Next →</a>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>

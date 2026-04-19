@@ -4,6 +4,7 @@ import com.construction.domain.*;
 import com.construction.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -79,6 +80,7 @@ public class FinanceService {
     }
 
     // ─── DAILY CASH BALANCE ───────────────────────────────────────────────
+    @Transactional(readOnly = true)
     public Map<String, Object> getDailyCashBalance(Company company, List<Long> projectIdList,
                                                     LocalDate fromDate, LocalDate toDate) {
         boolean allProjects = (projectIdList == null || projectIdList.isEmpty());
@@ -211,6 +213,7 @@ public class FinanceService {
     }
 
     // ─── PROJECT PAYMENT DETAILS ─────────────────────────────────────────
+    @Transactional(readOnly = true)
     public Map<String, Object> getProjectPaymentDetails(Company company, Long projectId) {
         Project project = projectRepository.findById(projectId)
                 .filter(p -> p.getCompany().getCompanyId().equals(company.getCompanyId()))
@@ -349,6 +352,7 @@ public class FinanceService {
     }
 
     // ─── VENDOR SUMMARY ──────────────────────────────────────────────────
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> getVendorSummary(Company company) {
         List<Vendor> vendors = vendorRepository.findByCompanyOrderByName(company);
         List<Map<String, Object>> data = new ArrayList<>();
@@ -377,6 +381,7 @@ public class FinanceService {
     }
 
     // ─── VENDOR MATERIAL SUMMARY ─────────────────────────────────────────
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> getVendorMaterialSummary(Company company, Long vendorId, String projectName) {
         Vendor vendor = vendorRepository.findById(vendorId)
                 .orElseThrow(() -> new NoSuchElementException("Vendor not found"));
@@ -426,6 +431,7 @@ public class FinanceService {
     }
 
     // ─── VENDOR PURCHASE HISTORY ──────────────────────────────────────────
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> getVendorPurchaseHistory(Company company, Long vendorId) {
         Vendor vendor = vendorRepository.findById(vendorId)
                 .orElseThrow(() -> new NoSuchElementException("Vendor not found"));

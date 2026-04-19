@@ -10,8 +10,26 @@ public class DjangoPasswordEncoder implements PasswordEncoder {
 
     @Override
     public String encode(CharSequence rawPassword) {
-        // Return a dummy value, we don't need to encode for existing users during testing
-        return "pbkdf2_sha256$10000$saltsalt$fakehash";
+        try {
+            String salt = generateSalt();
+            int iterations = 260000;
+            KeySpec spec = new PBEKeySpec(
+                rawPassword.toString().toCharArray(), salt.getBytes(), iterations, 256);
+            SecretKeyFactory f = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+            byte[] rawHash = f.generateSecret(spec).getEncoded();
+            String hash = Base64.getEncoder().encodeToString(rawHash);
+            return "pbkdf2_sha256$" + iterations + "$" + salt + "$" + hash;
+        } catch (Exception e) {
+            throw new RuntimeException("Password encoding failed", e);
+        }
+    }
+
+    private String generateSalt() {
+        String chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        java.security.SecureRandom rng = new java.security.SecureRandom();
+        StringBuilder sb = new StringBuilder(12);
+        for (int i = 0; i < 12; i++) sb.append(chars.charAt(rng.nextInt(chars.length())));
+        return sb.toString();
     }
 
     @Override

@@ -235,23 +235,30 @@ Client Payments
         }).join('');
     }
 
+    // Helper: set select value safely (handles TomSelect-wrapped and plain selects)
+    function setVal(id, value) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const v = String(value ?? '');
+        if (el.tomselect) el.tomselect.setValue(v);
+        else el.value = v;
+    }
+
     async function openEditClientPayment(id) {
         editingClientPaymentId = id;
         document.getElementById('cp-modal-title').textContent = 'Edit Client Payment';
-        try {
-            const url = "/api_client_payments_list/" + id;
-            const res = await fetch(url);
-            if (!res.ok) { showNotification('Failed to load payment', 'error'); return; }
-            const cp = await res.json();
-            document.getElementById('client-payment-project').value = cp.project_id;
-            document.getElementById('client-payment-amount').value = cp.amount;
-            document.getElementById('client-payment-mode').value = cp.payment_mode;
-            document.getElementById('client-payment-date').value = cp.payment_date;
-            document.getElementById('client-payment-ref').value = cp.reference_number || '';
-            document.getElementById('client-payment-remarks').value = cp.remarks || '';
-        } catch (err) {
-            showNotification('Error loading payment', 'error'); return;
-        }
+
+        // Use local data — no extra API call needed
+        const cp = allClientPayments.find(cp => String(cp.client_payment_id) === String(id));
+        if (!cp) { showNotification('Payment not found', 'error'); return; }
+
+        setVal('client-payment-project', cp.project_id);
+        setVal('client-payment-mode',    cp.payment_mode);
+        document.getElementById('client-payment-amount').value  = cp.amount;
+        document.getElementById('client-payment-date').value    = cp.payment_date;
+        document.getElementById('client-payment-ref').value     = cp.reference_number || '';
+        document.getElementById('client-payment-remarks').value = cp.remarks || '';
+
         openModal('add-client-payment-modal');
     }
 

@@ -5,6 +5,8 @@ import com.construction.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFColor;
+import org.apache.poi.xssf.usermodel.XSSFFont;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -18,6 +20,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
+
 
 @RestController
 @RequiredArgsConstructor
@@ -562,5 +565,214 @@ public class ExportController {
 
         String safe = project.getName().replaceAll("[^a-zA-Z0-9 ]", "").trim().replace(' ', '_');
         return respond(wb, safe + "_report_" + LocalDate.now() + ".xlsx");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // EXPORT CASH BALANCE  →  /export_cash_balance
+    //   Sheet 1: Balance Summary | Sheet 2: Transactions
+    // ─────────────────────────────────────────────────────────────────────
+    @GetMapping("/export_cash_balance")
+    public ResponseEntity<byte[]> exportCashBalance(
+            Authentication auth,
+            @RequestParam(required = false) String project_ids,
+            @RequestParam String from_date,
+            @RequestParam String to_date) throws Exception {
+
+        Company company = currentCompany(auth);
+        LocalDate from = LocalDate.parse(from_date);
+        LocalDate to   = LocalDate.parse(to_date);
+
+        // Resolve project filter
+        List<Long> pidList = null;
+        if (project_ids != null && !project_ids.equalsIgnoreCase("all") && !project_ids.isBlank()) {
+            pidList = Arrays.stream(project_ids.split(","))
+                    .map(String::trim).filter(s -> !s.isEmpty())
+                    .map(Long::parseLong).collect(Collectors.toList());
+        }
+
+        final List<Long> finalPidList = pidList;
+        boolean allProjects = (finalPidList == null);
+
+        // Fetch period data
+        List<ClientPayment> clientPays = clientPaymentRepository.findByCompanyAndPaymentDateBetween(company, from, to);
+        List<Payment>       vendorPays = paymentRepository.findByCompanyAndPaymentDateBetween(company, from, to);
+        List<Expense>       expenses   = expenseRepository.findByCompanyAndExpenseDateBetween(company, from, to);
+
+        if (!allProjects) {
+            clientPays = clientPays.stream().filter(cp -> cp.getProject() != null && finalPidList.contains(cp.getProject().getProjectId())).collect(Collectors.toList());
+            vendorPays = vendorPays.stream().filter(p  -> p.getProject()  != null && finalPidList.contains(p.getProject().getProjectId())).collect(Collectors.toList());
+            expenses   = expenses.stream().filter(e   -> e.getProject()   != null && finalPidList.contains(e.getProject().getProjectId())).collect(Collectors.toList());
+        }
+
+        // Fetch opening balance data (before from_date)
+        List<ClientPayment> opClientPays = clientPaymentRepository.findByCompanyAndPaymentDateBefore(company, from);
+        List<Payment>       opVendorPays = paymentRepository.findByCompanyAndPaymentDateBefore(company, from);
+        List<Expense>       opExpenses   = expenseRepository.findByCompanyAndExpenseDateBefore(company, from);
+        if (!allProjects) {
+            opClientPays = opClientPays.stream().filter(cp -> cp.getProject() != null && finalPidList.contains(cp.getProject().getProjectId())).collect(Collectors.toList());
+            opVendorPays = opVendorPays.stream().filter(p  -> p.getProject()  != null && finalPidList.contains(p.getProject().getProjectId())).collect(Collectors.toList());
+            opExpenses   = opExpenses.stream().filter(e   -> e.getProject()   != null && finalPidList.contains(e.getProject().getProjectId())).collect(Collectors.toList());
+        }
+
+        BigDecimal opInflow   = opClientPays.stream().map(ClientPayment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal opExpOut   = opExpenses.stream().filter(e -> !"CREDIT".equalsIgnoreCase(e.getPaymentMode())).map(Expense::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal opPayOut   = opVendorPays.stream().map(Payment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal openingBal = opInflow.subtract(opExpOut).subtract(opPayOut);
+
+        BigDecimal clientReceipts = clientPays.stream().map(ClientPayment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal vendorPayTotal = vendorPays.stream().map(Payment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal expCredit      = expenses.stream().filter(e -> "CREDIT".equalsIgnoreCase(e.getPaymentMode())).map(Expense::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal expCash        = expenses.stream().filter(e -> "CASH".equalsIgnoreCase(e.getPaymentMode())).map(Expense::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal expBankUpi     = expenses.stream().filter(e -> "BANK".equalsIgnoreCase(e.getPaymentMode()) || "UPI".equalsIgnoreCase(e.getPaymentMode())).map(Expense::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal closingBal     = openingBal.add(clientReceipts).subtract(expCash).subtract(expBankUpi).subtract(vendorPayTotal);
+
+        Workbook wb = new XSSFWorkbook();
+        XSSFWorkbook xwb = (XSSFWorkbook) wb;
+        CellStyle hStyle  = headerStyle(wb);
+        CellStyle aStyle  = amountStyle(wb);
+        CellStyle tStyle  = totalStyle(wb);
+        CellStyle tAmt    = totalAmountStyle(wb);
+
+        // ── Reliable color styles using XSSFFont ──────────────────────
+        // Green — Client Payment (income)
+        XSSFFont greenFont2 = xwb.createFont();
+        greenFont2.setColor(new XSSFColor(new byte[]{(byte)0, (byte)130, (byte)0}, null));
+        CellStyle greenText = xwb.createCellStyle(); greenText.setFont(greenFont2);
+        CellStyle greenAmt  = xwb.createCellStyle(); greenAmt.setFont(greenFont2);
+        greenAmt.setDataFormat(wb.createDataFormat().getFormat("#,##0.00"));
+
+        // Red — Vendor Payment / Expenses (outflow)
+        XSSFFont redFont2 = xwb.createFont();
+        redFont2.setColor(new XSSFColor(new byte[]{(byte)192, (byte)0, (byte)0}, null));
+        CellStyle redText = xwb.createCellStyle(); redText.setFont(redFont2);
+        CellStyle redAmt  = xwb.createCellStyle(); redAmt.setFont(redFont2);
+        redAmt.setDataFormat(wb.createDataFormat().getFormat("#,##0.00"));
+
+        // Bold for key rows
+        Font bold = wb.createFont(); bold.setBold(true);
+        CellStyle boldStyle = wb.createCellStyle(); boldStyle.setFont(bold);
+        CellStyle boldAmt   = wb.createCellStyle(); boldAmt.setFont(bold);
+        boldAmt.setDataFormat(wb.createDataFormat().getFormat("#,##0.00"));
+
+        // ── Sheet 1: Balance Summary ──────────────────────────────────
+        Sheet sum = wb.createSheet("Balance Summary");
+
+        String periodLabel = from_date + " to " + to_date;
+        // Resolve project names for display
+        String projectsLabel;
+        if (allProjects) {
+            projectsLabel = "All Projects";
+        } else {
+            List<Long> safeIds = finalPidList != null ? finalPidList : Collections.emptyList();
+            projectsLabel = projectRepository.findAllById(safeIds).stream()
+                    .filter(p -> p.getCompany().getCompanyId().equals(company.getCompanyId()))
+                    .map(Project::getName)
+                    .collect(Collectors.joining(", "));
+        }
+
+        // Each entry: { label, value, "green"|"red"|"bold"|null }
+        int sn = 0;
+        Object[][] summaryRows = {
+            {"Period",                  periodLabel,                    null},
+            {"Projects",               projectsLabel,                  null},
+            {""},
+            {"Opening Balance",         openingBal,                    "bold"},
+            {"  Client Receipts",       clientReceipts,                "green"},
+            {"  Expenses - Credit",     expCredit.negate(),            "red"},
+            {"  Expenses - Cash",       expCash.negate(),              "red"},
+            {"  Expenses - Bank/UPI",   expBankUpi.negate(),           "red"},
+            {"  Vendor Payments Made",  vendorPayTotal.negate(),       "red"},
+            {"Closing Balance",         closingBal,                    "bold"},
+        };
+        for (Object[] row : summaryRows) {
+            Row r = sum.createRow(sn++);
+            if (row.length == 0 || (row[0] instanceof String && ((String) row[0]).isEmpty())) continue;
+            String color = row.length > 2 ? (String) row[2] : null;
+            Cell k = r.createCell(0); k.setCellValue((String) row[0]);
+            if (row[1] instanceof BigDecimal) {
+                BigDecimal val = (BigDecimal) row[1];
+                Cell v = r.createCell(1); v.setCellValue(val.doubleValue());
+                if ("bold".equals(color)) {
+                    k.setCellStyle(boldStyle); v.setCellStyle(boldAmt);
+                } else if ("green".equals(color)) {
+                    k.setCellStyle(greenText); v.setCellStyle(greenAmt);
+                } else if ("red".equals(color)) {
+                    k.setCellStyle(redText);   v.setCellStyle(redAmt);
+                } else {
+                    v.setCellStyle(aStyle);
+                }
+            } else if (row[1] != null) {
+                r.createCell(1).setCellValue((String) row[1]);
+            }
+        }
+        sum.setColumnWidth(0, 10000); sum.setColumnWidth(1, 5000);
+
+        // ── Sheet 2: Transactions ─────────────────────────────────────
+        Sheet txSheet = wb.createSheet("Transactions");
+        hdr(txSheet, hStyle, "Date", "Type", "Project", "Details", "Payment Mode", "Amount");
+
+        // Combine and sort all transactions by date
+        List<Object[]> txRows = new ArrayList<>();
+        for (ClientPayment cp : clientPays)
+            txRows.add(new Object[]{ cp.getPaymentDate(), "Client Payment",
+                cp.getProject() != null ? cp.getProject().getName() : "",
+                cp.getReferenceNumber() != null ? "Ref: " + cp.getReferenceNumber() : "",
+                cp.getPaymentMode(), cp.getAmount() });
+        for (Payment p : vendorPays)
+            txRows.add(new Object[]{ p.getPaymentDate(), "Vendor Payment",
+                p.getProject() != null ? p.getProject().getName() : "",
+                p.getVendor() != null ? p.getVendor().getName() : "",
+                p.getPaymentMode(), p.getAmount() });
+        for (Expense e : expenses)
+            txRows.add(new Object[]{ e.getExpenseDate(), e.getExpenseType(),
+                e.getProject() != null ? e.getProject().getName() : "",
+                e.getCategory() != null ? e.getCategory() : "",
+                e.getPaymentMode(), e.getAmount() });
+
+        txRows.sort(Comparator.comparing(r -> (LocalDate) r[0]));
+
+        int tn = 1; BigDecimal netFlow = BigDecimal.ZERO;
+        for (Object[] tx : txRows) {
+            String type = (String) tx[1];
+            boolean isIncome = "Client Payment".equals(type);
+            CellStyle textStyle = isIncome ? greenText : redText;
+            CellStyle amtStyle2 = isIncome ? greenAmt  : redAmt;
+
+            Row r = txSheet.createRow(tn++);
+            for (int col = 0; col < 5; col++) {
+                Cell c = r.createCell(col);
+                c.setCellValue(col == 0
+                        ? ((LocalDate) tx[0]).format(DATE_FMT)
+                        : (String) tx[col]);
+                c.setCellStyle(textStyle);
+            }
+            BigDecimal amt = (BigDecimal) tx[5];
+            String payMode = (String) tx[4];
+            boolean isCredit = "CREDIT".equalsIgnoreCase(payMode);
+            // Outflows stored as negative numbers
+            double displayAmt = amt != null ? (isIncome ? amt.doubleValue() : -amt.doubleValue()) : 0.0;
+            Cell amtCell = r.createCell(5);
+            amtCell.setCellValue(displayAmt);
+            amtCell.setCellStyle(amtStyle2);
+            // Credit expenses don't move cash — exclude from net total
+            if (amt != null) {
+                if (isIncome) {
+                    netFlow = netFlow.add(amt);
+                } else if (!isCredit) {
+                    netFlow = netFlow.add(amt.negate());
+                }
+            }
+
+
+        }
+        // Net cash flow total
+        totalRow(txSheet, tn, 0, 5, 5, netFlow, tStyle, tAmt);
+        for (int i = 0; i < 6; i++) txSheet.autoSizeColumn(i);
+
+        // Use project name in filename
+        String safeName = projectsLabel.replaceAll("[^a-zA-Z0-9 ,]", "").trim()
+                .replace(", ", "_").replace(" ", "_");
+        if (safeName.length() > 40) safeName = safeName.substring(0, 40);
+        return respond(wb, safeName + "_" + from_date + "_to_" + to_date + ".xlsx");
     }
 }

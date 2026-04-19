@@ -45,9 +45,39 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable()) // Disable CSRF for API simplicity if acceptable, or configure properly
+            .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/login", "/register", "/css/**", "/js/**", "/assets/**", "/static/**").permitAll()
+                // Public
+                .requestMatchers("/login", "/css/**", "/js/**", "/assets/**", "/static/**").permitAll()
+
+                // ── ADMIN only ──────────────────────────────────────────────
+                .requestMatchers(
+                    "/dashboard/owner", "/dashboard/main",
+                    "/register",
+                    "/users", "/manage-users", "/manage_users",
+                    "/users/*/edit",
+                    "/activity-log",
+                    "/master-categories", "/master_categories"
+                ).hasRole("ADMIN")
+
+                // ── MANAGER + ADMIN ──────────────────────────────────────────
+                .requestMatchers(
+                    "/projects", "/vendors",
+                    "/expenses", "/payments",
+                    "/client-payments", "/client_payments",
+                    "/dashboard/daily-cash", "/daily_cash", "/daily-cash",
+                    "/dashboard/vendor-analytics", "/vendor_analytics", "/vendor-analytics",
+                    "/payment-mode-split", "/payment_mode_split"
+                ).hasAnyRole("ADMIN", "MANAGER")
+
+                // ── EMPLOYEE, MANAGER, ADMIN ─────────────────────────────────
+                .requestMatchers("/purchases").hasAnyRole("ADMIN", "MANAGER", "EMPLOYEE")
+
+                // ── API write restrictions (EMPLOYEE = read-only) ────────────
+                // Allow EMPLOYEE GET on purchases API only
+                .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/**").hasAnyRole("ADMIN", "MANAGER")
+
+                // All other requests: authenticated
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form
@@ -61,8 +91,12 @@ public class SecurityConfig {
                 .logoutUrl("/logout")
                 .logoutSuccessUrl("/login?logout=true")
                 .permitAll()
+            )
+            .exceptionHandling(ex -> ex
+                .accessDeniedPage("/access-denied")
             );
-            
+
         return http.build();
     }
+
 }
