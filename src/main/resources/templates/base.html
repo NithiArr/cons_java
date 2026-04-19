@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title layout:title-pattern="$CONTENT_TITLE - Elite Build">Elite Build Management</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    
+    <style>
+        /* Elite Build Global Premium Dashboard Overrides */
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #020617; /* Very Dark base */
+            color: #f8fafc;
+            margin: 0;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Abstract Premium Background Orbs for the Interface */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -200px;
+            left: -100px;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(79, 70, 229, 0.4) 0%, rgba(2, 6, 23, 0) 70%);
+            border-radius: 50%;
+            z-index: -1;
+            animation: pulse-orb 15s infinite alternate ease-in-out;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            bottom: -200px;
+            right: -100px;
+            width: 700px;
+            height: 700px;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.3) 0%, rgba(2, 6, 23, 0) 70%);
+            border-radius: 50%;
+            z-index: -1;
+            animation: pulse-orb 20s infinite alternate-reverse ease-in-out;
+        }
+
+        @keyframes pulse-orb {
+            0% { transform: scale(1) translate(0, 0); }
+            100% { transform: scale(1.2) translate(50px, -50px); opacity: 0.8;}
+        }
+
+        .main-layout {
+            display: flex;
+            min-height: 100vh;
+            background: transparent;
+        }
+
+        /* Elite Glassmorphism Sidebar */
+        .sidebar {
+            width: 280px;
+            background: rgba(15, 23, 42, 0.4) !important;
+            backdrop-filter: blur(25px) !important;
+            -webkit-backdrop-filter: blur(25px) !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            padding: 2rem 1.5rem;
+            z-index: 1000;
+        }
+        
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 3rem 2rem;
+            z-index: 1;
+        }
+
+        /* User Header Premium */
+        .user-info {
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(139, 92, 246, 0.1));
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 16px;
+            padding: 1.25rem;
+            margin-bottom: 2.5rem;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);
+        }
+        
+        .user-name {
+            font-weight: 700;
+            font-size: 1.15rem;
+            background: linear-gradient(to right, #fff, #c4b5fd);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .user-role {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .role-badge {
+            background: rgba(139, 92, 246, 0.3);
+            color: #e2e8f0;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            border: 1px solid rgba(139, 92, 246, 0.5);
+            letter-spacing: 0.5px;
+        }
+
+        /* Premium Nav Links */
+        .nav-menu { list-style: none; padding: 0; }
+        .nav-item { margin-bottom: 0.65rem; }
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0.85rem 1.25rem;
+            color: #cbd5e1;
+            text-decoration: none;
+            border-radius: 12px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-link:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateX(4px);
+        }
+
+        .nav-link.active {
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.8), rgba(139, 92, 246, 0.8));
+            color: white;
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
+        }
+
+        .nav-link svg {
+            width: 22px;
+            height: 22px;
+            stroke-width: 1.8;
+            opacity: 0.8;
+        }
+        .nav-link:hover svg { opacity: 1; stroke: #a78bfa; }
+        .nav-link.active svg { stroke: #fff; opacity: 1; }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4f46e5, #8b5cf6) !important;
+            border: none;
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4) !important;
+            font-weight: 600;
+            border-radius: 10px;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.6) !important;
+        }
+
+        .card, .modal-content {
+            background: rgba(15, 23, 42, 0.6) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.2) !important;
+            border-radius: 20px !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6) !important;
+        }
+
+        table { background: transparent !important; border-radius: 12px; }
+        th { background: rgba(0,0,0,0.3) !important; color: #a5b4fc !important; font-weight: 600; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.5px;}
+        tr:hover { background: rgba(255, 255, 255, 0.03) !important; }
+        td { border-bottom: 1px solid rgba(255,255,255,0.05) !important; }
+
+        input, select {
+            background: rgba(0, 0, 0, 0.25) !important;
+            border: 1px solid rgba(255,255,255,0.1) !important;
+            color: #fff !important;
+            border-radius: 10px !important;
+            backdrop-filter: blur(10px);
+        }
+        input:focus { border-color: #8b5cf6 !important; box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2) !important; }
+
+        /* Dashboard specific premium overwrites */
+        .kpi-card {
+            background: rgba(255, 255, 255, 0.03) !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 20px !important;
+        }
+        
+        .kpi-value {
+            background: linear-gradient(to right, #a78bfa, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800 !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="main-layout">
+        <!-- Modern Glass Sidebar -->
+        <aside class="sidebar">
+            <div class="user-info">
+                <div class="user-name" th:text="${#authentication.principal.name}">User Name</div>
+                <div class="user-role">
+                    <span th:text="${#authentication.principal.company.name}">Company</span>
+                    <span class="role-badge" th:text="${#authentication.principal.role}">ROLE</span>
+                </div>
+            </div>
+
+            <nav>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a th:href="@{/dashboard/owner}" class="nav-link" id="nav-dashboard">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
+                            Operations Hub
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/projects}" class="nav-link" id="nav-projects">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>
+                            Active Projects
+                        </a>
+                    </li>
+                    <li class="nav-item" style="margin-top: 1rem;">
+                        <span style="display:block; font-size:0.7rem; text-transform:uppercase; color:#64748b; font-weight:700; margin-left: 1rem; margin-bottom: 0.5rem; letter-spacing:1px;">Finance</span>
+                        <a th:href="@{/purchases}" class="nav-link" id="nav-purchases">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" /></svg>
+                            Material Purchases
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/expenses}" class="nav-link" id="nav-expenses">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" /></svg>
+                            Log Expenses
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/payments}" class="nav-link" id="nav-payments">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22M21.75 8.814v4.5A.75.75 0 0 1 21 14.064H16.5" /></svg>
+                            Vendor Settlements
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/client_payments}" class="nav-link" id="nav-client-payments">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6 9 12.75l4.286-4.286a11.948 11.948 0 0 1 4.306 6.43l.776 2.898m0 0 3.182-5.514m-3.182 5.514-5.514-3.182" /></svg>
+                            Client Advances
+                        </a>
+                    </li>
+                    <li class="nav-item" style="margin-top: 1rem;">
+                        <span style="display:block; font-size:0.7rem; text-transform:uppercase; color:#64748b; font-weight:700; margin-left: 1rem; margin-bottom: 0.5rem; letter-spacing:1px;">Analytics</span>
+                        <a th:href="@{/dashboard/daily-cash}" class="nav-link" id="nav-daily-cash">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V4.24a1.125 1.125 0 0 0-1.453-1.096 60.07 60.07 0 0 0-15.797 2.101c-.727.198-1.453-.342-1.453-1.096V18.75Z" /></svg>
+                            Daily Cashflow
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/dashboard/vendor-analytics}" class="nav-link" id="nav-vendor-analytics">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" /></svg>
+                            Vendor Analytics
+                        </a>
+                    </li>
+                    <li class="nav-item" style="margin-top: 2rem;">
+                        <a th:href="@{/logout}" class="nav-link" style="color: #fca5a5;">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" /></svg>
+                            Secure Logout
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Dynamic Page Content wrapped in Layout -->
+        <main class="main-content" layout:fragment="content">
+            <!-- Child pages will render here -->
+        </main>
+    </div>
+
+    <!-- Active Link highlighter script -->
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const path = window.location.pathname;
+            document.querySelectorAll('.nav-link').forEach(link => {
+                if (link.getAttribute('href') === path && path !== '/') {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script th:src="@{/js/main.js(v=2)}"></script>
+</body>
+</html>

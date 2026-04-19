@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{base}">
+<head>
+    <title>Elite Page</title>
+</head>
+<body>
+    <div layout:fragment="content">
+
+
+Expenses
+
+
+
+
+
+
+<div class="container fade-in">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <div>
+            <h1><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" /></svg> Expenses</h1>
+            <p class="text-secondary">Track project expenses</p>
+        </div>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            
+            <button class="btn btn-success" onclick="exportExpensesToExcel()"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg> Export to Excel</button>
+            
+            <button class="btn btn-primary" onclick="prepareAddExpense()">+ Add Expense</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>
+                                Date Range
+                                <input type="text" id="header-filter-date" class="form-control form-control-sm mt-1"
+                                    placeholder="Select range..." readonly
+                                    style="background: var(--bg-secondary); cursor: pointer;">
+                            </th>
+                            <th>
+                                Project
+                                <select id="header-filter-project" class="form-control form-control-sm mt-1"
+                                    onchange="filterExpenses()" style="width: 100%; min-width: 150px;">
+                                    <option value="">All Projects</option>
+                                </select>
+                            </th>
+                            <th>
+                                Category
+                                <select id="header-filter-category" class="form-control form-control-sm mt-1"
+                                    onchange="filterExpenses()" style="width: 100%; min-width: 120px;">
+                                    <option value="">All Categories</option>
+                                </select>
+                            </th>
+                            <th>Amount</th>
+                            <th>Payment Mode</th>
+                            <th>Subcategory</th>
+                            <th>Description</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expenses-tbody">
+                        <tr>
+                            <td colspan="7" class="text-center">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Expense Modal -->
+<div id="add-expense-modal" class="modal">
+    <div class="modal-content modal-full">
+        <div class="modal-header">
+            <div class="flex align-center gap-2">
+                <button class="btn btn-secondary" onclick="closeModal('add-expense-modal')"
+                    style="padding: 0.5rem 1rem;">
+                    ← Back
+                </button>
+                <h3 id="expense-modal-title" style="margin: 0;">Add Expense</h3>
+            </div>
+        </div>
+        <div class="modal-body">
+            <form id="expense-form">
+                
+                <input type="hidden" id="expense-id" value="">
+                <div class="form-group">
+                    <label class="form-label">Project *</label>
+                    <select id="expense-project" class="form-control" required data-placeholder="-- Select Project --">
+                        <option value="">-- Select Project --</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Category *</label>
+                        <select id="expense-category" class="form-control" onchange="updateDescriptionSuggestions()"
+                            required data-placeholder="-- Select Category --">
+                            <option value="">-- Select Category --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Amount *</label>
+                    <input type="text" id="expense-amount" class="form-control amount-input" required placeholder="0">
+                </div>
+
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Payment Mode *</label>
+                        <select id="expense-mode" class="form-control" required data-placeholder="-- Select Mode --">
+                            <option value="">-- Select Mode --</option>
+                            <option value="CASH">Cash</option>
+                            <option value="BANK">Bank</option>
+                            <option value="UPI">UPI</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Date *</label>
+                        <input type="date" id="expense-date" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Sub-Category *</label>
+                    <select id="expense-subcategory" class="form-control" required
+                        data-placeholder="-- Select Sub-Category --">
+                        <option value="">-- Select Sub-Category --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Description (General Notes)</label>
+                    <textarea id="expense-description" class="form-control"
+                        placeholder="Add any specific details here..." rows="2"></textarea>
+                </div>
+
+                <div class="flex gap-2">
+                    <button type="submit" class="btn btn-primary">Save Expense</button>
+                    <button type="button" class="btn btn-secondary"
+                        onclick="closeModal('add-expense-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+    let expenses = [];
+    let allExpenses = []; // Store all expenses for filtering
+    let projects = [];
+    let masterCategories = [];
+
+    async function loadData() {
+        try {
+            const [expensesRes, projectsRes, categoriesRes] = await Promise.all([
+                fetch("/api_expenses_list"),
+                fetch("/api_projects_list"),
+                fetch("/api_master_categories_list?type=EXPENSE")
+            ]);
+
+            expenses = await expensesRes.json();
+            allExpenses = [...expenses]; // Store all expenses
+            projects = await projectsRes.json();
+            masterCategories = await categoriesRes.json();
+
+            // Populate category dropdown
+            const categorySelect = document.getElementById('expense-category');
+            categorySelect.innerHTML = '<option value="">-- Select Category --</option>' +
+                masterCategories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+
+            // Populate project dropdown
+            const select = document.getElementById('expense-project');
+            select.innerHTML = '<option value="">-- Select Project --</option>' +
+                projects.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
+
+            // Populate project filter
+            document.getElementById('header-filter-project').innerHTML = '<option value="">All Projects</option>' +
+                projects.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
+
+            populateExpenseFilters();
+
+            initDateRangePicker('#header-filter-date', filterExpenses);
+
+            renderExpenses();
+        } catch (error) {
+            console.error('Error loading data:', error);
+        }
+    }
+
+    function populateExpenseFilters() {
+        const categorySelect = document.getElementById('header-filter-category');
+        // Use unique categories from actual data + master categories? sticking to actual data for filter
+        const uniqueCategories = [...new Set(expenses.map(e => e.category))].sort();
+        categorySelect.innerHTML = '<option value="">All Categories</option>' +
+            uniqueCategories.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
+    function filterExpenses() {
+        const projectId = document.getElementById('header-filter-project').value;
+        const category = document.getElementById('header-filter-category').value;
+        const dateRangeStr = document.getElementById('header-filter-date').value;
+
+        let dateFrom = null;
+        let dateTo = null;
+
+        if (dateRangeStr && dateRangeStr.includes(' to ')) {
+            [dateFrom, dateTo] = dateRangeStr.split(' to ');
+        } else if (dateRangeStr) {
+            dateFrom = dateTo = dateRangeStr;
+        }
+
+        const filteredExpenses = allExpenses.filter(e => {
+            const matchProject = !projectId || e.project_id === projectId;
+            const matchCategory = !category || e.category === category;
+
+            let matchDate = true;
+            if (dateFrom && e.expense_date < dateFrom) matchDate = false;
+            if (dateTo && e.expense_date > dateTo) matchDate = false;
+
+            return matchProject && matchCategory && matchDate;
+        });
+
+        expenses = filteredExpenses;
+        renderExpenses();
+    }
+
+    // Helper for payment badges
+    function getPaymentBadgeHTML(mode) {
+        let badgeClass = 'status-secondary'; // Default gray
+
+        if (mode === 'CASH') {
+            badgeClass = 'status-completed'; // Green
+        } else if (mode === 'BANK' || mode === 'UPI') {
+            badgeClass = 'status-active'; // Blue
+        } else if (mode === 'CREDIT') {
+            badgeClass = 'status-on_hold'; // Orange/Yellow
+        }
+
+        return `<span class="status-badge ${badgeClass}">${mode}</span>`;
+    }
+
+    function renderExpenses() {
+        const tbody = document.getElementById('expenses-tbody');
+
+        if (expenses.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">No expenses found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = expenses.map(e => {
+            const project = projects.find(p => p.project_id === e.project_id);
+            return `
+            <tr>
+                <td>${formatDate(e.expense_date)}</td>
+                <td>${project ? project.name : 'Unknown'}</td>
+                <td>${e.category}</td>
+                <td><strong>${formatCurrency(e.amount)}</strong></td>
+                <td>${getPaymentBadgeHTML(e.payment_mode)}</td>
+                <td>${e.subcategory || '-'}</td>
+                <td>${e.description || '-'}</td>
+                <td style="white-space: nowrap;">
+                    <button class="btn btn-sm btn-primary" onclick="editExpense('${e.expense_id}')" style="margin-right: 0.5rem;">Edit</button>
+                    
+                    <button class="btn btn-sm btn-danger" onclick="deleteExpense('${e.expense_id}')">Delete</button>
+                    
+                </td>
+            </tr>
+            `;
+        }).join('');
+    }
+
+    document.getElementById('expense-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const expenseId = document.getElementById('expense-id').value;
+        const isEdit = expenseId !== '';
+
+        const data = {
+            project_id: document.getElementById('expense-project').value,
+            category: document.getElementById('expense-category').value,
+            subcategory: document.getElementById('expense-subcategory').value,
+            amount: parseAmount(document.getElementById('expense-amount').value),
+            payment_mode: document.getElementById('expense-mode').value,
+            expense_date: document.getElementById('expense-date').value,
+            description: document.getElementById('expense-description').value
+        };
+
+        try {
+            let url = "/api_expenses_list";
+            let method = 'POST';
+
+            if (isEdit) {
+                // Construct URL for PUT
+                url = "/api_expenses_list/" + expenseId;
+                method = 'PUT';
+            }
+
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showNotification(isEdit ? 'Expense updated successfully' : 'Expense added successfully', 'success');
+                closeModal('add-expense-modal');
+                resetForm('expense-form');
+                document.getElementById('expense-id').value = '';
+                document.getElementById('expense-modal-title').textContent = 'Add Expense';
+                loadData();
+            } else {
+                showNotification(isEdit ? 'Error updating expense' : 'Error adding expense', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Error adding expense', 'error');
+        }
+    });
+
+    async function editExpense(id) {
+        try {
+            // Fetch the expense data
+            const url = "/api_expenses_list/" + id;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Failed to fetch expense');
+
+            const expense = await response.json();
+
+            // Set the ID for update
+            document.getElementById('expense-id').value = expense.expense_id;
+
+            // Change modal title
+            document.getElementById('expense-modal-title').textContent = 'Edit Expense';
+
+            // Pre-fill the form
+            document.getElementById('expense-project').value = expense.project_id;
+            document.getElementById('expense-category').value = expense.category;
+            updateDescriptionSuggestions(); // Populate dropdown
+            document.getElementById('expense-subcategory').value = expense.subcategory || '';
+            document.getElementById('expense-description').value = expense.description || '';
+            document.getElementById('expense-amount').value = formatNumber(expense.amount);
+            document.getElementById('expense-mode').value = expense.payment_mode;
+            document.getElementById('expense-date').value = expense.expense_date;
+
+            // Sync all Tom Selects
+            ['expense-project', 'expense-category', 'expense-mode', 'expense-subcategory'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el && el.tomselect) el.tomselect.sync();
+            });
+
+            // Open modal
+            openModal('add-expense-modal');
+        } catch (error) {
+            console.error('Error loading expense:', error);
+            showNotification('Error loading expense data', 'error');
+        }
+    }
+
+    async function deleteExpense(id) {
+        if (!confirm('Are you sure you want to delete this expense?')) return;
+
+        try {
+            const url = "/api_expenses_list/" + id;
+            const response = await fetch(url, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                showNotification('Expense deleted', 'success');
+                loadData();
+            } else {
+                showNotification('Error deleting expense', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Error deleting expense', 'error');
+        }
+    }
+
+    function updateDescriptionSuggestions() {
+        const categoryName = document.getElementById('expense-category').value;
+        const selectedCategory = masterCategories.find(c => c.name === categoryName);
+        const select = document.getElementById('expense-subcategory');
+
+        // Build new options list
+        const newOptions = [{ value: '', text: '-- Select Sub-Category --' }];
+        if (selectedCategory && selectedCategory.subcategories && selectedCategory.subcategories.length > 0) {
+            selectedCategory.subcategories.forEach(item => {
+                newOptions.push({ value: item.name, text: item.name });
+            });
+        }
+
+        if (select.tomselect) {
+            // Properly clear and repopulate Tom Select
+            select.tomselect.clearOptions();
+            newOptions.forEach(opt => select.tomselect.addOption(opt));
+            select.tomselect.setValue('');
+            select.tomselect.refreshOptions(false);
+        } else {
+            // Fallback: update native select and init Tom Select
+            select.innerHTML = newOptions.map(opt =>
+                `<option value="${opt.value}">${opt.text}</option>`
+            ).join('');
+            initSearchableDropdowns('#expense-subcategory');
+        }
+    }
+
+    function prepareAddExpense() {
+        resetForm('expense-form');
+        document.getElementById('expense-id').value = '';
+        document.getElementById('expense-modal-title').textContent = 'Add Expense';
+        document.getElementById('expense-date').value = new Date().toISOString().split('T')[0];
+
+        const categorySelect = document.getElementById('expense-category');
+        categorySelect.value = "";
+
+        const projectSelect = document.getElementById('expense-project');
+        projectSelect.value = "";
+
+        const modeSelect = document.getElementById('expense-mode');
+        modeSelect.value = "CASH"; // Default
+
+        const subcategorySelect = document.getElementById('expense-subcategory');
+        subcategorySelect.innerHTML = '<option value="">-- Select Sub-Category --</option>';
+
+        const descriptionField = document.getElementById('expense-description');
+        descriptionField.value = "";
+
+        // Sync all Tom Selects
+        [categorySelect, projectSelect, modeSelect, subcategorySelect].forEach(el => {
+            if (el && el.tomselect) el.tomselect.sync();
+        });
+
+        openModal('add-expense-modal');
+    }
+
+    // Export expenses to Excel
+    function exportExpensesToExcel() {
+        const dateFrom = document.getElementById('header-filter-date-from')?.value || '';
+        const dateTo = document.getElementById('header-filter-date-to')?.value || '';
+        const project = document.getElementById('header-filter-project')?.value || '';
+        const category = document.getElementById('header-filter-category')?.value || '';
+
+        // Build query string
+        const params = new URLSearchParams();
+        if (dateFrom) params.append('date_from', dateFrom);
+        if (dateTo) params.append('date_to', dateTo);
+        if (project) params.append('project', project);
+        if (category) params.append('category', category);
+
+        downloadExcel("/export_expenses?" + params.toString(), "expenses.xlsx");
+
+        showNotification('Exporting expenses data...', 'success');
+    }
+
+    // Set today's date as default
+    document.getElementById('expense-date').value = new Date().toISOString().split('T')[0];
+
+    async function checkUrlParams() {
+        const params = new URLSearchParams(window.location.search);
+        const editId = params.get('edit_id');
+        if (editId) {
+            await editExpense(editId);
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }
+
+    loadData().then(() => {
+        checkUrlParams();
+    });
+</script>
+
+    </div>
+</body>
+</html>

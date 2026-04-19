@@ -1,21 +1,24 @@
 services:
   - type: web
     name: construction-cms
-    env: python
+    env: docker
     plan: free
-    buildCommand: "./build.sh"
-    startCommand: "gunicorn construction_cms.wsgi:application"
+    dockerfilePath: ./Dockerfile
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.4
-      - key: SECRET_KEY
-        generateValue: true
-      - key: WEB_CONCURRENCY
-        value: 4
       - key: DATABASE_URL
         fromDatabase:
           name: construction-db
           property: connectionString
+      - key: DB_USERNAME
+        fromDatabase:
+          name: construction-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: construction-db
+          property: password
+      - key: PORT
+        value: 8080
 
 databases:
   - name: construction-db

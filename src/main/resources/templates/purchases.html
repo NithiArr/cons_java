@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{base}">
+<head>
+    <title>Elite Page</title>
+</head>
+<body>
+    <div layout:fragment="content">
+
+
+Purchases
+
+
+
+
+
+
+<div class="container fade-in">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <div>
+            <h1><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" /></svg> Purchases</h1>
+            <p class="text-secondary">Record purchase orders</p>
+        </div>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            
+            <button class="btn btn-success" onclick="exportPurchasesToExcel()"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg> Export to Excel</button>
+            
+            <button class="btn btn-primary" onclick="prepareAddPurchase()">+ Add Purchase</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>
+                                Date Range
+                                <input type="text" id="header-filter-date" class="form-control form-control-sm mt-1"
+                                    placeholder="Select range..." readonly
+                                    style="background: var(--bg-secondary); cursor: pointer;">
+                            </th>
+                            <th>
+                                Project
+                                <select id="header-filter-project" class="form-control form-control-sm mt-1"
+                                    onchange="filterPurchases()" style="width: 100%; min-width: 150px;">
+                                    <option value="">All Projects</option>
+                                </select>
+                            </th>
+                            <th>
+                                Vendor
+                                <select id="header-filter-vendor" class="form-control form-control-sm mt-1"
+                                    onchange="filterPurchases()" style="width: 100%; min-width: 150px;">
+                                    <option value="">All Vendors</option>
+                                </select>
+                            </th>
+                            <th>
+                                Material Category
+                                <select id="header-filter-category" class="form-control form-control-sm mt-1"
+                                    onchange="filterPurchases()" style="width: 100%; min-width: 120px;">
+                                    <option value="">All Categories</option>
+                                </select>
+                            </th>
+                            <th>Invoice #</th>
+                            <th>Total Amount</th>
+                            <th>Type</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="purchases-tbody">
+                        <tr>
+                            <td colspan="7" class="text-center">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Purchase Modal -->
+<div id="add-purchase-modal" class="modal">
+    <div class="modal-content modal-full">
+        <div class="modal-header">
+            <div class="flex align-center gap-2">
+                <button class="btn btn-secondary" onclick="closeModal('add-purchase-modal')"
+                    style="padding: 0.5rem 1rem;">
+                    ← Back
+                </button>
+                <h3 id="purchase-modal-title" style="margin: 0;">Add Purchase Order</h3>
+            </div>
+        </div>
+        <div class="modal-body">
+            <form id="purchase-form">
+                
+                <input type="hidden" id="purchase-id" value="">
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Project *</label>
+                        <select id="purchase-project" class="form-control" required
+                            data-placeholder="-- Select Project --">
+                            <option value="">-- Select Project --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Vendor *</label>
+                        <select id="purchase-vendor" class="form-control" required
+                            data-placeholder="-- Select Vendor --">
+                            <option value="">-- Select Vendor --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Material Category *</label>
+                    <select id="purchase-category" class="form-control" onchange="updateItemDropdown()" required
+                        data-placeholder="-- Select Category --">
+                        <option value="">-- Select Category --</option>
+                    </select>
+                    <small class="text-secondary">Specify the type of material being purchased</small>
+                </div>
+
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Invoice Number</label>
+                        <input type="text" id="purchase-invoice" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Invoice Date *</label>
+                        <input type="date" id="purchase-date" class="form-control" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Payment Type *</label>
+                    <select id="purchase-type" class="form-control" required data-placeholder="-- Select Type --">
+                        <option value="">-- Select Type --</option>
+                        <option value="CASH">Cash</option>
+                        <option value="CREDIT">Credit</option>
+                    </select>
+                </div>
+
+                <!-- Shared datalist for all item inputs -->
+                <!-- Removed datalist id="item-suggestions" -->
+
+                <hr>
+                <h4>Items</h4>
+                <div id="items-container">
+                    <div class="purchase-item mb-2"
+                        style="display: grid; grid-template-columns: 1.5fr 1fr 0.8fr 0.8fr 1fr 1fr auto; gap: 0.5rem; align-items: center;">
+                        <select class="form-control item-name" onchange="autoFillUnit(this)" required>
+                            <option value="">-- Select Item --</option>
+                        </select>
+                        <input type="text" class="form-control item-brand" placeholder="Brand (e.g. ACC)">
+                        <input type="number" class="form-control item-quantity" placeholder="Qty" required min="0"
+                            step="0.01">
+                        <input type="text" class="form-control item-unit" placeholder="Unit" readonly tabindex="-1"
+                            style="background-color: var(--bg-secondary);">
+                        <input type="number" class="form-control item-price" placeholder="Unit Price" required min="0"
+                            step="0.01">
+                        <input type="text" class="form-control item-total" placeholder="Total" readonly>
+                        <button type="button" class="btn btn-sm btn-danger" onclick="removeItem(this)"
+                            style="padding: 0.5rem; min-width: 40px;">−</button>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-secondary mb-3" onclick="addItem()">+ Add Item</button>
+
+                <div class="form-group">
+                    <label class="form-label">Total Amount</label>
+                    <input type="text" id="purchase-total" class="form-control" readonly>
+                </div>
+
+                <div class="flex gap-2">
+                    <button type="submit" class="btn btn-primary">Save Purchase</button>
+                    <button type="button" class="btn btn-secondary"
+                        onclick="closeModal('add-purchase-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+    let purchases = [];
+    let allPurchases = []; // Store all purchases for filtering
+    let projects = [];
+    let vendors = [];
+
+    let masterCategories = [];
+    let currentItemOptions = '<option value="" data-placeholder="-- Select Item --">-- Select Item --</option>';
+
+    async function loadData() {
+        try {
+
+
+            const [purchasesRes, projectsRes, vendorsRes, categoriesRes] = await Promise.all([
+                fetch("/api_purchases_list"),
+                fetch("/api_projects_list"),
+                fetch("/api_vendors_list"),
+                fetch("/api_master_categories_list?type=MATERIAL")
+            ]);
+
+            // Check for auth redirects (HTML response)
+            if (purchasesRes.redirected || categoriesRes.redirected) {
+                window.location.reload(); // Reload to force login
+                return;
+            }
+
+            // Helper to safely parse JSON
+            const safeJson = async (res) => {
+                const text = await res.text();
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error('Failed to parse JSON:', text.substring(0, 100));
+                    throw new Error('Invalid server response');
+                }
+            };
+
+            purchases = await safeJson(purchasesRes);
+            allPurchases = [...purchases];
+            projects = await safeJson(projectsRes);
+            vendors = await safeJson(vendorsRes);
+            masterCategories = await safeJson(categoriesRes);
+
+            console.log('Categories Response:', masterCategories);
+            const materialCats = masterCategories.filter(c => c.type === 'MATERIAL');
+            console.log('Filtered Material Categories:', materialCats);
+
+            if (masterCategories.length === 0) {
+                console.warn('No Master Categories found!');
+                showNotification('Warning: No material categories found. Please contact admin.', 'error');
+            }
+
+            // Populate dropdowns
+            document.getElementById('purchase-project').innerHTML = '<option value="">-- Select Project --</option>' +
+                projects.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
+
+            document.getElementById('purchase-vendor').innerHTML = '<option value="">-- Select Vendor --</option>' +
+                vendors.map(v => `<option value="${v.vendor_id}">${v.name}</option>`).join('');
+
+            // Populate filters
+            document.getElementById('header-filter-project').innerHTML = '<option value="">All Projects</option>' +
+                projects.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
+
+            document.getElementById('header-filter-vendor').innerHTML = '<option value="">All Vendors</option>' +
+                vendors.map(v => `<option value="${v.vendor_id}">${v.name}</option>`).join('');
+
+            // Populate form category dropdown
+            const categorySelect = document.getElementById('purchase-category');
+            categorySelect.innerHTML = '<option value="">-- Select Category --</option>' +
+                masterCategories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+
+            // Initialize TomSelect on category with onChange so item dropdown updates
+            if (categorySelect.tomselect) categorySelect.tomselect.destroy();
+            new TomSelect(categorySelect, {
+                plugins: ['dropdown_input'],
+                dropdownParent: 'body',
+                create: false,
+                placeholder: '-- Select Category --',
+                onChange: function(value) {
+                    updateItemDropdown();
+                }
+            });
+
+            // Populate category filter (keep existing logic or use master categories? adhering to existing logic helps filter by what's used)
+            const uniqueCategories = [...new Set(allPurchases.map(p => p.category).filter(c => c))].sort();
+            document.getElementById('header-filter-category').innerHTML = '<option value="">All Categories</option>' +
+                uniqueCategories.map(c => `<option value="${c}">${c}</option>`).join('');
+
+            initDateRangePicker('#header-filter-date', filterPurchases);
+
+            renderPurchases();
+        } catch (error) {
+            console.error('Error loading data:', error);
+            showNotification('Error loading data. Please refresh.', 'error');
+        }
+    }
+
+    function filterPurchases() {
+        const projectId = document.getElementById('header-filter-project').value;
+        const vendorId = document.getElementById('header-filter-vendor').value;
+        const category = document.getElementById('header-filter-category').value;
+        const dateRangeStr = document.getElementById('header-filter-date').value;
+
+        let dateFrom = null;
+        let dateTo = null;
+
+        if (dateRangeStr && dateRangeStr.includes(' to ')) {
+            [dateFrom, dateTo] = dateRangeStr.split(' to ');
+        } else if (dateRangeStr) {
+            dateFrom = dateTo = dateRangeStr;
+        }
+
+        purchases = allPurchases.filter(p => {
+            const matchProject = !projectId || p.project_id === projectId;
+            const matchVendor = !vendorId || p.vendor_id === vendorId;
+            const matchCategory = !category || p.category === category;
+
+            let matchDate = true;
+            if (dateFrom && p.invoice_date < dateFrom) matchDate = false;
+            if (dateTo && p.invoice_date > dateTo) matchDate = false;
+
+            return matchProject && matchVendor && matchCategory && matchDate;
+        });
+
+        renderPurchases();
+    }
+
+    // Helper for payment badges
+    // Helper for payment badges
+    function getPaymentBadgeHTML(mode) {
+        let badgeClass = 'status-secondary'; // Default gray
+
+        if (mode === 'CASH') {
+            badgeClass = 'status-completed'; // Green
+        } else if (mode === 'BANK' || mode === 'UPI') {
+            badgeClass = 'status-active'; // Blue
+        } else if (mode === 'CREDIT') {
+            badgeClass = 'status-on_hold'; // Orange/Yellow
+        }
+
+        return `<span class="status-badge ${badgeClass}">${mode}</span>`;
+    }
+
+    function renderPurchases() {
+        const tbody = document.getElementById('purchases-tbody');
+
+        if (purchases.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center">No purchases found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = purchases.map(p => {
+            const project = projects.find(pr => pr.project_id === p.project_id);
+            const vendor = vendors.find(v => v.vendor_id === p.vendor_id);
+            return `
+            <tr>
+                <td>${formatDate(p.invoice_date)}</td>
+                <td>${project ? project.name : 'Unknown'}</td>
+                <td>${vendor ? vendor.name : 'Unknown'}</td>
+                <td><span class="badge">${p.category || 'N/A'}</span></td>
+                <td><strong>${p.invoice_number}</strong></td>
+                <td><strong>${formatCurrency(p.total_amount)}</strong></td>
+                <td>${getPaymentBadgeHTML(p.payment_type)}</td>
+                <td style="white-space: nowrap;">
+                    <button class="btn btn-sm btn-primary" onclick="editPurchase('${p.expense_id}')" style="margin-right: 0.5rem;">Edit</button>
+                    
+                    <button class="btn btn-sm btn-danger" onclick="deletePurchase('${p.expense_id}')">Delete</button>
+                    
+                </td>
+            </tr>
+        `;
+        }).join('');
+    }
+
+    function addItem() {
+        const container = document.getElementById('items-container');
+
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'purchase-item mb-2';
+        itemDiv.style.cssText = 'display: grid; grid-template-columns: 1.5fr 1fr 0.8fr 0.8fr 1fr 1fr auto; gap: 0.5rem; align-items: center;';
+
+        itemDiv.innerHTML = `
+            <select class="form-control item-name" required>
+                ${currentItemOptions}
+            </select>
+            <input type="text" class="form-control item-brand" placeholder="Brand">
+            <input type="text" class="form-control item-quantity amount-input" placeholder="Qty" required>
+            <input type="text" class="form-control item-unit" placeholder="Unit" readonly tabindex="-1" style="background-color: var(--bg-secondary);">
+            <input type="text" class="form-control item-price amount-input" placeholder="Unit Price" required>
+            <input type="text" class="form-control item-total amount-input" placeholder="Total" readonly>
+            <button type="button" class="btn btn-sm btn-danger" onclick="removeItem(this)" style="padding: 0.5rem; min-width: 40px;">−</button>
+        `;
+
+        container.appendChild(itemDiv);
+        attachItemCalculators();
+
+        // Initialize TomSelect with unit auto-fill on change
+        const newSelect = itemDiv.querySelector('.item-name');
+        if (newSelect) {
+            const ts = new TomSelect(newSelect, {
+                plugins: ['dropdown_input'],
+                sortField: { field: 'text', direction: 'asc' },
+                dropdownParent: 'body',
+                create: false,
+                maxOptions: null
+            });
+            ts.on('change', function(value) {
+                autoFillUnitByValue(newSelect, value);
+            });
+        }
+    }
+
+    // Auto-fill unit field based on selected item value
+    function autoFillUnitByValue(selectEl, value) {
+        const categoryName = document.getElementById('purchase-category').value;
+        const selectedCategory = masterCategories.find(c => c.name === categoryName);
+        if (!selectedCategory || !selectedCategory.subcategories) return;
+        const sub = selectedCategory.subcategories.find(s => s.name === value);
+        if (sub) {
+            const row = selectEl.closest('.purchase-item');
+            if (row) {
+                const unitInput = row.querySelector('.item-unit');
+                if (unitInput) unitInput.value = sub.default_unit || '';
+            }
+        }
+    }
+
+    function updateItemDropdown() {
+        const categoryName = document.getElementById('purchase-category').value;
+        const selectedCategory = masterCategories.find(c => c.name === categoryName);
+
+        let options = [{ value: '', text: '-- Select Item --' }];
+        if (selectedCategory && selectedCategory.subcategories) {
+            selectedCategory.subcategories.forEach(item => {
+                options.push({
+                    value: item.name,
+                    text: item.default_unit ? `${item.name} (${item.default_unit})` : item.name,
+                    'data-unit': item.default_unit || ''
+                });
+            });
+        }
+
+        // Rebuild currentItemOptions HTML for future rows
+        currentItemOptions = '<option value="">-- Select Item --</option>' +
+            (selectedCategory && selectedCategory.subcategories
+                ? selectedCategory.subcategories.map(item =>
+                    `<option value="${item.name}" data-unit="${item.default_unit || ''}">${item.name}${item.default_unit ? ' (' + item.default_unit + ')' : ''}</option>`
+                  ).join('')
+                : '');
+
+        // Update all existing item rows
+        document.querySelectorAll('.item-name').forEach(select => {
+            if (select.tomselect) {
+                const currentVal = select.tomselect.getValue();
+                select.tomselect.clearOptions();
+                options.forEach(opt => select.tomselect.addOption(opt));
+                select.tomselect.refreshOptions(false);
+                if (currentVal) select.tomselect.setValue(currentVal);
+            } else {
+                // Not yet initialized — just update the HTML
+                select.innerHTML = currentItemOptions;
+                new TomSelect(select, {
+                    plugins: ['dropdown_input'],
+                    sortField: { field: 'text', direction: 'asc' },
+                    dropdownParent: 'body',
+                    create: false,
+                    maxOptions: null,
+                    onChange: function(value) { autoFillUnitFromTomSelect(this, selectedCategory); }
+                });
+            }
+        });
+    }
+
+    function autoFillUnit(selectElement) {
+        const selectedOption = selectElement.options[selectElement.selectedIndex];
+
+        if (selectedOption && selectedOption.dataset.unit) {
+            const row = selectElement.closest('.purchase-item');
+            const unitInput = row.querySelector('.item-unit');
+            if (unitInput) {
+                unitInput.value = selectedOption.dataset.unit;
+            }
+        }
+    }
+
+    function removeItem(button) {
+        const container = document.getElementById('items-container');
+        const items = container.querySelectorAll('.purchase-item');
+
+        // Keep at least one item
+        if (items.length > 1) {
+            button.closest('.purchase-item').remove();
+            calculateGrandTotal();
+        } else {
+            showNotification('At least one item is required', 'error');
+        }
+    }
+
+    function attachItemCalculators() {
+        document.querySelectorAll('.purchase-item').forEach(item => {
+            const qty = item.querySelector('.item-quantity');
+            const price = item.querySelector('.item-price');
+            const total = item.querySelector('.item-total');
+
+            const calculate = () => {
+                const itemTotal = (parseAmount(qty.value) || 0) * (parseAmount(price.value) || 0);
+                total.value = formatNumber(itemTotal);
+                calculateGrandTotal();
+            };
+
+            qty.removeEventListener('input', calculate);
+            price.removeEventListener('input', calculate);
+            qty.addEventListener('input', calculate);
+            price.addEventListener('input', calculate);
+        });
+    }
+
+    function calculateGrandTotal() {
+        let grandTotal = 0;
+        document.querySelectorAll('.item-total').forEach(input => {
+            grandTotal += parseAmount(input.value) || 0;
+        });
+        document.getElementById('purchase-total').value = formatCurrency(grandTotal);
+    }
+
+    document.getElementById('purchase-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const items = [];
+        document.querySelectorAll('.purchase-item').forEach(item => {
+            const name = item.querySelector('.item-name').value;
+            const brand = item.querySelector('.item-brand').value;
+            const quantity = parseAmount(item.querySelector('.item-quantity').value);
+            const unit = item.querySelector('.item-unit').value || 'Unit';
+            const price = parseAmount(item.querySelector('.item-price').value);
+
+            if (name && quantity && price) {
+                items.push({
+                    item_name: name,
+                    brand: brand,
+                    quantity: quantity,
+                    measuring_unit: unit,
+                    unit_price: price,
+                    total_price: quantity * price
+                });
+            }
+        });
+
+        if (items.length === 0) {
+            alert('Please add at least one item');
+            return;
+        }
+
+        const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0);
+
+        const purchaseId = document.getElementById('purchase-id').value;
+        const isEdit = purchaseId !== '';
+
+        const data = {
+            project_id: document.getElementById('purchase-project').value,
+            vendor_id: document.getElementById('purchase-vendor').value,
+            category: document.getElementById('purchase-category').value,
+            invoice_number: document.getElementById('purchase-invoice').value,
+            invoice_date: document.getElementById('purchase-date').value,
+            total_amount: totalAmount,
+            payment_type: document.getElementById('purchase-type').value,
+            items: items
+        };
+
+        try {
+            let url = "/api_purchases_list";
+            let method = 'POST';
+
+            if (isEdit) {
+                // Construct URL for PUT
+                url = "/api_purchases_list/" + purchaseId;
+                method = 'PUT';
+            }
+
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showNotification(isEdit ? 'Purchase updated successfully' : 'Purchase added successfully', 'success');
+                closeModal('add-purchase-modal');
+                resetForm('purchase-form');
+                document.getElementById('purchase-id').value = '';
+                document.getElementById('purchase-modal-title').textContent = 'Add Purchase Order';
+                loadData();
+            } else {
+                showNotification(isEdit ? 'Error updating purchase' : 'Error adding purchase', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Error adding purchase', 'error');
+        }
+    });
+
+    async function editPurchase(id) {
+        try {
+            // Fetch the expense data
+            const url = "/api_purchases_list/" + id;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Failed to fetch purchase');
+
+            const expense = await response.json();
+
+            // Set the ID for update
+            document.getElementById('purchase-id').value = expense.expense_id;
+
+            // Change modal title
+            document.getElementById('purchase-modal-title').textContent = 'Edit Purchase Order';
+
+            // Pre-fill the form
+            document.getElementById('purchase-project').value = expense.project_id;
+            document.getElementById('purchase-vendor').value = expense.vendor_id;
+            document.getElementById('purchase-category').value = expense.category || '';
+
+            // Trigger update for item dropdown
+            updateItemDropdown();
+
+            document.getElementById('purchase-invoice').value = expense.invoice_number || '';
+            document.getElementById('purchase-date').value = expense.expense_date;
+            document.getElementById('purchase-type').value = expense.payment_mode;
+
+            // Sync main form dropdowns
+            ['purchase-project', 'purchase-vendor', 'purchase-category', 'purchase-type'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el && el.tomselect) el.tomselect.sync();
+            });
+
+            // Clear and populate items
+            // Clear and populate items
+            const container = document.getElementById('items-container');
+            container.innerHTML = '';
+
+            // Check if items exist and is an array
+            if (expense.items && Array.isArray(expense.items) && expense.items.length > 0) {
+                // We need to add items one by one and populate them
+                expense.items.forEach(item => {
+                    const itemHtml = `
+                    <div class="purchase-item mb-2" style="display: grid; grid-template-columns: 1.5fr 1fr 0.8fr 0.8fr 1fr 1fr auto; gap: 0.5rem; align-items: center;">
+                        <select class="form-control item-name" onchange="autoFillUnit(this)" required data-placeholder="-- Select Item --">
+                            ${currentItemOptions}
+                        </select>
+                        <input type="text" class="form-control item-brand" placeholder="Brand" value="${item.brand || ''}">
+                        <input type="text" class="form-control item-quantity amount-input" placeholder="Qty" required value="${formatNumber(item.quantity) || ''}">
+                        <input type="text" class="form-control item-unit" placeholder="Unit" readonly tabindex="-1" style="background-color: var(--bg-secondary);" value="${item.measuring_unit || ''}">
+                        <input type="text" class="form-control item-price amount-input" placeholder="Unit Price" required value="${formatNumber(item.unit_price) || ''}">
+                        <input type="text" class="form-control item-total amount-input" placeholder="Total" readonly value="${formatNumber(item.total_price) || ''}">
+                        <button type="button" class="btn btn-sm btn-danger" onclick="removeItem(this)" style="padding: 0.5rem; min-width: 40px;">−</button>
+                    </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', itemHtml);
+
+                    // Set value for the Select element
+                    const lastItem = container.lastElementChild;
+                    const select = lastItem.querySelector('.item-name');
+                    if (select) {
+                        select.value = item.item_name || '';
+                    }
+                });
+
+                // Initialize Tom Select for all added items
+                initSearchableDropdowns('.item-name');
+            } else {
+                // Add default empty item if no items
+                addItem();
+            }
+
+            // Important: Update datalists for all new items
+            updateItemDropdown();
+
+            attachItemCalculators();
+            calculateGrandTotal();
+
+            // Open modal
+            openModal('add-purchase-modal');
+
+        } catch (error) {
+            console.error('Error loading purchase:', error);
+            showNotification(`Error loading purchase data: ${error.message}`, 'error');
+        }
+    }
+
+    async function deletePurchase(id) {
+        if (!confirm('Are you sure you want to delete this purchase?')) return;
+
+        try {
+            const url = "/api_purchases_list/" + id;
+            const response = await fetch(url, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                showNotification('Purchase deleted', 'success');
+                loadData();
+            } else {
+                showNotification('Error deleting purchase', 'error');
+            }
+        } catch (error) {
+            console.error('Error loading purchase:', error);
+            showNotification(`Error loading purchase data: ${error.message}`, 'error');
+        }
+    }
+
+    function prepareAddPurchase() {
+        resetForm('purchase-form');
+        document.getElementById('purchase-id').value = '';
+        document.getElementById('purchase-modal-title').textContent = 'Add Purchase';
+        document.getElementById('purchase-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('items-container').innerHTML = ''; // Clear items
+
+        const categorySelect = document.getElementById('purchase-category');
+        categorySelect.value = "";
+
+        const projectSelect = document.getElementById('purchase-project');
+        projectSelect.value = "";
+        const vendorSelect = document.getElementById('purchase-vendor');
+        vendorSelect.value = "";
+        const paymentTypeSelect = document.getElementById('purchase-type');
+        paymentTypeSelect.value = "CREDIT";
+
+        openModal('add-purchase-modal'); // Open modal FIRST so elements are visible
+
+        // Sync dropdowns
+        [categorySelect, projectSelect, vendorSelect, paymentTypeSelect].forEach(select => {
+            if (select && select.tomselect) {
+                select.tomselect.sync();
+            }
+        });
+
+        // Update item options
+        updateItemDropdown();
+
+        // Add first item by simulating click on the button (since manual click is confirmed working)
+        setTimeout(() => {
+            const addButton = document.querySelector('button[onclick="addItem()"]');
+            if (addButton) addButton.click();
+        }, 300);
+    }
+
+    // Export purchases to Excel
+    function exportPurchasesToExcel() {
+        const dateFrom = document.getElementById('header-filter-date-from')?.value || '';
+        const dateTo = document.getElementById('header-filter-date-to')?.value || '';
+        const project = document.getElementById('header-filter-project')?.value || '';
+        const vendor = document.getElementById('header-filter-vendor')?.value || '';
+        const category = document.getElementById('header-filter-category')?.value || '';
+
+        // Build query string
+        const params = new URLSearchParams();
+        if (dateFrom) params.append('date_from', dateFrom);
+        if (dateTo) params.append('date_to', dateTo);
+        if (project) params.append('project', project);
+        if (vendor) params.append('vendor', vendor);
+        if (category) params.append('category', category);
+
+        downloadExcel("/export_purchases?" + params.toString(), "purchases.xlsx");
+
+        showNotification('Exporting purchases data...', 'success');
+    }
+
+    document.getElementById('purchase-date').value = new Date().toISOString().split('T')[0];
+
+    attachItemCalculators();
+    async function checkUrlParams() {
+        const params = new URLSearchParams(window.location.search);
+        const editId = params.get('edit_id');
+        if (editId) {
+            await editPurchase(editId);
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }
+
+    loadData().then(() => {
+        checkUrlParams();
+    });
+</script>
+
+    </div>
+</body>
+</html>

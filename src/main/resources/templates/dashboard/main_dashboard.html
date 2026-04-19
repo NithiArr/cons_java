@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{base}">
+<head>
+    <title>Elite Page</title>
+</head>
+<body>
+    <div layout:fragment="content">
+
+
+
+Dashboard - Construction Management
+
+
+<div class="container fade-in">
+    <h1>🏠 Dashboard</h1>
+    <p class="text-secondary mb-3">Welcome, ${user.name}</p>
+
+    <!-- Quick Actions -->
+    <div class="grid grid-3 mb-3">
+        <a th:href="/daily_cash" class="card hover-effect text-decoration-none">
+            <h3 class="card-title">💰 Daily Cash</h3>
+            <p class="text-secondary">View and manage daily cash flow</p>
+        </a>
+
+        <a th:href="/projects" class="card hover-effect text-decoration-none">
+            <h3 class="card-title">🏗️ Projects</h3>
+            <p class="text-secondary">View project status and details</p>
+        </a>
+
+        <a th:href="/vendor_analytics" class="card hover-effect text-decoration-none">
+            <h3 class="card-title">📈 Vendor Analytics</h3>
+            <p class="text-secondary">Track vendor payments and balances</p>
+        </a>
+    </div>
+
+    <!-- Active Projects Overview -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Active Projects</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table id="projects-table">
+                    <thead>
+                        <tr>
+                            <th>Project</th>
+                            <th>Status</th>
+                            <th>Location</th>
+                            <th>Start Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="projects-tbody">
+                        <tr>
+                            <td colspan="4" class="text-center">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function loadProjects() {
+        try {
+            const response = await fetch("/api_projects_list");
+            const data = await response.json();
+            renderProjects(data);
+        } catch (error) {
+            console.error('Error loading projects:', error);
+        }
+    }
+
+    function renderProjects(data) {
+        const tbody = document.getElementById('projects-tbody');
+        const activeProjects = data.filter(p => p.status === 'ACTIVE');
+
+        if (activeProjects.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center">No active projects</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = activeProjects.map(project => `
+            <tr>
+                <td><strong>${project.name}</strong></td>
+                <td><span class="status-badge status-active">${project.status}</span></td>
+                <td>${project.location}</td>
+                <td>${project.start_date}</td>
+            </tr>
+        `).join('');
+    }
+
+    loadProjects();
+</script>
+
+    </div>
+</body>
+</html>

@@ -1,10 +1,45 @@
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+*.zip
+*.tar.gz
+*.rar
+hsqldb/
+
+# Spring Boot
+.spring-boot-devtools.properties
+
+# IntelliJ IDEA
+*.iml
+*.iws
+*.ipr
+.idea/
+out/
+
+# Eclipse
+.classpath
+.project
+.settings/
+.factorypath
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-build/
+# build/ (Maven uses target/ not build/)
+!build/
 develop-eggs/
 dist/
 downloads/

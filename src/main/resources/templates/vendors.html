@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{base}">
+<head>
+    <title>Elite Page</title>
+</head>
+<body>
+    <div layout:fragment="content">
+
+
+Vendors
+
+
+
+
+<div class="container fade-in">
+    <div class="flex justify-between align-center mb-3">
+        <div>
+            <h1><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Zm0 3h.008v.008h-.008v-.008Z" /></svg> Vendors</h1>
+            <p class="text-secondary">Manage vendor information</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('add-vendor-modal')">+ Add Vendor</button>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="flex justify-between align-center">
+                <h3 class="card-title">All Vendors</h3>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>
+                                Vendor Name
+                                <select id="header-filter-name" class="form-control form-control-sm mt-1"
+                                    onchange="filterVendors()" style="width: 100%; min-width: 150px;">
+                                    <option value="">All Vendors</option>
+                                </select>
+                            </th>
+                            <th>Phone</th>
+                            <th>Email</th>
+                            <th>GST Number</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vendors-tbody">
+                        <tr>
+                            <td colspan="5" class="text-center">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Vendor Modal -->
+<div id="add-vendor-modal" class="modal">
+    <div class="modal-content modal-full">
+        <div class="modal-header">
+            <div class="flex align-center gap-2">
+                <button class="btn btn-secondary" onclick="closeModal('add-vendor-modal')"
+                    style="padding: 0.5rem 1rem;">
+                    ← Back
+                </button>
+                <h3 id="modal-title" style="margin: 0;">Add New Vendor</h3>
+            </div>
+        </div>
+        <div class="modal-body">
+            <form id="vendor-form">
+                
+                <input type="hidden" id="vendor-id">
+
+                <div class="form-group">
+                    <label class="form-label">Vendor Name *</label>
+                    <input type="text" id="vendor-name" class="form-control" required>
+                </div>
+
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Phone</label>
+                        <input type="tel" id="vendor-phone" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" id="vendor-email" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">GST Number</label>
+                    <input type="text" id="vendor-gst" class="form-control">
+                </div>
+
+                <div class="flex gap-2">
+                    <button type="submit" class="btn btn-primary">Save Vendor</button>
+                    <button type="button" class="btn btn-secondary"
+                        onclick="closeModal('add-vendor-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    let vendors = [];
+
+    async function loadVendors() {
+        try {
+            const response = await fetch("/api_vendors_list");
+            vendors = await response.json();
+            populateVendorFilter();
+            renderVendors(vendors);
+        } catch (error) {
+            console.error('Error loading vendors:', error);
+        }
+    }
+
+    function populateVendorFilter() {
+        const select = document.getElementById('header-filter-name');
+        const sortedVendors = [...vendors].sort((a, b) => a.name.localeCompare(b.name));
+        select.innerHTML = '<option value="">All Vendors</option>' +
+            sortedVendors.map(v => `<option value="${v.name}">${v.name}</option>`).join('');
+    }
+
+    function renderVendors(data) {
+        const tbody = document.getElementById('vendors-tbody');
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center">No vendors found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.map(v => `
+        <tr>
+            <td><strong>${v.name}</strong></td>
+            <td>${v.phone || '-'}</td>
+            <td>${v.email || '-'}</td>
+            <td>${v.gst_number || '-'}</td>
+            <td>
+                <button class="btn btn-sm btn-secondary" onclick="editVendor('${v.vendor_id}')">Edit</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteVendor('${v.vendor_id}', '${(v.name || '').replace(/'/g, "\\'")}')">Delete</button>
+            </td>
+        </tr>
+    `).join('');
+    }
+
+    function filterVendors() {
+        const nameFilter = document.getElementById('header-filter-name').value;
+        const filtered = nameFilter
+            ? vendors.filter(v => v.name === nameFilter)
+            : vendors;
+        renderVendors(filtered);
+    }
+
+    document.getElementById('vendor-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const vendorId = document.getElementById('vendor-id').value;
+        const data = {
+            name: document.getElementById('vendor-name').value,
+            phone: document.getElementById('vendor-phone').value || null,
+            email: document.getElementById('vendor-email').value || null,
+            gst_number: document.getElementById('vendor-gst').value || null
+        };
+
+        try {
+            let url = "/api_vendors_list";
+            let method = 'POST';
+
+            if (vendorId) {
+                // Correctly construct URL for PUT using replace or JS string concat if endpoint is consistent
+                // In urls.py: path('api/vendors/<str:vendor_id>', ...)
+                url = "/api_vendors_list/" + vendorId;
+                method = 'PUT';
+            }
+
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showNotification(vendorId ? 'Vendor updated' : 'Vendor created', 'success');
+                closeModal('add-vendor-modal');
+                resetForm('vendor-form');
+                loadVendors();
+            } else {
+                showNotification('Error saving vendor', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Error saving vendor', 'error');
+        }
+    });
+
+    function editVendor(id) {
+        const vendor = vendors.find(v => v.vendor_id === id);
+        if (!vendor) return;
+
+        document.getElementById('modal-title').textContent = 'Edit Vendor';
+        document.getElementById('vendor-id').value = vendor.vendor_id;
+        document.getElementById('vendor-name').value = vendor.name;
+        document.getElementById('vendor-phone').value = vendor.phone || '';
+        document.getElementById('vendor-email').value = vendor.email || '';
+        document.getElementById('vendor-gst').value = vendor.gst_number || '';
+
+        openModal('add-vendor-modal');
+    }
+
+    async function deleteVendor(id, name) {
+        if (!confirm(`Are you sure you want to delete vendor "${name}"?`)) return;
+
+        try {
+            // Construct URL for DELETE
+            const url = "/api_vendors_list/" + id;
+            const response = await fetch(url, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                showNotification('Vendor deleted', 'success');
+                loadVendors();
+            } else {
+                showNotification('Error deleting vendor', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Error deleting vendor', 'error');
+        }
+    }
+
+    loadVendors();
+</script>
+
+    </div>
+</body>
+</html>

@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{base}">
+<head>
+    <title>Elite Page</title>
+</head>
+<body>
+    <div layout:fragment="content">
+
+
+
+Projects
+
+
+
+
+
+
+<style>
+    .expand-icon {
+        font-size: 0.8rem;
+        display: inline-block;
+        transition: transform 0.3s ease;
+        color: var(--primary);
+    }
+
+    .purchase-row:hover {
+        background-color: rgba(0, 0, 0, 0.02);
+    }
+
+    .items-row table {
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+
+    .items-row table th {
+        text-align: left;
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .items-row table tr:hover {
+        background-color: #f1f3f5;
+    }
+</style>
+<div class="container fade-in">
+    <div class="flex justify-between align-center mb-3">
+        <div>
+            <h1><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg> Projects</h1>
+            <p class="text-secondary">Manage construction projects</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('add-project-modal')">+ Add Project</button>
+    </div>
+
+    <!-- Projects Table -->
+    <div class="card">
+        <div class="card-header">
+            <div class="flex justify-between align-center">
+                <h3 class="card-title">All Projects</h3>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>
+                                Project Name
+                                <select id="header-filter-name" class="form-control form-control-sm mt-1"
+                                    onchange="filterProjects()" style="width: 100%; min-width: 150px;">
+                                    <option value="">All Projects</option>
+                                </select>
+                            </th>
+                            <th>
+                                Location
+                                <select id="header-filter-location" class="form-control form-control-sm mt-1"
+                                    onchange="filterProjects()" style="width: 100%; min-width: 150px;">
+                                    <option value="">All Locations</option>
+                                </select>
+                            </th>
+                            <th>
+                                Status
+                                <select id="header-filter-status" class="form-control form-control-sm mt-1"
+                                    onchange="filterProjects()" style="width: 100%; min-width: 80px;">
+                                    <option value="">All</option>
+                                    <option value="PLANNING">Planning</option>
+                                    <option value="ACTIVE">Active</option>
+                                    <option value="ON_HOLD">On Hold</option>
+                                    <option value="COMPLETED">Completed</option>
+                                </select>
+                            </th>
+                            <th>Budget</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="projects-tbody">
+                        <tr>
+                            <td colspan="7" class="text-center">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Project Modal -->
+<div id="add-project-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">Add New Project</h3>
+            <span class="close" onclick="closeModal('add-project-modal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="project-form">
+                <input type="hidden" id="project-id">
+
+                <div class="form-group">
+                    <label class="form-label">Project Name *</label>
+                    <input type="text" id="project-name" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Location</label>
+                    <input type="text" id="project-location" class="form-control">
+                </div>
+
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" id="project-start" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">End Date</label>
+                        <input type="date" id="project-end" class="form-control">
+                    </div>
+                </div>
+
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Budget *</label>
+                        <input type="text" id="project-budget" class="form-control amount-input" required
+                            placeholder="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Status *</label>
+                        <select id="project-status" class="form-control" required>
+                            <option value="PLANNING">Planning</option>
+                            <option value="ACTIVE">Active</option>
+                            <option value="ON_HOLD">On Hold</option>
+                            <option value="COMPLETED">Completed</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex gap-2">
+                    <button type="submit" class="btn btn-primary">Save Project</button>
+                    <button type="button" class="btn btn-secondary"
+                        onclick="closeModal('add-project-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Project Details Modal -->
+<div id="project-modal" class="modal">
+    <div class="modal-content modal-full">
+        <div class="modal-header">
+            <div class="flex justify-between align-center" style="width: 100%;">
+                <div class="flex align-center gap-2">
+                    <button class="btn btn-secondary" onclick="closeProjectModal()" style="padding: 0.5rem 1rem;">
+                        ← Back
+                    </button>
+                    <h3 id="project-modal-title" style="margin: 0;">Project Details</h3>
+                </div>
+                <div class="flex align-center gap-2">
+                    <button class="btn btn-success" onclick="exportProjectToExcel()">
+                            <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg> Export to Excel
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-body">
+            <!-- Financial Summary -->
+            <div class="grid grid-5 mb-3" id="financial-summary" style="gap: 0.75rem;">
+                <div class="card" style="padding: 0.75rem;">
+                    <div class="card-body" style="padding: 0;">
+                        <p class="text-secondary mb-1" style="font-size: 0.75rem;">Total Budget</p>
+                        <h3 id="summary-budget" style="font-size: 1.5rem; margin: 0;">₹0.00</h3>
+                    </div>
+                </div>
+                <div class="card" style="padding: 0.75rem;">
+                    <div class="card-body" style="padding: 0;">
+                        <p class="text-secondary mb-1" style="font-size: 0.75rem;">Total Received</p>
+                        <h3 id="summary-received" style="font-size: 1.5rem; margin: 0;">₹0.00</h3>
+                    </div>
+                </div>
+                <div class="card" style="padding: 0.75rem;">
+                    <div class="card-body" style="padding: 0;">
+                        <p class="text-secondary mb-1" style="font-size: 0.75rem;">Total Spent</p>
+                        <h3 id="summary-spent" style="font-size: 1.5rem; margin: 0;">₹0.00</h3>
+                    </div>
+                </div>
+                <div class="card" style="padding: 0.75rem;">
+                    <div class="card-body" style="padding: 0;">
+                        <p class="text-secondary mb-1" style="font-size: 0.75rem;">Balance</p>
+                        <h3 id="summary-balance" style="color: var(--success); font-size: 1.5rem; margin: 0;">₹0.00</h3>
+                        <small style="font-size: 0.65rem; color: var(--text-secondary);">Received - Spent</small>
+                    </div>
+                </div>
+                <div class="card" style="padding: 0.75rem;">
+                    <div class="card-body" style="padding: 0;">
+                        <p class="text-secondary mb-1" style="font-size: 0.75rem;">Remaining Budget</p>
+                        <h3 id="summary-budget-remaining" style="font-size: 1.5rem; margin: 0;">₹0.00</h3>
+                        <small style="font-size: 0.65rem; color: var(--text-secondary);">Budget - Spent</small>
+                    </div>
+                </div>
+                <div class="card" style="padding: 0.75rem;">
+                    <div class="card-body" style="padding: 0;">
+                        <p class="text-secondary mb-1" style="font-size: 0.75rem;">Vendor Outstanding</p>
+                        <h3 id="summary-outstanding" style="font-size: 1.5rem; margin: 0;">₹0.00</h3>
+                        <small style="font-size: 0.65rem; color: var(--text-secondary);">What we owe vendors</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Expense Category Breakdown Chart -->
+            <div class="card mb-3">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <h4 class="card-title"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg> Regular Expenses Breakdown</h4>
+                    <select id="expense-category-filter" class="form-control" style="width: 200px;"
+                        onchange="filterExpensesByCategory()">
+                        <option value="">All Categories</option>
+                        <!-- Will be populated by JS -->
+                    </select>
+                </div>
+                <div class="card-body">
+                    <div class="grid grid-2" style="gap: 2rem;">
+                        <div>
+                            <div style="max-width: 400px; margin: 0 auto;">
+                                <canvas id="expense-category-chart"></canvas>
+                            </div>
+                        </div>
+                        <div>
+                            <h5 style="margin-bottom: 1rem;">Subcategory Breakdown</h5>
+                            <div id="expense-category-legend" style="max-height: 300px; overflow-y: auto;">
+                                <!-- Legend will be populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Spending Breakdown Pie Chart -->
+            <div class="card mb-3">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <h4 class="card-title"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg> Material Purchases Breakdown</h4>
+                    <select id="material-category-filter" class="form-control" style="width: 200px;"
+                        onchange="filterMaterialsByCategory()">
+                        <option value="">All Categories</option>
+                        <!-- Will be populated by JS -->
+                    </select>
+                </div>
+                <div class="card-body">
+                    <div class="grid grid-2" style="gap: 2rem;">
+                        <div>
+                            <div style="max-width: 400px; margin: 0 auto;">
+                                <canvas id="spending-pie-chart"></canvas>
+                            </div>
+                        </div>
+                        <div>
+                            <h5 style="margin-bottom: 1rem;">Subcategory Breakdown</h5>
+                            <div id="spending-legend" style="max-height: 300px; overflow-y: auto;">
+                                <!-- Legend will be populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Purchase History -->
+            <h4 class="mb-2">Purchase History</h4>
+            <div class="table-container mb-3">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 30px;"></th> <!-- Expand/Collapse -->
+                            <th>
+                                <select id="modal-filter-purchase-vendor" class="form-control form-control-sm"
+                                    onchange="filterPurchaseHistory()">
+                                    <option value="">All Vendors</option>
+                                </select>
+                            </th>
+                            <th>Invoice No.</th>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>
+                                <select id="modal-filter-purchase-mode" class="form-control form-control-sm"
+                                    onchange="filterPurchaseHistory()">
+                                    <option value="">All Modes</option>
+                                    <option value="CASH">CASH</option>
+                                    <option value="BANK">BANK</option>
+                                    <option value="UPI">UPI</option>
+                                    <option value="CREDIT">CREDIT</option>
+                                </select>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="purchase-history-tbody"></tbody>
+                </table>
+            </div>
+
+            <!-- Vendor Payments -->
+            <h4 class="mb-2">Vendor Payments</h4>
+            <div class="table-container mb-3">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>
+                                <select id="modal-filter-payment-vendor" class="form-control form-control-sm"
+                                    onchange="filterVendorPayments()">
+                                    <option value="">All Vendors</option>
+                                </select>
+                            </th>
+                            <th>Amount</th>
+                            <th>
+                                <select id="modal-filter-payment-mode" class="form-control form-control-sm"
+                                    onchange="filterVendorPayments()">
+                                    <option value="">All Modes</option>
+                                    <option value="CASH">CASH</option>
+                                    <option value="BANK">BANK</option>
+                                    <option value="UPI">UPI</option>
+                                </select>
+                            </th>
+                            <th>Invoice Ref.</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vendor-payments-tbody"></tbody>
+                </table>
+            </div>
+
+            <!-- Expenses -->
+            <h4 class="mb-2">Expenses</h4>
+            <div class="table-container mb-3">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>
+                                <select id="modal-filter-expense-category" class="form-control form-control-sm"
+                                    onchange="filterExpensesTable()">
+                                    <option value="">All Categories</option>
+                                </select>
+                            </th>
+                            <th>
+                                <select id="modal-filter-expense-subcategory" class="form-control form-control-sm"
+                                    onchange="filterExpensesTable()">
+                                    <option value="">All Subcategories</option>
+                                </select>
+                            </th>
+                            <th>Amount</th>
+                            <th>
+                                <select id="modal-filter-expense-mode" class="form-control form-control-sm"
+                                    onchange="filterExpensesTable()">
+                                    <option value="">All Modes</option>
+                                    <option value="CASH">CASH</option>
+                                    <option value="BANK">BANK</option>
+                                    <option value="UPI">UPI</option>
+                                </select>
+                            </th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expenses-tbody"></tbody>
+                </table>
+            </div>
+
+            <!-- Client Payments -->
+            <h4 class="mb-2">Client Payments (Received)</h4>
+            <div class="table-container mb-3">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>
+                                <select id="modal-filter-client-mode" class="form-control form-control-sm"
+                                    onchange="filterClientPayments()">
+                                    <option value="">All Modes</option>
+                                    <option value="CASH">CASH</option>
+                                    <option value="BANK">BANK</option>
+                                    <option value="UPI">UPI</option>
+                                </select>
+                            </th>
+                            <th>Reference</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody id="client-payments-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let projects = [];
+    let currentProjectId = null;  // Store current project ID for export
+    let currentProjectData = null; // Store fetched data for filtering
+    let spendingPieChart = null;
+    let allMaterialItems = [];  // For material chart filtering
+
+    // Load all projects
+    async function loadProjects() {
+        try {
+            const response = await fetch("/api_projects_list");
+            projects = await response.json();
+            populateHeaderFilters();
+
+            // Initialize Tom Select
+            initSearchableDropdowns();
+
+            renderProjects(projects);
+        } catch (error) {
+            console.error('Error loading projects:', error);
+            showNotification('Error loading projects', 'error');
+        }
+    }
+
+    // Populate header filters
+    function populateHeaderFilters() {
+        // Project Names
+        const nameSelect = document.getElementById('header-filter-name');
+        const uniqueNames = [...new Set(projects.map(p => p.name))].sort();
+        nameSelect.innerHTML = '<option value="">All Projects</option>' +
+            uniqueNames.map(name => `<option value="${name}">${name}</option>`).join('');
+
+        // Locations
+        const locationSelect = document.getElementById('header-filter-location');
+        const uniqueLocations = [...new Set(projects.map(p => p.location).filter(l => l))].sort();
+        locationSelect.innerHTML = '<option value="">All Locations</option>' +
+            uniqueLocations.map(loc => `<option value="${loc}">${loc}</option>`).join('');
+    }
+
+    // Render projects table
+    function renderProjects(data) {
+        const tbody = document.getElementById('projects-tbody');
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">No projects found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.map(p => `
+        <tr>
+            <td><strong>${p.name}</strong></td>
+            <td>${p.location || '-'}</td>
+            <td><span class="status-badge status-${p.status.toLowerCase()}">${p.status}</span></td>
+            <td>${formatCurrency(p.budget)}</td>
+            <td>${formatDate(p.start_date)}</td>
+            <td>${formatDate(p.end_date)}</td>
+            <td>
+                <div style="display: flex; gap: 0.25rem;">
+                    <button class="btn btn-sm btn-info" onclick="showProjectDetails('${p.project_id}', '${(p.name || '').replace(/'/g, "\\'")}')" title="View Details"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 14px; height: 14px; vertical-align: middle;"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg></button>
+                    <button class="btn btn-sm btn-secondary" onclick="editProject('${p.project_id}')" title="Edit"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 14px; height: 14px; vertical-align: middle;"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg></button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteProject('${p.project_id}', '${(p.name || '').replace(/'/g, "\\'")}')" title="Delete"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width: 14px; height: 14px; vertical-align: middle;"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg></button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+    }
+
+    // Filter projects
+    function filterProjects() {
+        const nameSearch = document.getElementById('header-filter-name').value;
+        const locationSearch = document.getElementById('header-filter-location').value;
+        const statusSearch = document.getElementById('header-filter-status').value;
+
+        const filtered = projects.filter(p => {
+            const matchName = !nameSearch || p.name === nameSearch;
+            const matchLocation = !locationSearch || p.location === locationSearch;
+            const matchStatus = !statusSearch || p.status === statusSearch;
+
+            return matchName && matchLocation && matchStatus;
+        });
+
+        renderProjects(filtered);
+    }
+
+    // Handle form submission
+    document.getElementById('project-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const projectId = document.getElementById('project-id').value;
+        const data = {
+            name: document.getElementById('project-name').value,
+            location: document.getElementById('project-location').value || null,
+            start_date: document.getElementById('project-start').value || null,
+            end_date: document.getElementById('project-end').value || null,
+            budget: parseAmount(document.getElementById('project-budget').value),
+            status: document.getElementById('project-status').value
+        };
+
+        try {
+            // Django URL construction logic
+            let url = "/api_projects_list";
+            if (projectId) {
+                url = url + "/" + projectId;
+            }
+            const method = projectId ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showNotification(projectId ? 'Project updated successfully' : 'Project created successfully', 'success');
+                closeModal('add-project-modal');
+                resetForm('project-form');
+                loadProjects();
+            } else {
+                showNotification('Error saving project', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Error saving project', 'error');
+        }
+    });
+
+    // Edit project
+    function editProject(id) {
+        const project = projects.find(p => p.project_id === id);
+        if (!project) return;
+
+        document.getElementById('modal-title').textContent = 'Edit Project';
+        document.getElementById('project-id').value = project.project_id;
+        document.getElementById('project-name').value = project.name;
+        document.getElementById('project-location').value = project.location || '';
+        document.getElementById('project-start').value = project.start_date || '';
+        document.getElementById('project-end').value = project.end_date || '';
+        document.getElementById('project-budget').value = formatNumber(project.budget);
+        document.getElementById('project-status').value = project.status;
+
+        openModal('add-project-modal');
+    }
+
+    // Delete project
+    async function deleteProject(id, name) {
+        if (!confirm(`Are you sure you want to delete project "${name}"?`)) return;
+
+        try {
+            let url = "/api_projects_list" + "/" + id;
+            const response = await fetch(url, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                showNotification('Project deleted successfully', 'success');
+                loadProjects();
+            } else {
+                showNotification('Error deleting project', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Error deleting project', 'error');
+        }
+    }
+
+
+    // Toggle purchase items visibility
+    function togglePurchaseItems(purchaseId) {
+        const itemsRow = document.getElementById('items-' + purchaseId);
+        const icon = document.getElementById('icon-' + purchaseId);
+
+        if (itemsRow && icon) {
+            if (itemsRow.style.display === 'none') {
+                itemsRow.style.display = 'table-row';
+                icon.textContent = '▼';
+            } else {
+                itemsRow.style.display = 'none';
+                icon.textContent = '▶';
+            }
+        }
+    }
+
+    // Global variables for expense filtering
+    let allExpenses = [];
+    let expenseCategoryChart = null;
+
+    // Render Expense Category Breakdown Chart
+    function renderExpenseCategoryChart(projectData) {
+        // Store all expenses globally for filtering
+        allExpenses = projectData.expenses || [];
+        console.log('Debug - All expenses:', allExpenses, 'Regular count:', allExpenses.filter(e => e.expense_type === 'Regular Expense').length);
+
+        // Get unique categories for REGULAR EXPENSES only
+        const regularExpenses = allExpenses.filter(e => e.expense_type === 'Regular Expense');
+        const uniqueCategories = [...new Set(regularExpenses.map(e => e.category || 'Other'))];
+        const filterSelect = document.getElementById('expense-category-filter');
+        filterSelect.innerHTML = '<option value="">All Categories</option>' +
+            uniqueCategories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+
+        // Sync Tom Select if it exists, or initialize it
+        if (filterSelect.tomselect) {
+            filterSelect.tomselect.clearOptions();
+            filterSelect.tomselect.addOption({ value: '', text: 'All Categories' });
+            uniqueCategories.forEach(cat => {
+                filterSelect.tomselect.addOption({ value: cat, text: cat });
+            });
+            filterSelect.tomselect.setValue('');
+        } else {
+            initSearchableDropdowns('#expense-category-filter');
+        }
+
+        // Initial render with all expenses
+        updateExpenseCategoryChart();
+    }
+
+    // Filter and update chart based on selected category
+    function filterExpensesByCategory() {
+        updateExpenseCategoryChart();
+    }
+
+    // Update the expense category chart
+    function updateExpenseCategoryChart() {
+        const selectedCategory = document.getElementById('expense-category-filter').value;
+
+        // Filter for REGULAR EXPENSES only (not material purchases)
+        let filteredExpenses = allExpenses.filter(e => e.expense_type === 'Regular Expense');
+
+        // Further filter by category if selected
+        if (selectedCategory) {
+            filteredExpenses = filteredExpenses.filter(e => e.category === selectedCategory);
+        }
+
+        // Group expenses by SUBCATEGORY
+        const categoryMap = {};
+        filteredExpenses.forEach(expense => {
+            const label = expense.subcategory || expense.category || 'Other';
+            if (!categoryMap[label]) {
+                categoryMap[label] = 0;
+            }
+            categoryMap[label] += parseFloat(expense.amount);
+        });
+
+        // Convert to arrays for Chart.js
+        const labels = Object.keys(categoryMap);
+        const amounts = Object.values(categoryMap);
+        const total = amounts.reduce((sum, val) => sum + val, 0);
+
+        // Generate colors dynamically
+        const colors = [
+            'rgba(239, 68, 68, 0.8)',    // Red
+            'rgba(245, 158, 11, 0.8)',   // Orange
+            'rgba(16, 185, 129, 0.8)',   // Green
+            'rgba(59, 130, 246, 0.8)',   // Blue
+            'rgba(139, 92, 246, 0.8)',   // Purple
+            'rgba(236, 72, 153, 0.8)',   // Pink
+            'rgba(20, 184, 166, 0.8)',   // Teal
+            'rgba(251, 191, 36, 0.8)',   // Yellow
+            'rgba(107, 114, 128, 0.8)',  // Gray
+            'rgba(220, 38, 38, 0.8)'     // Dark Red
+        ];
+
+        // Create custom legend HTML
+        const legendHTML = labels.map((label, idx) => {
+            const amount = amounts[idx];
+            const percentage = total > 0 ? ((amount / total) * 100).toFixed(1) : 0;
+            const color = colors[idx % colors.length];
+
+            return `
+                <div style="display: flex; align-items: center; margin-bottom: 0.75rem; padding: 0.5rem; background: var(--card-bg); border-radius: 8px;">
+                    <div style="width: 20px; height: 20px; background: ${color}; border-radius: 4px; margin-right: 10px;"></div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; font-size: 0.9rem;">${label}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                            ${formatCurrency(amount)} (${percentage}%)
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        document.getElementById('expense-category-legend').innerHTML = legendHTML || '<p class="text-secondary">No expenses found</p>';
+
+        // Destroy existing chart if exists
+        if (expenseCategoryChart) {
+            expenseCategoryChart.destroy();
+        }
+
+        // Create pie chart
+        const ctx = document.getElementById('expense-category-chart').getContext('2d');
+
+        expenseCategoryChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: amounts,
+                    backgroundColor: colors.slice(0, labels.length),
+                    borderColor: colors.slice(0, labels.length).map(c => c.replace('0.8', '1')),
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false  // Using custom legend
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return label + ': ₹' + value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' (' + percentage + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Render Material Purchases Breakdown Pie Chart
+    function renderSpendingPieChart(projectData) {
+        // Store expense items globally for filtering
+        allMaterialItems = projectData.expense_items || [];
+        console.log('Debug - Expense items:', allMaterialItems);
+
+        // Get unique categories for the filter dropdown
+        const uniqueCategories = [...new Set(allMaterialItems.map(item => item.category || 'Other'))];
+        const filterSelect = document.getElementById('material-category-filter');
+        filterSelect.innerHTML = '<option value="">All Categories</option>' +
+            uniqueCategories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+
+        // Sync Tom Select if it exists, or initialize it
+        if (filterSelect.tomselect) {
+            filterSelect.tomselect.clearOptions();
+            filterSelect.tomselect.addOption({ value: '', text: 'All Categories' });
+            uniqueCategories.forEach(cat => {
+                filterSelect.tomselect.addOption({ value: cat, text: cat });
+            });
+            filterSelect.tomselect.setValue('');
+        } else {
+            initSearchableDropdowns('#material-category-filter');
+        }
+
+        // Initial render with all items
+        updateMaterialChart();
+    }
+
+    // Filter and update chart based on selected category
+    function filterMaterialsByCategory() {
+        updateMaterialChart();
+    }
+
+    // Update the material purchases chart
+    function updateMaterialChart() {
+        const selectedCategory = document.getElementById('material-category-filter').value;
+
+        // Filter items by category if selected
+        let filteredItems = allMaterialItems;
+        if (selectedCategory) {
+            filteredItems = allMaterialItems.filter(item => item.category === selectedCategory);
+        }
+
+        // Group expense items by subcategory (item_name)
+        const spendingMap = {};
+        filteredItems.forEach(item => {
+            const subcategory = item.subcategory || 'Other Materials';
+            if (!spendingMap[subcategory]) {
+                spendingMap[subcategory] = 0;
+            }
+            spendingMap[subcategory] += parseFloat(item.total_price);
+        });
+
+        // Convert to arrays for Chart.js
+        const categories = Object.keys(spendingMap);
+        const amounts = Object.values(spendingMap);
+
+        // Generate colors dynamically
+        const colors = [
+            'rgba(239, 68, 68, 0.8)',    // Red
+            'rgba(245, 158, 11, 0.8)',   // Orange
+            'rgba(16, 185, 129, 0.8)',   // Green
+            'rgba(59, 130, 246, 0.8)',   // Blue
+            'rgba(139, 92, 246, 0.8)',   // Purple
+            'rgba(236, 72, 153, 0.8)',   // Pink
+            'rgba(20, 184, 166, 0.8)',   // Teal
+            'rgba(251, 146, 60, 0.8)',   // Amber
+            'rgba(132, 204, 22, 0.8)',   // Lime
+            'rgba(168, 85, 247, 0.8)',   // Violet
+        ];
+
+        const borderColors = colors.map(c => c.replace('0.8', '1'));
+
+        // Create legend HTML
+        const totalSpent = amounts.reduce((sum, val) => sum + val, 0);
+        const legendHTML = categories.map((cat, idx) => {
+            const amount = amounts[idx];
+            const percentage = totalSpent > 0 ? ((amount / totalSpent) * 100).toFixed(1) : 0;
+            const color = colors[idx % colors.length];
+
+            return `
+                <div style="display: flex; align-items: center; margin-bottom: 0.75rem; padding: 0.5rem; background: var(--card-bg); border-radius: 8px;">
+                    <div style="width: 20px; height: 20px; background: ${color}; border-radius: 4px; margin-right: 10px;"></div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; font-size: 0.9rem;">${cat}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                            ${formatCurrency(amount)} (${percentage}%)
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        document.getElementById('spending-legend').innerHTML = legendHTML;
+
+        // Destroy existing chart if exists
+        if (spendingPieChart) {
+            spendingPieChart.destroy();
+        }
+
+        // Create pie chart
+        const ctx = document.getElementById('spending-pie-chart').getContext('2d');
+
+        spendingPieChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: categories,
+                datasets: [{
+                    data: amounts,
+                    backgroundColor: colors.slice(0, categories.length),
+                    borderColor: borderColors.slice(0, categories.length),
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false  // We're using custom legend
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                const percentage = totalSpent > 0 ? ((value / totalSpent) * 100).toFixed(1) : 0;
+                                return label + ': ₹' + value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' (' + percentage + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Show project details
+    async function showProjectDetails(projectId, projectName) {
+        currentProjectId = projectId;  // Store for export
+        document.getElementById('project-modal-title').textContent = projectName;
+        document.getElementById('project-modal').classList.add('active');
+
+        try {
+            // Correct URL for Project Payment Details API
+            let url = `/dashboard/api/project-payment-details/${projectId}`;
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                const msg = errData.error || `Server error (${response.status})`;
+                showNotification('Error loading project details: ' + msg, 'error');
+                return;
+            }
+
+            currentProjectData = await response.json();
+
+            const data = currentProjectData;
+
+            // Update financial summary
+            // Use == (loose) to handle string/number type mismatch from onclick vs API
+            const project = projects.find(p => p.project_id == projectId);
+            if (project) {
+                document.getElementById('summary-budget').textContent = formatCurrency(project.budget);
+            }
+            document.getElementById('summary-spent').textContent = formatCurrency(data.financial_summary.total_spent);
+
+            // Calculate and display balance (Received - Spent)
+            const balance = data.financial_summary.total_received - data.financial_summary.total_spent;
+            const balanceEl = document.getElementById('summary-balance');
+            balanceEl.textContent = formatCurrency(balance);
+
+            // Color code the balance
+            if (balance < 0) {
+                balanceEl.style.color = 'var(--danger)';
+            } else if (balance < data.financial_summary.total_received * 0.2) {
+                balanceEl.style.color = 'var(--warning)';
+            } else {
+                balanceEl.style.color = 'var(--success)';
+            }
+
+            // Remaining Budget
+            const remainingBudgetEl = document.getElementById('summary-budget-remaining');
+            remainingBudgetEl.textContent = formatCurrency(data.financial_summary.remaining_budget);
+
+            const budgetThreshold = (project?.budget || 0) * 0.1;
+            if (data.financial_summary.remaining_budget < 0) {
+                remainingBudgetEl.style.color = 'var(--danger)';
+            } else if (budgetThreshold > 0 && data.financial_summary.remaining_budget < budgetThreshold) {
+                remainingBudgetEl.style.color = 'var(--warning)';
+            } else {
+                remainingBudgetEl.style.color = 'var(--success)';
+            }
+
+
+            document.getElementById('summary-received').textContent = formatCurrency(data.financial_summary.total_received);
+            document.getElementById('summary-outstanding').textContent = formatCurrency(data.financial_summary.vendor_outstanding);
+
+            // Reset filters and destroy existing TomSelect instances to allow re-population
+            document.querySelectorAll('#project-modal select').forEach(s => {
+                if (s.tomselect) s.tomselect.destroy();
+                s.value = "";
+            });
+
+            // Populate filters
+            const vendors = [...new Set([
+                ...data.purchase_history.map(p => p.vendor_name),
+                ...data.vendor_payments.map(p => p.vendor_name)
+            ])].filter(Boolean).sort();
+
+            document.getElementById('modal-filter-purchase-vendor').innerHTML = '<option value="">All Vendors</option>' +
+                vendors.map(v => `<option value="${v}">${v}</option>`).join('');
+
+            document.getElementById('modal-filter-payment-vendor').innerHTML = '<option value="">All Vendors</option>' +
+                vendors.map(v => `<option value="${v}">${v}</option>`).join('');
+
+            const expCategories = [...new Set(data.expenses.map(e => e.category))].filter(Boolean).sort();
+            document.getElementById('modal-filter-expense-category').innerHTML = '<option value="">All Categories</option>' +
+                expCategories.map(c => `<option value="${c}">${c}</option>`).join('');
+
+            const expSubCategories = [...new Set(data.expenses.map(e => e.subcategory))].filter(Boolean).sort();
+            document.getElementById('modal-filter-expense-subcategory').innerHTML = '<option value="">All Subcategories</option>' +
+                expSubCategories.map(s => `<option value="${s}">${s}</option>`).join('');
+
+            // Initialize Tom Select for searching/filtering
+            initSearchableDropdowns('#project-modal select');
+
+            // Render All
+            renderExpenseCategoryChart(data);
+            renderSpendingPieChart(data);
+
+            filterPurchaseHistory();
+            filterVendorPayments();
+            filterExpensesTable();
+            filterClientPayments();
+
+        } catch (error) {
+            console.error('Error loading project details:', error);
+            showNotification('Error loading project details', 'error');
+        }
+    }
+
+    function filterPurchaseHistory() {
+        const vendor = document.getElementById('modal-filter-purchase-vendor').value;
+        const mode = document.getElementById('modal-filter-purchase-mode').value;
+
+        const filtered = currentProjectData.purchase_history.filter(p => {
+            return (!vendor || p.vendor_name === vendor) && (!mode || p.payment_mode === mode);
+        });
+
+        renderPurchaseHistory(filtered);
+    }
+
+    function renderPurchaseHistory(history) {
+        const tbody = document.getElementById('purchase-history-tbody');
+        if (history.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No purchases found</td></tr>';
+            return;
+        }
+
+        const itemsByExpense = {};
+        if (currentProjectData.expense_items) {
+            currentProjectData.expense_items.forEach(item => {
+                if (!itemsByExpense[item.expense_id]) itemsByExpense[item.expense_id] = [];
+                itemsByExpense[item.expense_id].push(item);
+            });
+        }
+
+        tbody.innerHTML = history.map(p => {
+            const items = itemsByExpense[p.purchase_id] || [];
+            const hasItems = items.length > 0;
+            return `
+                <tr class="purchase-row" data-purchase-id="${p.purchase_id}" onclick="togglePurchaseItems('${p.purchase_id}')" style="cursor: ${hasItems ? 'pointer' : 'default'};">
+                    <td style="text-align: center;">${hasItems ? '<span class="expand-icon" id="icon-' + p.purchase_id + '">▶</span>' : ''}</td>
+                    <td><strong>${p.vendor_name}</strong></td>
+                    <td>${p.invoice_number || '-'}</td>
+                    <td>${formatDate(p.invoice_date)}</td>
+                    <td>${formatCurrency(p.amount)}</td>
+                    <td><span class="status-badge ${p.payment_mode === 'CREDIT' ? 'status-on_hold' : 'status-completed'}">${p.payment_mode}</span></td>
+                </tr>
+                ${hasItems ? `
+                <tr class="items-row" id="items-${p.purchase_id}" style="display: none;">
+                    <td colspan="6" style="padding: 0; background: var(--bg-primary);">
+                        <div style="padding: 1rem; margin-left: 2rem;">
+                            <table style="width: 100%; background: var(--bg-tertiary); border-radius: 8px; margin-top: 0.5rem; overflow: hidden;">
+                                <thead>
+                                    <tr style="background: var(--bg-card);">
+                                        <th style="padding: 0.5rem;">Category</th>
+                                        <th style="padding: 0.5rem;">Item Name</th>
+                                        <th style="padding: 0.5rem;">Brand</th>
+                                        <th style="padding: 0.5rem;">Quantity</th>
+                                        <th style="padding: 0.5rem;">Unit Price</th>
+                                        <th style="padding: 0.5rem;">Total Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${items.map(item => `
+                                        <tr>
+                                            <td style="padding: 0.5rem;"><span class="status-badge status-active">${item.category || 'Other'}</span></td>
+                                            <td style="padding: 0.5rem;">${item.subcategory}</td>
+                                            <td style="padding: 0.5rem;">${item.brand || '-'}</td>
+                                            <td style="padding: 0.5rem;">${item.quantity} ${item.measuring_unit}</td>
+                                            <td style="padding: 0.5rem;">${formatCurrency(item.unit_price)}</td>
+                                            <td style="padding: 0.5rem;"><strong>${formatCurrency(item.total_price)}</strong></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </td>
+                </tr>` : ''}
+            `;
+        }).join('');
+    }
+
+    function filterVendorPayments() {
+        const vendor = document.getElementById('modal-filter-payment-vendor').value;
+        const mode = document.getElementById('modal-filter-payment-mode').value;
+        const filtered = currentProjectData.vendor_payments.filter(p => {
+            return (!vendor || p.vendor_name === vendor) && (!mode || p.payment_mode === mode);
+        });
+        renderVendorPayments(filtered);
+    }
+
+    function renderVendorPayments(payments) {
+        const tbody = document.getElementById('vendor-payments-tbody');
+        if (payments.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center">No vendor payments found</td></tr>';
+            return;
+        }
+        tbody.innerHTML = payments.map(p => `
+            <tr>
+                <td>${formatDate(p.payment_date)}</td>
+                <td>${p.vendor_name}</td>
+                <td>${formatCurrency(p.amount)}</td>
+                <td>${getPaymentBadgeHTML(p.payment_mode)}</td>
+                <td>${p.purchase_invoice || '-'}</td>
+            </tr>
+        `).join('');
+    }
+
+    function filterExpensesTable() {
+        const cat = document.getElementById('modal-filter-expense-category').value;
+        const sub = document.getElementById('modal-filter-expense-subcategory').value;
+        const mode = document.getElementById('modal-filter-expense-mode').value;
+        const filtered = currentProjectData.expenses.filter(e => {
+            return (!cat || e.category === cat) && (!sub || e.subcategory === sub) && (!mode || e.payment_mode === mode);
+        });
+        renderExpensesTable(filtered);
+    }
+
+    function renderExpensesTable(expenses) {
+        const tbody = document.getElementById('expenses-tbody');
+        if (expenses.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No expenses found</td></tr>';
+            return;
+        }
+        tbody.innerHTML = expenses.map(e => `
+            <tr>
+                <td>${formatDate(e.expense_date)}</td>
+                <td>${e.category}</td>
+                <td>${e.subcategory || '-'}</td>
+                <td><strong>${formatCurrency(e.amount)}</strong></td>
+                <td>${getPaymentBadgeHTML(e.payment_mode)}</td>
+                <td>${e.description || '-'}</td>
+            </tr>
+        `).join('');
+    }
+
+    function filterClientPayments() {
+        const mode = document.getElementById('modal-filter-client-mode').value;
+        const filtered = currentProjectData.client_payments.filter(cp => {
+            return (!mode || cp.payment_mode === mode);
+        });
+        renderClientPayments(filtered);
+    }
+
+    function renderClientPayments(payments) {
+        const tbody = document.getElementById('client-payments-tbody');
+        if (payments.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center">No client payments received</td></tr>';
+            return;
+        }
+        tbody.innerHTML = payments.map(cp => `
+            <tr>
+                <td>${formatDate(cp.payment_date)}</td>
+                <td>${formatCurrency(cp.amount)}</td>
+                <td>${getPaymentBadgeHTML(cp.payment_mode)}</td>
+                <td>${cp.reference_number || '-'}</td>
+                <td>${cp.remarks || '-'}</td>
+            </tr>
+        `).join('');
+    }
+
+    // Helper for payment badges
+    function getPaymentBadgeHTML(mode) {
+        let badgeClass = 'status-secondary';
+        if (mode === 'CASH') badgeClass = 'status-completed';
+        else if (mode === 'BANK' || mode === 'UPI') badgeClass = 'status-active';
+        else if (mode === 'CREDIT') badgeClass = 'status-on_hold';
+        return `<span class="status-badge ${badgeClass}">${mode}</span>`;
+    }
+
+    // Export project to Excel
+    function exportProjectToExcel() {
+        if (!currentProjectId) {
+            showNotification('No project selected', 'error');
+            return;
+        }
+        downloadExcel(`/export_project_excel/${currentProjectId}`, 'project_report.xlsx');
+    }
+
+
+    // Close project modal
+    function closeProjectModal() {
+        document.getElementById('project-modal').classList.remove('active');
+    }
+
+    // Initialize
+    loadProjects();
+</script>
+
+    </div>
+</body>
+</html>

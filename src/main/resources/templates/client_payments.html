@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{base}">
+<head>
+    <title>Elite Page</title>
+</head>
+<body>
+    <div layout:fragment="content">
+
+
+Client Payments
+
+
+
+
+<div class="container fade-in">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <div>
+            <h1><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6 9 12.75l4.286-4.286a11.948 11.948 0 0 1 4.306 6.43l.776 2.898m0 0 3.182-5.514m-3.182 5.514-5.514-3.182" /></svg> Client Payments</h1>
+            <p class="text-secondary">Track incoming payments from clients</p>
+        </div>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <div style="min-width: 250px;">
+                <label for="project-filter"
+                    style="font-size: 0.9rem; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;">Filter
+                    by Project</label>
+                <select id="project-filter" class="form-control" onchange="filterByProject()">
+                    <option value="">All Projects</option>
+                </select>
+            </div>
+            <button class="btn btn-success" onclick="exportClientPaymentsToExcel()" style="margin-top: 1.5rem;"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
+                Export to Excel</button>
+            <button class="btn btn-primary" onclick="prepareAddClientPayment()" style="margin-top: 1.5rem;">+ Add Client
+                Payment</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Project</th>
+                            <th>
+                                Date Range
+                                <input type="text" id="header-filter-date" class="form-control form-control-sm mt-1"
+                                    placeholder="Select range..." readonly
+                                    style="background: var(--bg-secondary); cursor: pointer;">
+                            </th>
+                            <th>Amount</th>
+                            <th>Payment Mode</th>
+                            <th>Reference #</th>
+                            <th>Remarks</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="client-payments-tbody">
+                        <tr>
+                            <td colspan="7" class="text-center">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Client Payment Modal -->
+<div id="add-client-payment-modal" class="modal">
+    <div class="modal-content modal-full">
+        <div class="modal-header">
+            <div class="flex align-center gap-2">
+                <button class="btn btn-secondary" onclick="closeModal('add-client-payment-modal')"
+                    style="padding: 0.5rem 1rem;">
+                    ← Back
+                </button>
+                <h3 id="cp-modal-title" style="margin: 0;">Record Client Payment</h3>
+            </div>
+        </div>
+        <div class="modal-body">
+            <form id="client-payment-form">
+                
+                <div class="form-group">
+                    <label class="form-label">Project *</label>
+                    <select id="client-payment-project" class="form-control" required>
+                        <option value="">-- Select Project --</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Amount *</label>
+                        <input type="text" id="client-payment-amount" class="form-control amount-input" required
+                            placeholder="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Payment Mode *</label>
+                        <select id="client-payment-mode" class="form-control" required>
+                            <option value="CASH">Cash</option>
+                            <option value="BANK">Bank</option>
+                            <option value="UPI">UPI</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Payment Date *</label>
+                        <input type="date" id="client-payment-date" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Reference Number</label>
+                        <input type="text" id="client-payment-ref" class="form-control"
+                            placeholder="Cheque #, Transaction ID">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Remarks</label>
+                    <textarea id="client-payment-remarks" class="form-control" rows="2"></textarea>
+                </div>
+
+                <div class="flex gap-2">
+                    <button type="submit" class="btn btn-primary">Save Payment</button>
+                    <button type="button" class="btn btn-secondary"
+                        onclick="closeModal('add-client-payment-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+
+<script>
+    let clientPayments = [];
+    let allClientPayments = []; // Store all client payments for filtering
+    let projects = [];
+    let editingClientPaymentId = null; // null = Add mode, set = Edit mode
+
+    async function loadData() {
+        try {
+            const [paymentsRes, projectsRes] = await Promise.all([
+                fetch("/api_client_payments_list"),
+                fetch("/api_projects_list")
+            ]);
+
+            clientPayments = await paymentsRes.json();
+            allClientPayments = [...clientPayments]; // Store all client payments
+            projects = await projectsRes.json();
+
+            // Populate project dropdown
+            document.getElementById('client-payment-project').innerHTML = '<option value="">-- Select Project --</option>' +
+                projects.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
+
+            // Populate project filter
+            document.getElementById('project-filter').innerHTML = '<option value="">All Projects</option>' +
+                projects.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
+
+            initDateRangePicker('#header-filter-date', filterByProject);
+
+            renderClientPayments();
+        } catch (error) {
+            console.error('Error loading data:', error);
+        }
+    }
+
+    function filterByProject() {
+        const projectId = document.getElementById('project-filter').value;
+        const dateRangeStr = document.getElementById('header-filter-date').value;
+
+        let dateFrom = null;
+        let dateTo = null;
+
+        if (dateRangeStr && dateRangeStr.includes(' to ')) {
+            [dateFrom, dateTo] = dateRangeStr.split(' to ');
+        } else if (dateRangeStr) {
+            dateFrom = dateTo = dateRangeStr;
+        }
+
+        clientPayments = allClientPayments.filter(cp => {
+            const matchProject = !projectId || cp.project_id === projectId;
+
+            let matchDate = true;
+            if (dateFrom && cp.payment_date < dateFrom) matchDate = false;
+            if (dateTo && cp.payment_date > dateTo) matchDate = false;
+
+            return matchProject && matchDate;
+        });
+
+        renderClientPayments();
+    }
+
+    // Helper for payment badges
+    function getPaymentBadgeHTML(mode) {
+        let badgeClass = 'status-secondary'; // Default gray
+
+        if (mode === 'CASH') {
+            badgeClass = 'status-completed'; // Green
+        } else if (mode === 'BANK' || mode === 'UPI') {
+            badgeClass = 'status-active'; // Blue
+        } else if (mode === 'CREDIT') {
+            badgeClass = 'status-on_hold'; // Orange/Yellow
+        }
+
+        return `<span class="status-badge ${badgeClass}">${mode}</span>`;
+    }
+
+    function renderClientPayments() {
+        const tbody = document.getElementById('client-payments-tbody');
+
+        if (clientPayments.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">No client payments found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = clientPayments.map(cp => {
+            const project = projects.find(p => p.project_id === cp.project_id);
+            return `
+            <tr>
+                <td><strong>${project ? project.name : 'Unknown'}</strong></td>
+                <td>${formatDate(cp.payment_date)}</td>
+                <td><strong style="color: var(--success);">${formatCurrency(cp.amount)}</strong></td>
+                <td>${getPaymentBadgeHTML(cp.payment_mode)}</td>
+                <td>${cp.reference_number || '-'}</td>
+                <td>${cp.remarks || '-'}</td>
+                <td style="white-space: nowrap;">
+                    <button class="btn btn-sm btn-secondary" onclick="openEditClientPayment('${cp.client_payment_id}')" style="margin-right: 0.5rem;">Edit</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteClientPayment('${cp.client_payment_id}')">Delete</button>
+                </td>
+            </tr>
+        `;
+        }).join('');
+    }
+
+    async function openEditClientPayment(id) {
+        editingClientPaymentId = id;
+        document.getElementById('cp-modal-title').textContent = 'Edit Client Payment';
+        try {
+            const url = "/api_client_payments_list/" + id;
+            const res = await fetch(url);
+            if (!res.ok) { showNotification('Failed to load payment', 'error'); return; }
+            const cp = await res.json();
+            document.getElementById('client-payment-project').value = cp.project_id;
+            document.getElementById('client-payment-amount').value = cp.amount;
+            document.getElementById('client-payment-mode').value = cp.payment_mode;
+            document.getElementById('client-payment-date').value = cp.payment_date;
+            document.getElementById('client-payment-ref').value = cp.reference_number || '';
+            document.getElementById('client-payment-remarks').value = cp.remarks || '';
+        } catch (err) {
+            showNotification('Error loading payment', 'error'); return;
+        }
+        openModal('add-client-payment-modal');
+    }
+
+    document.getElementById('client-payment-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const data = {
+            project_id: document.getElementById('client-payment-project').value,
+            amount: parseAmount(document.getElementById('client-payment-amount').value),
+            payment_mode: document.getElementById('client-payment-mode').value,
+            payment_date: document.getElementById('client-payment-date').value,
+            reference_number: document.getElementById('client-payment-ref').value || null,
+            remarks: document.getElementById('client-payment-remarks').value || null
+        };
+
+        try {
+            let url, method;
+            if (editingClientPaymentId) {
+                url = "/api_client_payments_list/" + editingClientPaymentId;
+                method = 'PUT';
+            } else {
+                url = "/api_client_payments_list";
+                method = 'POST';
+            }
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showNotification(editingClientPaymentId ? 'Client payment updated successfully' : 'Client payment recorded successfully', 'success');
+                closeModal('add-client-payment-modal');
+                resetForm('client-payment-form');
+                editingClientPaymentId = null;
+                loadData();
+            } else {
+                showNotification('Error saving payment', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Error saving payment', 'error');
+        }
+    });
+
+    async function deleteClientPayment(id) {
+        if (!confirm('Are you sure you want to delete this client payment?')) return;
+
+        try {
+            const url = "/api_client_payments_list/" + id;
+            const response = await fetch(url, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                showNotification('Client payment deleted', 'success');
+                loadData();
+            } else {
+                showNotification('Error deleting payment', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('Error deleting payment', 'error');
+        }
+    }
+
+    document.getElementById('client-payment-date').value = new Date().toISOString().split('T')[0];
+
+    function prepareAddClientPayment() {
+        editingClientPaymentId = null;
+        document.getElementById('cp-modal-title').textContent = 'Record Client Payment';
+        resetForm('client-payment-form');
+        document.getElementById('client-payment-date').value = new Date().toISOString().split('T')[0];
+        openModal('add-client-payment-modal');
+    }
+
+
+    // Export client payments to Excel
+    // Export client payments to Excel
+    function exportClientPaymentsToExcel() {
+        const dateFrom = document.getElementById('header-filter-date-from')?.value || '';
+        const dateTo = document.getElementById('header-filter-date-to')?.value || '';
+        const project = document.getElementById('header-filter-project')?.value || '';
+
+        // Build query string
+        const params = new URLSearchParams();
+        if (dateFrom) params.append('date_from', dateFrom);
+        if (dateTo) params.append('date_to', dateTo);
+        if (project) params.append('project', project);
+
+        downloadExcel("/export_client_payments?" + params.toString(), "client_payments.xlsx");
+
+        showNotification('Exporting client payments data...', 'success');
+    }
+
+    loadData();
+</script>
+
+    </div>
+</body>
+</html>

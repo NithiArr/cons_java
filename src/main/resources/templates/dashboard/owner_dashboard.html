@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{base}">
+<head>
+    <title>Elite Page</title>
+</head>
+<body>
+    <div layout:fragment="content">
+
+
+Owner Dashboard - Construction Management
+
+
+<div class="container fade-in">
+    <div class="flex-between mb-4">
+        <div>
+            <h1><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg> Dashboard</h1>
+            <p class="text-secondary">Welcome, ${user.name}!</p>
+        </div>
+        <div>
+            <label for="dashboard-filter-status" class="form-label text-sm">Filter by Status</label>
+            <select id="dashboard-filter-status" class="form-control" onchange="loadKPIs()">
+                <option value="" selected>All Projects</option>
+                <option value="PLANNING">Planning</option>
+                <option value="ACTIVE">Active</option>
+                <option value="ON_HOLD">On Hold</option>
+                <option value="COMPLETED">Completed</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- High-Level KPIs -->
+    <div class="grid grid-4 mb-5 gap-4" style="margin-bottom: 3rem;">
+        <div class="kpi-card kpi-card-compact">
+            <div class="kpi-label">💰 Total Budget</div>
+            <div class="kpi-value" id="total-budget" style="color: #2563eb;">₹0</div>
+            <div class="kpi-sublabel">Project budgets</div>
+        </div>
+
+        <div class="kpi-card kpi-card-compact">
+            <div class="kpi-label">💵 Amount Received</div>
+            <div class="kpi-value" id="total-received" style="color: #16a34a;">₹0</div>
+            <div class="kpi-sublabel">From clients</div>
+        </div>
+
+        <div class="kpi-card kpi-card-compact">
+            <div class="kpi-label">✅ Expenses (Paid)</div>
+            <div class="kpi-value" id="expenses-paid" style="color: #0891b2;">₹0</div>
+            <div class="kpi-sublabel">Cash/Bank/UPI</div>
+        </div>
+
+        <div class="kpi-card kpi-card-compact">
+            <div class="kpi-label">⏳ Outstanding Payables</div>
+            <div class="kpi-value" id="vendor-outstanding" style="color: #ea580c;">₹0</div>
+            <div class="kpi-sublabel">Credit - Paid to vendors</div>
+        </div>
+    </div>
+
+    <!-- Balance & Projects Row -->
+    <div class="grid grid-2 mb-5 gap-4" style="margin-bottom: 3rem;">
+        <div class="kpi-card"
+            style="background: linear-gradient(135deg, rgba(46, 213, 115, 0.1), rgba(0, 184, 148, 0.1)); border: 1px solid var(--success);">
+            <div class="kpi-label" style="font-weight: 600;">💳 Balance in Hand</div>
+            <div class="kpi-value" id="balance-in-hand" style="font-weight: 700; font-size: 2.5rem; color: #ea580c;">₹0
+            </div>
+            <div class="kpi-sublabel">Received - Paid (Actual Cash)</div>
+        </div>
+
+        <div class="kpi-card"
+            style="display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <div class="kpi-label">📊 Total Projects</div>
+            <div class="kpi-value" id="total-projects" style="font-size: 3rem;">-</div>
+            <div class="kpi-sublabel">In selected status</div>
+        </div>
+    </div>
+
+    <!-- Project Financial Table -->
+    <div class="card">
+        <div class="card-header flex-between">
+            <h3 class="card-title">Project Financial Details</h3>
+            <div class="flex gap-2">
+                <input type="text" id="search-projects" class="form-control" placeholder="Search projects..."
+                    style="max-width: 300px;">
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table id="projects-table">
+                    <thead>
+                        <tr>
+                            <th>Project</th>
+                            <th>Status</th>
+                            <th>Budget</th>
+                            <th>Spent</th>
+                            <th>Received</th>
+                            <th>Outstanding</th>
+                            <th>Balance Budget</th>
+                        </tr>
+                    </thead>
+                    <tbody id="projects-tbody">
+                        <tr>
+                            <td colspan="7" class="text-center">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let projectsData = [];
+
+    // Load KPIs
+    async function loadKPIs() {
+        try {
+            const status = document.getElementById('dashboard-filter-status').value;
+            let url = '/dashboard/api/owner-kpis';
+            if (status) {
+                url += `?status=${status}`;
+            }
+
+            const response = await fetch(url);
+            const data = await response.json();
+
+            document.getElementById('total-projects').textContent = data.total_projects;
+            document.getElementById('total-budget').textContent = formatCurrency(data.total_budget);
+            document.getElementById('total-received').textContent = formatCurrency(data.total_received);
+            document.getElementById('expenses-paid').textContent = formatCurrency(data.expenses_paid);
+            document.getElementById('vendor-outstanding').textContent = formatCurrency(data.vendor_outstanding);
+
+            const balanceEl = document.getElementById('balance-in-hand');
+            balanceEl.textContent = formatCurrency(data.balance_in_hand);
+
+            if (data.balance_in_hand < 0) {
+                balanceEl.classList.remove('text-success');
+                balanceEl.classList.add('text-danger');
+            } else {
+                balanceEl.classList.remove('text-danger');
+                balanceEl.classList.add('text-success');
+            }
+
+            // Reload table explicitly if it depends on the same filter
+            filterProjects();
+
+        } catch (error) {
+            console.error('Error loading KPIs:', error);
+        }
+    }
+
+    // Load project financial table
+    async function loadProjectTable() {
+        try {
+            const response = await fetch('/dashboard/api/project-financial-table');
+            projectsData = await response.json();
+            renderProjectTable(projectsData);
+        } catch (error) {
+            console.error('Error loading projects:', error);
+        }
+    }
+
+    // Render project table
+    function renderProjectTable(data) {
+        const tbody = document.getElementById('projects-tbody');
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">No projects found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = data.map(project => `
+        <tr>
+            <td><strong>${project.project_name}</strong></td>
+            <td><strong><span class="status-badge status-${project.status.toLowerCase()}">${project.status}</span></strong></td>
+            <td><strong>${formatCurrency(project.budget)}</strong></td>
+            <td><strong>${formatCurrency(project.amount_spent)}</strong></td>
+            <td style="color: #16a34a;"><strong>${formatCurrency(project.amount_received)}</strong></td>
+            <td style="color: #dc2626;"><strong>${formatCurrency(project.vendor_outstanding)}</strong></td>
+            <td class="indicator-${project.indicator}">
+                <strong>${formatCurrency(project.balance_budget)}</strong>
+                ${project.indicator === 'over' ? '🔴' : project.indicator === 'near' ? '🟡' : '🟢'}
+            </td>
+        </tr>
+    `).join('');
+    }
+
+    // Filter and search
+    function filterProjects() {
+        const search = document.getElementById('search-projects').value.toLowerCase();
+        const statusElement = document.getElementById('dashboard-filter-status');
+        const status = statusElement ? statusElement.value : '';
+
+        const filtered = projectsData.filter(project => {
+            const matchesSearch = project.project_name.toLowerCase().includes(search);
+            const matchesStatus = !status || project.status === status;
+            return matchesSearch && matchesStatus;
+        });
+
+        renderProjectTable(filtered);
+    }
+
+    document.getElementById('search-projects').addEventListener('input', filterProjects);
+    // document.getElementById('dashboard-filter-status') change is handled by onchange="loadKPIs()" which calls filterProjects()
+
+    // Format currency
+    function formatCurrency(amount) {
+        const val = parseFloat(amount);
+        const absVal = Math.abs(val);
+        const formatted = '₹' + absVal.toLocaleString('en-IN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+
+        return val < 0 ? '-' + formatted : formatted;
+    }
+
+    // Initialize
+    loadKPIs();
+    loadProjectTable();
+</script>
+
+    </div>
+</body>
+</html>
