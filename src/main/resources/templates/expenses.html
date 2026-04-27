@@ -219,7 +219,7 @@ Expenses
         }
 
         const filteredExpenses = allExpenses.filter(e => {
-            const matchProject = !projectId || e.project_id === projectId;
+            const matchProject = !projectId || String(e.project_id) === String(projectId);
             const matchCategory = !category || e.category === category;
 
             let matchDate = true;

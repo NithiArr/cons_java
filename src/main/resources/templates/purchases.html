@@ -297,8 +297,8 @@ Purchases
         }
 
         purchases = allPurchases.filter(p => {
-            const matchProject = !projectId || p.project_id === projectId;
-            const matchVendor = !vendorId || p.vendor_id === vendorId;
+            const matchProject = !projectId || String(p.project_id) === String(projectId);
+            const matchVendor = !vendorId || String(p.vendor_id) === String(vendorId);
             const matchCategory = !category || p.category === category;
 
             let matchDate = true;
