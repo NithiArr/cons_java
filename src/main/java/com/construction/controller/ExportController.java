@@ -428,89 +428,53 @@ public class ExportController {
         }
         sumSheet.setColumnWidth(0, 12000); sumSheet.setColumnWidth(1, 8000);
 
-        // ── Sheet 2: Material Purchases (with items expanded) ─────────
+        // ── Sheet 2: Material Purchases ─────────
         Sheet ps = wb.createSheet("Material Purchases");
 
-        // Invoice header: Date | Vendor | Invoice # | Category | Payment Type | Invoice Total
-        // Item rows:      Item | Brand  | Qty       | Unit     | Unit Price   | Total Price
-        String[] psHdr = {"Date / Item", "Vendor / Brand", "Invoice # / Qty", "Category / Unit", "Payment / Unit Price", "Total Amount"};
+        String[] psHdr = {"Date", "Category", "Sub Category", "Vendor", "Qty", "Payment", "Unit Price", "Total Amount"};
         hdr(ps, hStyle, psHdr);
-
-        // Sub-header style (light blue, bold) for invoice grouped rows
-        CellStyle invoiceRowStyle = wb.createCellStyle();
-        invoiceRowStyle.setFillForegroundColor(IndexedColors.CORNFLOWER_BLUE.getIndex());
-        invoiceRowStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        Font invFont = wb.createFont(); invFont.setBold(true); invFont.setColor(IndexedColors.WHITE.getIndex());
-        invoiceRowStyle.setFont(invFont);
-
-        // Item row style (alternating light grey)
-        CellStyle itemRowStyle = wb.createCellStyle();
-        itemRowStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
-        itemRowStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-
-        CellStyle itemAmtStyle = wb.createCellStyle();
-        itemAmtStyle.cloneStyleFrom(itemRowStyle);
-        itemAmtStyle.setDataFormat(wb.createDataFormat().getFormat("#,##0.00"));
-
-        CellStyle invAmtStyle = wb.createCellStyle();
-        invAmtStyle.cloneStyleFrom(invoiceRowStyle);
-        invAmtStyle.setDataFormat(wb.createDataFormat().getFormat("#,##0.00"));
 
         materialRows.sort(Comparator.comparing(e -> e.getExpenseDate() != null ? e.getExpenseDate() : LocalDate.MIN));
         int pn = 1;
         BigDecimal pTot = BigDecimal.ZERO;
 
         for (Expense e : materialRows) {
-            // ── Invoice summary row ───────────────────────────────────
-            Row invRow = ps.createRow(pn++);
-            String[] invCells = {
-                fmt(e.getExpenseDate()),
-                e.getVendor() != null ? e.getVendor().getName() : "",
-                e.getInvoiceNumber() != null ? e.getInvoiceNumber() : "",
-                e.getCategory() != null ? e.getCategory() : "",
-                e.getPaymentMode() != null ? e.getPaymentMode() : "",
-                ""
-            };
-            for (int i = 0; i < 5; i++) {
-                Cell c = invRow.createCell(i);
-                c.setCellValue(invCells[i]);
-                c.setCellStyle(invoiceRowStyle);
-            }
-            Cell invAmt = invRow.createCell(5);
-            invAmt.setCellValue(e.getAmount() != null ? e.getAmount().doubleValue() : 0.0);
-            invAmt.setCellStyle(invAmtStyle);
-            pTot = pTot.add(e.getAmount() != null ? e.getAmount() : BigDecimal.ZERO);
-
-            // ── Item rows ─────────────────────────────────────────────
             List<ExpenseItem> items = e.getItems();
             if (items != null && !items.isEmpty()) {
                 for (ExpenseItem item : items) {
                     Row ir = ps.createRow(pn++);
-                    // Col 0: item name
-                    Cell c0 = ir.createCell(0); c0.setCellValue("  ↳ " + (item.getItemName() != null ? item.getItemName() : "")); c0.setCellStyle(itemRowStyle);
-                    // Col 1: brand
-                    Cell c1 = ir.createCell(1); c1.setCellValue(item.getBrand() != null ? item.getBrand() : ""); c1.setCellStyle(itemRowStyle);
-                    // Col 2: quantity
-                    Cell c2 = ir.createCell(2);
-                    c2.setCellValue(item.getQuantity() != null ? item.getQuantity().doubleValue() : 0.0);
-                    CellStyle qtyStyle = wb.createCellStyle(); qtyStyle.cloneStyleFrom(itemRowStyle);
-                    qtyStyle.setDataFormat(wb.createDataFormat().getFormat("#,##0.##"));
-                    c2.setCellStyle(qtyStyle);
-                    // Col 3: measuring unit
-                    Cell c3 = ir.createCell(3); c3.setCellValue(item.getMeasuringUnit() != null ? item.getMeasuringUnit() : ""); c3.setCellStyle(itemRowStyle);
-                    // Col 4: unit price
-                    Cell c4 = ir.createCell(4); c4.setCellValue(item.getUnitPrice() != null ? item.getUnitPrice().doubleValue() : 0.0); c4.setCellStyle(itemAmtStyle);
-                    // Col 5: total price
-                    Cell c5 = ir.createCell(5); c5.setCellValue(item.getTotalPrice() != null ? item.getTotalPrice().doubleValue() : 0.0); c5.setCellStyle(itemAmtStyle);
+                    str(ir, 0, fmt(e.getExpenseDate()));
+                    str(ir, 1, e.getCategory() != null ? e.getCategory() : "");
+                    str(ir, 2, item.getItemName() != null ? item.getItemName() : "");
+                    str(ir, 3, e.getVendor() != null ? e.getVendor().getName() : "");
+                    
+                    Cell c4 = ir.createCell(4);
+                    c4.setCellValue(item.getQuantity() != null ? item.getQuantity().doubleValue() : 0.0);
+                    
+                    str(ir, 5, e.getPaymentMode() != null ? e.getPaymentMode() : "");
+                    amt(ir, 6, item.getUnitPrice(), aStyle);
+                    amt(ir, 7, item.getTotalPrice(), aStyle);
+                    pTot = pTot.add(item.getTotalPrice() != null ? item.getTotalPrice() : BigDecimal.ZERO);
                 }
+            } else {
+                Row ir = ps.createRow(pn++);
+                str(ir, 0, fmt(e.getExpenseDate()));
+                str(ir, 1, e.getCategory() != null ? e.getCategory() : "");
+                str(ir, 2, "");
+                str(ir, 3, e.getVendor() != null ? e.getVendor().getName() : "");
+                
+                Cell c4 = ir.createCell(4);
+                c4.setCellValue(0.0);
+                
+                str(ir, 5, e.getPaymentMode() != null ? e.getPaymentMode() : "");
+                amt(ir, 6, BigDecimal.ZERO, aStyle);
+                amt(ir, 7, e.getAmount(), aStyle);
+                pTot = pTot.add(e.getAmount() != null ? e.getAmount() : BigDecimal.ZERO);
             }
         }
 
-        totalRow(ps, pn, 0, 5, 5, pTot, tStyle, tAmt);
-        for (int i = 0; i < 6; i++) ps.autoSizeColumn(i);
-        // Minimum column widths for readability
-        if (ps.getColumnWidth(0) < 4000) ps.setColumnWidth(0, 6000);
-        if (ps.getColumnWidth(1) < 3000) ps.setColumnWidth(1, 4000);
+        totalRow(ps, pn, 0, 7, 7, pTot, tStyle, tAmt);
+        for (int i = 0; i < 8; i++) ps.autoSizeColumn(i);
 
 
         // ── Sheet 3: Regular Expenses ─────────────────────────────────
