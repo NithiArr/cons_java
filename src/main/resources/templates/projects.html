@@ -538,7 +538,7 @@ Projects
 
     // Edit project
     function editProject(id) {
-        const project = projects.find(p => p.project_id === id);
+        const project = projects.find(p => String(p.project_id) === String(id));
         if (!project) return;
 
         document.getElementById('modal-title').textContent = 'Edit Project';
