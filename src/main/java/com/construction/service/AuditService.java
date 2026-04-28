@@ -23,7 +23,7 @@ public class AuditService {
      * @param details      one-line description of what changed
      */
     @Async
-    public void log(User user, String action, String module, String resourceName, String details) {
+    public void log(User user, String action, String module, String resourceName, Long resourceId, String details) {
         try {
             AuditLog entry = new AuditLog();
             entry.setCompany(user.getCompany());
@@ -31,10 +31,16 @@ public class AuditService {
             entry.setAction(action);
             entry.setModule(module);
             entry.setResourceName(resourceName);
+            entry.setResourceId(resourceId);
             entry.setDetails(details);
             auditLogRepository.save(entry);
         } catch (Exception ignored) {
             // Audit failures must never break the main request
         }
+    }
+
+    @Async
+    public void log(User user, String action, String module, String resourceName, String details) {
+        log(user, action, module, resourceName, null, details);
     }
 }

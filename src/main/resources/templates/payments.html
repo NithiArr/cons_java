@@ -217,8 +217,8 @@ Vendor Payments
         }
 
         payments = allPayments.filter(p => {
-            const matchVendor = !vendorId || p.vendor_id === vendorId;
-            const matchProject = !projectId || p.project_id === projectId;
+            const matchVendor = !vendorId || String(p.vendor_id) === String(vendorId);
+            const matchProject = !projectId || String(p.project_id) === String(projectId);
             const matchMode = !mode || p.payment_mode === mode;
 
             let matchDate = true;

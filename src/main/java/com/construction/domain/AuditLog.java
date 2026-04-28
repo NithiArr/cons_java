@@ -33,6 +33,10 @@ public class AuditLog {
     @Column(name = "resource_name")
     private String resourceName;
 
+    /** ID of the affected record, for deep-linking */
+    @Column(name = "resource_id")
+    private Long resourceId;
+
     /** Short human-readable description of the change */
     @Column(columnDefinition = "TEXT")
     private String details;

@@ -78,8 +78,9 @@ Owner Dashboard - Construction Management
         <div class="card-header flex-between">
             <h3 class="card-title">Project Financial Details</h3>
             <div class="flex gap-2">
-                <input type="text" id="search-projects" class="form-control" placeholder="Search projects..."
-                    style="max-width: 300px;">
+                <select id="search-projects" class="form-control" style="max-width: 300px;">
+                    <option value="">All Projects</option>
+                </select>
             </div>
         </div>
         <div class="card-body">
@@ -152,6 +153,16 @@ Owner Dashboard - Construction Management
         try {
             const response = await fetch('/dashboard/api/project-financial-table');
             projectsData = await response.json();
+
+            const projectSelect = document.getElementById('search-projects');
+            projectSelect.innerHTML = '<option value="">All Projects</option>';
+            projectsData.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.project_name;
+                option.textContent = p.project_name;
+                projectSelect.appendChild(option);
+            });
+
             renderProjectTable(projectsData);
         } catch (error) {
             console.error('Error loading projects:', error);
@@ -185,12 +196,12 @@ Owner Dashboard - Construction Management
 
     // Filter and search
     function filterProjects() {
-        const search = document.getElementById('search-projects').value.toLowerCase();
+        const search = document.getElementById('search-projects').value;
         const statusElement = document.getElementById('dashboard-filter-status');
         const status = statusElement ? statusElement.value : '';
 
         const filtered = projectsData.filter(project => {
-            const matchesSearch = project.project_name.toLowerCase().includes(search);
+            const matchesSearch = !search || project.project_name === search;
             const matchesStatus = !status || project.status === status;
             return matchesSearch && matchesStatus;
         });
@@ -198,7 +209,7 @@ Owner Dashboard - Construction Management
         renderProjectTable(filtered);
     }
 
-    document.getElementById('search-projects').addEventListener('input', filterProjects);
+    document.getElementById('search-projects').addEventListener('change', filterProjects);
     // document.getElementById('dashboard-filter-status') change is handled by onchange="loadKPIs()" which calls filterProjects()
 
     // Format currency

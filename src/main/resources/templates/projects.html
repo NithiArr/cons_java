@@ -1150,8 +1150,28 @@ Projects
         document.getElementById('project-modal').classList.remove('active');
     }
 
+    async function checkUrlParams() {
+        const params = new URLSearchParams(window.location.search);
+        const editId = params.get('edit_id');
+        if (editId) {
+            // Wait for projects to be loaded
+            let attempts = 0;
+            while (projects.length === 0 && attempts < 10) {
+                await new Promise(r => setTimeout(r, 200));
+                attempts++;
+            }
+            if (projects.length > 0) {
+                editProject(editId);
+                // Clean URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        }
+    }
+
     // Initialize
-    loadProjects();
+    loadProjects().then(() => {
+        checkUrlParams();
+    });
 </script>
 
     </div>

@@ -181,7 +181,7 @@ Client Payments
         }
 
         clientPayments = allClientPayments.filter(cp => {
-            const matchProject = !projectId || cp.project_id === projectId;
+            const matchProject = !projectId || String(cp.project_id) === String(projectId);
 
             let matchDate = true;
             if (dateFrom && cp.payment_date < dateFrom) matchDate = false;

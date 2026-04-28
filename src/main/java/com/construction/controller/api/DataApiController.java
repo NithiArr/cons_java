@@ -82,6 +82,11 @@ public class DataApiController {
         return projectRepository.findById(id)
             .filter(p -> p.getCompany().getCompanyId().equals(company.getCompanyId()))
             .map(p -> {
+                String oldName = p.getName();
+                String oldLoc = p.getLocation();
+                String oldStatus = p.getStatus();
+                BigDecimal oldBudget = p.getBudget();
+
                 if (body.get("name") != null) p.setName((String) body.get("name"));
                 if (body.get("location") != null) p.setLocation((String) body.get("location"));
                 if (body.get("status") != null) p.setStatus((String) body.get("status"));
@@ -91,8 +96,17 @@ public class DataApiController {
                 if (body.get("end_date") != null && !body.get("end_date").toString().isBlank())
                     p.setEndDate(java.time.LocalDate.parse(body.get("end_date").toString()));
                 projectRepository.save(p);
-                auditService.log(currentUser(auth), "UPDATE", "PROJECT", p.getName(),
-                        "Updated project: " + p.getName());
+                
+                StringBuilder diff = new StringBuilder();
+                diff.append(diffStr("Name", oldName, p.getName()));
+                diff.append(diffStr("Location", oldLoc, p.getLocation()));
+                diff.append(diffStr("Status", oldStatus, p.getStatus()));
+                diff.append(diffStr("Budget", oldBudget, p.getBudget()));
+                String diffText = diff.toString();
+                if (diffText.endsWith(" | ")) diffText = diffText.substring(0, diffText.length() - 3);
+                if (diffText.isBlank()) diffText = "Updated project: " + p.getName();
+                
+                auditService.log(currentUser(auth), "UPDATE", "PROJECT", p.getName(), diffText);
                 return ResponseEntity.ok(Map.of("success", true));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -148,13 +162,27 @@ public class DataApiController {
         return vendorRepository.findById(id)
             .filter(v -> v.getCompany().getCompanyId().equals(company.getCompanyId()))
             .map(v -> {
+                String oldName = v.getName();
+                String oldPhone = v.getPhone();
+                String oldEmail = v.getEmail();
+                String oldGst = v.getGstNumber();
+
                 if (body.get("name") != null) v.setName((String) body.get("name"));
                 if (body.get("phone") != null) v.setPhone((String) body.get("phone"));
                 if (body.get("email") != null) v.setEmail((String) body.get("email"));
                 if (body.get("gst_number") != null) v.setGstNumber((String) body.get("gst_number"));
                 vendorRepository.save(v);
-                auditService.log(currentUser(auth), "UPDATE", "VENDOR", v.getName(),
-                        "Updated vendor: " + v.getName());
+                
+                StringBuilder diff = new StringBuilder();
+                diff.append(diffStr("Name", oldName, v.getName()));
+                diff.append(diffStr("Phone", oldPhone, v.getPhone()));
+                diff.append(diffStr("Email", oldEmail, v.getEmail()));
+                diff.append(diffStr("GST", oldGst, v.getGstNumber()));
+                String diffText = diff.toString();
+                if (diffText.endsWith(" | ")) diffText = diffText.substring(0, diffText.length() - 3);
+                if (diffText.isBlank()) diffText = "Updated vendor: " + v.getName();
+
+                auditService.log(currentUser(auth), "UPDATE", "VENDOR", v.getName(), diffText);
                 return ResponseEntity.ok(Map.of("success", true));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -256,7 +284,7 @@ public class DataApiController {
         expenseRepository.save(expense);
         String proj = expense.getProject() != null ? expense.getProject().getName() : "—";
         auditService.log(currentUser(auth), "CREATE", "PURCHASE",
-                proj, "Created purchase for project: " + proj + " | ₹" + expense.getAmount());
+                proj, expense.getExpenseId(), "Created purchase for project: " + proj + " | ₹" + expense.getAmount());
         return ResponseEntity.ok(Map.of("success", true));
     }
 
@@ -266,13 +294,27 @@ public class DataApiController {
         return expenseRepository.findById(id)
             .filter(e -> e.getCompany().getCompanyId().equals(company.getCompanyId()))
             .map(e -> {
+                BigDecimal oldAmt = e.getAmount();
+                String oldCat = e.getCategory();
+                String oldInvoice = e.getInvoiceNumber();
+                String oldMode = e.getPaymentMode();
+                
                 populateExpense(e, body, company);
                 if (e.getItems() != null) e.getItems().clear();
                 addItems(e, body);
                 expenseRepository.save(e);
+                
+                StringBuilder diff = new StringBuilder();
+                diff.append(diffStr("Amt", oldAmt, e.getAmount()));
+                diff.append(diffStr("Cat", oldCat, e.getCategory()));
+                diff.append(diffStr("Invoice", oldInvoice, e.getInvoiceNumber()));
+                diff.append(diffStr("Mode", oldMode, e.getPaymentMode()));
+                String diffText = diff.toString();
+                if (diffText.endsWith(" | ")) diffText = diffText.substring(0, diffText.length() - 3);
+                if (diffText.isBlank()) diffText = "Updated purchase #" + e.getExpenseId();
+
                 String pName = e.getProject() != null ? e.getProject().getName() : "—";
-                auditService.log(currentUser(auth), "UPDATE", "PURCHASE",
-                        pName, "Updated purchase for project: " + pName + " | ₹" + e.getAmount());
+                auditService.log(currentUser(auth), "UPDATE", "PURCHASE", pName, e.getExpenseId(), diffText);
                 return ResponseEntity.ok(Map.of("success", true));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -333,7 +375,7 @@ public class DataApiController {
         expenseRepository.save(expense);
         String cat = expense.getCategory() != null ? expense.getCategory() : "Expense";
         auditService.log(currentUser(auth), "CREATE", "EXPENSE", cat,
-                "Created expense: " + cat + " | ₹" + expense.getAmount());
+                expense.getExpenseId(), "Created expense: " + cat + " | ₹" + expense.getAmount());
         return ResponseEntity.ok(Map.of("success", true));
     }
 
@@ -343,6 +385,11 @@ public class DataApiController {
         return expenseRepository.findById(id)
             .filter(e -> e.getCompany().getCompanyId().equals(company.getCompanyId()))
             .map(e -> {
+                BigDecimal oldAmt = e.getAmount();
+                String oldCat = e.getCategory();
+                String oldMode = e.getPaymentMode();
+                String oldSub = (e.getItems() != null && !e.getItems().isEmpty()) ? e.getItems().get(0).getItemName() : null;
+
                 populateExpense(e, body, company);
                 // Update subcategory item
                 String subcategory = (String) body.get("subcategory");
@@ -359,9 +406,18 @@ public class DataApiController {
                     e.getItems().add(item);
                 }
                 expenseRepository.save(e);
+                
+                StringBuilder diff = new StringBuilder();
+                diff.append(diffStr("Amt", oldAmt, e.getAmount()));
+                diff.append(diffStr("Cat", oldCat, e.getCategory()));
+                diff.append(diffStr("Subcat", oldSub, subcategory));
+                diff.append(diffStr("Mode", oldMode, e.getPaymentMode()));
+                String diffText = diff.toString();
+                if (diffText.endsWith(" | ")) diffText = diffText.substring(0, diffText.length() - 3);
+                if (diffText.isBlank()) diffText = "Updated expense #" + e.getExpenseId();
+
                 auditService.log(currentUser(auth), "UPDATE", "EXPENSE",
-                        e.getCategory() != null ? e.getCategory() : "Expense",
-                        "Updated expense #" + e.getExpenseId() + " | ₹" + e.getAmount());
+                        e.getCategory() != null ? e.getCategory() : "Expense", e.getExpenseId(), diffText);
                 return ResponseEntity.ok(Map.of("success", true));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -433,6 +489,9 @@ public class DataApiController {
         return paymentRepository.findById(id)
             .filter(p -> p.getCompany().getCompanyId().equals(company.getCompanyId()))
             .map(p -> {
+                BigDecimal oldAmt = p.getAmount();
+                String oldMode = p.getPaymentMode();
+                
                 if (body.get("vendor_id") != null)
                     vendorRepository.findById(Long.parseLong(body.get("vendor_id").toString())).ifPresent(p::setVendor);
                 if (body.get("project_id") != null)
@@ -443,9 +502,16 @@ public class DataApiController {
                 if (body.get("payment_date") != null) p.setPaymentDate(java.time.LocalDate.parse(body.get("payment_date").toString()));
                 if (body.get("payment_mode") != null) p.setPaymentMode((String) body.get("payment_mode"));
                 paymentRepository.save(p);
+                
+                StringBuilder diff = new StringBuilder();
+                diff.append(diffStr("Amt", oldAmt, p.getAmount()));
+                diff.append(diffStr("Mode", oldMode, p.getPaymentMode()));
+                String diffText = diff.toString();
+                if (diffText.endsWith(" | ")) diffText = diffText.substring(0, diffText.length() - 3);
+                if (diffText.isBlank()) diffText = "Updated vendor payment #" + p.getPaymentId();
+
                 auditService.log(currentUser(auth), "UPDATE", "PAYMENT",
-                        p.getVendor() != null ? p.getVendor().getName() : "—",
-                        "Updated vendor payment #" + p.getPaymentId() + " | ₹" + p.getAmount());
+                        p.getVendor() != null ? p.getVendor().getName() : "—", diffText);
                 return ResponseEntity.ok(Map.of("success", true));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -513,6 +579,10 @@ public class DataApiController {
         return clientPaymentRepository.findById(id)
             .filter(p -> p.getCompany().getCompanyId().equals(company.getCompanyId()))
             .map(p -> {
+                BigDecimal oldAmt = p.getAmount();
+                String oldMode = p.getPaymentMode();
+                String oldRef = p.getReferenceNumber();
+                
                 if (body.get("project_id") != null)
                     projectRepository.findById(Long.parseLong(body.get("project_id").toString())).ifPresent(p::setProject);
                 if (body.get("amount") != null) p.setAmount(new BigDecimal(body.get("amount").toString()));
@@ -521,9 +591,17 @@ public class DataApiController {
                 if (body.containsKey("reference_number")) p.setReferenceNumber((String) body.get("reference_number"));
                 if (body.containsKey("remarks")) p.setRemarks((String) body.get("remarks"));
                 clientPaymentRepository.save(p);
+                
+                StringBuilder diff = new StringBuilder();
+                diff.append(diffStr("Amt", oldAmt, p.getAmount()));
+                diff.append(diffStr("Mode", oldMode, p.getPaymentMode()));
+                diff.append(diffStr("Ref", oldRef, p.getReferenceNumber()));
+                String diffText = diff.toString();
+                if (diffText.endsWith(" | ")) diffText = diffText.substring(0, diffText.length() - 3);
+                if (diffText.isBlank()) diffText = "Updated client payment #" + p.getClientPaymentId();
+
                 auditService.log(currentUser(auth), "UPDATE", "CLIENT_PAYMENT",
-                        p.getProject() != null ? p.getProject().getName() : "—",
-                        "Updated client payment #" + p.getClientPaymentId() + " | ₹" + p.getAmount());
+                        p.getProject() != null ? p.getProject().getName() : "—", diffText);
                 return ResponseEntity.ok(Map.of("success", true));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -837,5 +915,16 @@ public class DataApiController {
 
         String mode = (String) body.getOrDefault("payment_type", body.getOrDefault("payment_mode", "CASH"));
         e.setPaymentMode(mode);
+    }
+
+    private String diffStr(String field, Object oldVal, Object newVal) {
+        String o = oldVal == null ? "N/A" : oldVal.toString();
+        String n = newVal == null ? "N/A" : newVal.toString();
+        if (o.equals(n)) return "";
+        // For BigDecimals, ignore trailing zeros
+        if (oldVal instanceof BigDecimal && newVal instanceof BigDecimal) {
+            if (((BigDecimal) oldVal).compareTo((BigDecimal) newVal) == 0) return "";
+        }
+        return field + ": " + o + " -> " + n + " | ";
     }
 }
