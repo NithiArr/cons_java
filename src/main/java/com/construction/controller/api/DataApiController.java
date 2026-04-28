@@ -72,7 +72,7 @@ public class DataApiController {
             project.setEndDate(java.time.LocalDate.parse(body.get("end_date").toString()));
         projectRepository.save(project);
         auditService.log(currentUser(auth), "CREATE", "PROJECT", project.getName(),
-                "Created project: " + project.getName());
+                project.getProjectId(), "Created project: " + project.getName());
         return ResponseEntity.ok(Map.of("success", true));
     }
 
@@ -106,7 +106,7 @@ public class DataApiController {
                 if (diffText.endsWith(" | ")) diffText = diffText.substring(0, diffText.length() - 3);
                 if (diffText.isBlank()) diffText = "Updated project: " + p.getName();
                 
-                auditService.log(currentUser(auth), "UPDATE", "PROJECT", p.getName(), diffText);
+                auditService.log(currentUser(auth), "UPDATE", "PROJECT", p.getName(), p.getProjectId(), diffText);
                 return ResponseEntity.ok(Map.of("success", true));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -119,7 +119,7 @@ public class DataApiController {
             .filter(p -> p.getCompany().getCompanyId().equals(company.getCompanyId()))
             .map(p -> { projectRepository.delete(p);
                 auditService.log(currentUser(auth), "DELETE", "PROJECT", p.getName(),
-                        "Deleted project: " + p.getName());
+                        p.getProjectId(), "Deleted project: " + p.getName());
                 return ResponseEntity.ok(Map.of("success", true)); })
             .orElse(ResponseEntity.notFound().build());
     }
@@ -152,7 +152,7 @@ public class DataApiController {
         if (body.get("gst_number") != null) vendor.setGstNumber((String) body.get("gst_number"));
         vendorRepository.save(vendor);
         auditService.log(currentUser(auth), "CREATE", "VENDOR", vendor.getName(),
-                "Created vendor: " + vendor.getName());
+                vendor.getVendorId(), "Created vendor: " + vendor.getName());
         return ResponseEntity.ok(Map.of("success", true));
     }
 
@@ -182,7 +182,7 @@ public class DataApiController {
                 if (diffText.endsWith(" | ")) diffText = diffText.substring(0, diffText.length() - 3);
                 if (diffText.isBlank()) diffText = "Updated vendor: " + v.getName();
 
-                auditService.log(currentUser(auth), "UPDATE", "VENDOR", v.getName(), diffText);
+                auditService.log(currentUser(auth), "UPDATE", "VENDOR", v.getName(), v.getVendorId(), diffText);
                 return ResponseEntity.ok(Map.of("success", true));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -195,7 +195,7 @@ public class DataApiController {
             .filter(v -> v.getCompany().getCompanyId().equals(company.getCompanyId()))
             .map(v -> { vendorRepository.delete(v);
                 auditService.log(currentUser(auth), "DELETE", "VENDOR", v.getName(),
-                        "Deleted vendor: " + v.getName());
+                        v.getVendorId(), "Deleted vendor: " + v.getName());
                 return ResponseEntity.ok(Map.of("success", true)); })
             .orElse(ResponseEntity.notFound().build());
     }
@@ -479,7 +479,7 @@ public class DataApiController {
         paymentRepository.save(payment);
         String vName = payment.getVendor() != null ? payment.getVendor().getName() : "—";
         auditService.log(currentUser(auth), "CREATE", "PAYMENT", vName,
-                "Vendor payment to: " + vName + " | ₹" + payment.getAmount());
+                payment.getPaymentId(), "Vendor payment to: " + vName + " | ₹" + payment.getAmount());
         return ResponseEntity.ok(Map.of("success", true));
     }
 
@@ -511,7 +511,7 @@ public class DataApiController {
                 if (diffText.isBlank()) diffText = "Updated vendor payment #" + p.getPaymentId();
 
                 auditService.log(currentUser(auth), "UPDATE", "PAYMENT",
-                        p.getVendor() != null ? p.getVendor().getName() : "—", diffText);
+                        p.getVendor() != null ? p.getVendor().getName() : "—", p.getPaymentId(), diffText);
                 return ResponseEntity.ok(Map.of("success", true));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -525,7 +525,7 @@ public class DataApiController {
             .map(p -> { paymentRepository.delete(p);
                 auditService.log(currentUser(auth), "DELETE", "PAYMENT",
                         p.getVendor() != null ? p.getVendor().getName() : "—",
-                        "Deleted payment #" + p.getPaymentId());
+                        p.getPaymentId(), "Deleted payment #" + p.getPaymentId());
                 return ResponseEntity.ok(Map.of("success", true)); })
             .orElse(ResponseEntity.notFound().build());
     }
@@ -569,7 +569,7 @@ public class DataApiController {
         clientPaymentRepository.save(cp);
         String cpProj = cp.getProject() != null ? cp.getProject().getName() : "—";
         auditService.log(currentUser(auth), "CREATE", "CLIENT_PAYMENT", cpProj,
-                "Client payment for: " + cpProj + " | ₹" + cp.getAmount());
+                cp.getClientPaymentId(), "Client payment for: " + cpProj + " | ₹" + cp.getAmount());
         return ResponseEntity.ok(Map.of("success", true));
     }
 
@@ -601,7 +601,7 @@ public class DataApiController {
                 if (diffText.isBlank()) diffText = "Updated client payment #" + p.getClientPaymentId();
 
                 auditService.log(currentUser(auth), "UPDATE", "CLIENT_PAYMENT",
-                        p.getProject() != null ? p.getProject().getName() : "—", diffText);
+                        p.getProject() != null ? p.getProject().getName() : "—", p.getClientPaymentId(), diffText);
                 return ResponseEntity.ok(Map.of("success", true));
             })
             .orElse(ResponseEntity.notFound().build());
@@ -615,7 +615,7 @@ public class DataApiController {
             .map(p -> { clientPaymentRepository.delete(p);
                 auditService.log(currentUser(auth), "DELETE", "CLIENT_PAYMENT",
                         p.getProject() != null ? p.getProject().getName() : "—",
-                        "Deleted client payment #" + p.getClientPaymentId());
+                        p.getClientPaymentId(), "Deleted client payment #" + p.getClientPaymentId());
                 return ResponseEntity.ok(Map.of("success", true)); })
             .orElse(ResponseEntity.notFound().build());
     }

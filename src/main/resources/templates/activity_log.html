@@ -257,29 +257,29 @@
                       color:#94a3b8; text-decoration:none; font-size:.85rem;">Next →</a>
         </div>
     </div>
-    </div>
     
+
     <script>
         window.openLogItem = function(module, id) {
             if (!id) return;
             switch(module) {
                 case 'EXPENSE':
-                    window.location.href = '/expenses?edit_id=' + id;
+                    window.location.href = '/expenses?highlight_id=' + id;
                     break;
                 case 'PURCHASE':
-                    window.location.href = '/purchases?edit_id=' + id;
+                    window.location.href = '/purchases?highlight_id=' + id;
                     break;
                 case 'PROJECT':
-                    window.location.href = '/projects?edit_id=' + id;
+                    window.location.href = '/projects?highlight_id=' + id;
                     break;
                 case 'VENDOR':
-                    window.location.href = '/vendors?edit_id=' + id;
+                    window.location.href = '/vendors?highlight_id=' + id;
                     break;
                 case 'PAYMENT':
-                    window.location.href = '/payments?edit_id=' + id;
+                    window.location.href = '/payments?highlight_id=' + id;
                     break;
                 case 'CLIENT_PAYMENT':
-                    window.location.href = '/client-payments?edit_id=' + id;
+                    window.location.href = '/client-payments?highlight_id=' + id;
                     break;
             }
         };

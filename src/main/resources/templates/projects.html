@@ -457,7 +457,7 @@ Projects
         }
 
         tbody.innerHTML = data.map(p => `
-        <tr>
+        <tr id="row-${p.project_id}">
             <td><strong>${p.name}</strong></td>
             <td>${p.location || '-'}</td>
             <td><span class="status-badge status-${p.status.toLowerCase()}">${p.status}</span></td>
@@ -1153,6 +1153,8 @@ Projects
     async function checkUrlParams() {
         const params = new URLSearchParams(window.location.search);
         const editId = params.get('edit_id');
+        const highlightId = params.get('highlight_id');
+
         if (editId) {
             // Wait for projects to be loaded
             let attempts = 0;
@@ -1165,6 +1167,20 @@ Projects
                 // Clean URL
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
+        } else if (highlightId) {
+            let attempts = 0;
+            while (projects.length === 0 && attempts < 10) {
+                await new Promise(r => setTimeout(r, 200));
+                attempts++;
+            }
+            setTimeout(() => {
+                const row = document.getElementById('row-' + highlightId);
+                if (row) {
+                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    row.classList.add('highlight-row-pulse');
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            }, 500);
         }
     }
 

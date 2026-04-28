@@ -260,7 +260,7 @@ Expenses
         tbody.innerHTML = expenses.map(e => {
             const project = projects.find(p => p.project_id === e.project_id);
             return `
-            <tr>
+            <tr id="row-${e.expense_id}">
                 <td>${formatDate(e.expense_date)}</td>
                 <td>${project ? project.name : 'Unknown'}</td>
                 <td>${e.category}</td>
@@ -471,10 +471,23 @@ Expenses
     async function checkUrlParams() {
         const params = new URLSearchParams(window.location.search);
         const editId = params.get('edit_id');
+        const highlightId = params.get('highlight_id');
+
         if (editId) {
             await editExpense(editId);
             // Clean URL
             window.history.replaceState({}, document.title, window.location.pathname);
+        } else if (highlightId) {
+            // Give time for table to render completely
+            setTimeout(() => {
+                const row = document.getElementById('row-' + highlightId);
+                if (row) {
+                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    row.classList.add('highlight-row-pulse');
+                    // Clean URL
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            }, 500);
         }
     }
 

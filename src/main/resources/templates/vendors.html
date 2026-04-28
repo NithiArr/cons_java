@@ -135,7 +135,7 @@ Vendors
         }
 
         tbody.innerHTML = data.map(v => `
-        <tr>
+        <tr id="row-${v.vendor_id}">
             <td><strong>${v.name}</strong></td>
             <td>${v.phone || '-'}</td>
             <td>${v.email || '-'}</td>
@@ -201,7 +201,7 @@ Vendors
     });
 
     function editVendor(id) {
-        const vendor = vendors.find(v => v.vendor_id === id);
+        const vendor = vendors.find(v => v.vendor_id == id);
         if (!vendor) return;
 
         document.getElementById('modal-title').textContent = 'Edit Vendor';
@@ -236,9 +236,43 @@ Vendors
         }
     }
 
-    loadVendors();
-</script>
+    async function checkUrlParams() {
+        const params = new URLSearchParams(window.location.search);
+        const editId = params.get('edit_id');
+        const highlightId = params.get('highlight_id');
 
-    </div>
+        if (editId) {
+            let attempts = 0;
+            while (vendors.length === 0 && attempts < 10) {
+                await new Promise(r => setTimeout(r, 200));
+                attempts++;
+            }
+            if (vendors.length > 0) {
+                editVendor(editId);
+                // Clean URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        } else if (highlightId) {
+            let attempts = 0;
+            while (vendors.length === 0 && attempts < 10) {
+                await new Promise(r => setTimeout(r, 200));
+                attempts++;
+            }
+            setTimeout(() => {
+                const row = document.getElementById('row-' + highlightId);
+                if (row) {
+                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    row.classList.add('highlight-row-pulse');
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            }, 500);
+        }
+    }
+
+    loadVendors().then(() => {
+        checkUrlParams();
+    });
+</script>
+</div>
 </body>
 </html>

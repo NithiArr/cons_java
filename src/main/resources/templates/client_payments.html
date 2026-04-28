@@ -219,7 +219,7 @@ Client Payments
         tbody.innerHTML = clientPayments.map(cp => {
             const project = projects.find(p => p.project_id === cp.project_id);
             return `
-            <tr>
+            <tr id="row-${cp.client_payment_id}">
                 <td><strong>${project ? project.name : 'Unknown'}</strong></td>
                 <td>${formatDate(cp.payment_date)}</td>
                 <td><strong style="color: var(--success);">${formatCurrency(cp.amount)}</strong></td>
@@ -356,7 +356,42 @@ Client Payments
         showNotification('Exporting client payments data...', 'success');
     }
 
-    loadData();
+    async function checkUrlParams() {
+        const params = new URLSearchParams(window.location.search);
+        const editId = params.get('edit_id');
+        const highlightId = params.get('highlight_id');
+
+        if (editId) {
+            let attempts = 0;
+            while (clientPayments.length === 0 && attempts < 10) {
+                await new Promise(r => setTimeout(r, 200));
+                attempts++;
+            }
+            if (clientPayments.length > 0) {
+                openEditClientPayment(editId);
+                // Clean URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        } else if (highlightId) {
+            let attempts = 0;
+            while (clientPayments.length === 0 && attempts < 10) {
+                await new Promise(r => setTimeout(r, 200));
+                attempts++;
+            }
+            setTimeout(() => {
+                const row = document.getElementById('row-' + highlightId);
+                if (row) {
+                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    row.classList.add('highlight-row-pulse');
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            }, 500);
+        }
+    }
+
+    loadData().then(() => {
+        checkUrlParams();
+    });
 </script>
 
     </div>
