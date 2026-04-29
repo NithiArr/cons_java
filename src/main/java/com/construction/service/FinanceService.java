@@ -48,10 +48,10 @@ public class FinanceService {
                 .filter(e -> "CREDIT".equalsIgnoreCase(e.getPaymentMode()))
                 .map(Expense::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal expensesPaid = totalSpent.subtract(expensesCredit);
-
         BigDecimal totalPayments = payments.stream()
                 .map(Payment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal expensesPaid = totalSpent.subtract(expensesCredit).add(totalPayments);
 
         BigDecimal vendorOutstanding = expensesCredit.subtract(totalPayments);
         if (vendorOutstanding.compareTo(BigDecimal.ZERO) < 0) vendorOutstanding = BigDecimal.ZERO;
@@ -59,8 +59,7 @@ public class FinanceService {
         BigDecimal totalReceived = clientPayments.stream()
                 .map(ClientPayment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal totalOutflow = expensesPaid.add(totalPayments);
-        BigDecimal balanceInHand = totalReceived.subtract(totalOutflow);
+        BigDecimal balanceInHand = totalReceived.subtract(expensesPaid);
 
         Map<String, Long> statusBreakdown = new HashMap<>();
         projectRepository.findByCompanyOrderByCreatedAtDesc(company)
