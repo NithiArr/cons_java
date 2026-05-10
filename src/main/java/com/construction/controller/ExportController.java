@@ -773,6 +773,13 @@ public class ExportController {
                 vendorPaidMap.put(vName, vendorPaidMap.getOrDefault(vName, BigDecimal.ZERO).add(amt));
             }
         }
+        for (Expense e : materialRows) {
+            if (e.getVendor() != null && e.getPaymentMode() != null && !e.getPaymentMode().equalsIgnoreCase("CREDIT")) {
+                String vName = e.getVendor().getName();
+                BigDecimal amt = e.getAmount() != null ? e.getAmount() : BigDecimal.ZERO;
+                vendorPaidMap.put(vName, vendorPaidMap.getOrDefault(vName, BigDecimal.ZERO).add(amt));
+            }
+        }
         
         Set<String> allVendors = new TreeSet<>(vendorBillMap.keySet());
         allVendors.addAll(vendorPaidMap.keySet());

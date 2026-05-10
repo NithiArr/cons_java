@@ -440,9 +440,21 @@ Purchases
             if (select.tomselect) select.tomselect.destroy();
 
             select.innerHTML = currentItemOptions;
-            // Restore previous value if still valid in new options
-            if (prevVal && selectedCategory && selectedCategory.subcategories &&
-                selectedCategory.subcategories.find(s => s.name === prevVal)) {
+            
+            // Restore previous value, appending it if it's no longer in the list
+            if (prevVal) {
+                let exists = false;
+                for (let i = 0; i < select.options.length; i++) {
+                    if (select.options[i].value === prevVal) {
+                        exists = true; break;
+                    }
+                }
+                if (!exists) {
+                    const opt = document.createElement('option');
+                    opt.value = prevVal;
+                    opt.textContent = prevVal;
+                    select.appendChild(opt);
+                }
                 select.value = prevVal;
             }
 
@@ -653,6 +665,24 @@ Purchases
                     const lastItem = container.lastElementChild;
                     const select = lastItem.querySelector('.item-name');
                     if (select) {
+                        // Ensure the option exists to prevent selectedIndex = -1 which crashes TomSelect
+                        if (item.item_name) {
+                            // Check if option exists, if not, append it
+                            let exists = false;
+                            for (let i = 0; i < select.options.length; i++) {
+                                if (select.options[i].value === item.item_name) {
+                                    exists = true; break;
+                                }
+                            }
+                            if (!exists) {
+                                const opt = document.createElement('option');
+                                opt.value = item.item_name;
+                                opt.textContent = item.item_name;
+                                opt.setAttribute('data-unit', item.measuring_unit || '');
+                                select.appendChild(opt);
+                            }
+                        }
+                        
                         // Set value before init so TomSelect reads it as initial selection
                         select.value = item.item_name || '';
                         const ts = new TomSelect(select, {
