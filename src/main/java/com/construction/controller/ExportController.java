@@ -63,14 +63,14 @@ public class ExportController {
 
     private CellStyle amountStyle(Workbook wb) {
         CellStyle s = wb.createCellStyle();
-        s.setDataFormat(wb.createDataFormat().getFormat("#,##0.00"));
+        s.setDataFormat(wb.createDataFormat().getFormat("[$₹-en-IN]##,##,##0.00"));
         return s;
     }
 
     private CellStyle totalAmountStyle(Workbook wb) {
         CellStyle s = wb.createCellStyle();
         s.cloneStyleFrom(totalStyle(wb));
-        s.setDataFormat(wb.createDataFormat().getFormat("#,##0.00"));
+        s.setDataFormat(wb.createDataFormat().getFormat("[$₹-en-IN]##,##,##0.00"));
         return s;
     }
 
@@ -83,6 +83,33 @@ public class ExportController {
 
     private void str(Row row, int col, String val) {
         row.createCell(col).setCellValue(val != null ? val : "");
+    }
+
+    private String fmtRupee(BigDecimal amt) {
+        if (amt == null) return "₹0.00";
+        boolean isNegative = amt.compareTo(BigDecimal.ZERO) < 0;
+        BigDecimal absAmt = amt.abs();
+        String s = String.format(java.util.Locale.US, "%.2f", absAmt.doubleValue());
+        String[] parts = s.split("\\.");
+        String integerPart = parts[0];
+        String decimalPart = parts.length > 1 ? parts[1] : "00";
+
+        int len = integerPart.length();
+        if (len > 3) {
+            String lastThree = integerPart.substring(len - 3);
+            String otherNumbers = integerPart.substring(0, len - 3);
+            StringBuilder res = new StringBuilder();
+            int count = 0;
+            for (int i = otherNumbers.length() - 1; i >= 0; i--) {
+                res.insert(0, otherNumbers.charAt(i));
+                count++;
+                if (count % 2 == 0 && i > 0) {
+                    res.insert(0, ",");
+                }
+            }
+            integerPart = res.toString() + "," + lastThree;
+        }
+        return (isNegative ? "-₹" : "₹") + integerPart + "." + decimalPart;
     }
 
     private void amt(Row row, int col, BigDecimal val, CellStyle style) {
@@ -585,7 +612,7 @@ public class ExportController {
             {"Status",       project.getStatus()   != null ? project.getStatus()   : ""},
             {"Start Date",   project.getStartDate() != null ? project.getStartDate().format(DATE_FMT) : ""},
             {"End Date",     project.getEndDate()   != null ? project.getEndDate().format(DATE_FMT)   : ""},
-            {"Budget",       project.getBudget()    != null ? "₹" + project.getBudget().toPlainString() : "N/A"},
+            {"Budget",       project.getBudget()    != null ? fmtRupee(project.getBudget()) : "N/A"},
         };
         for (String[] pair : info) {
             Row r = sumSheet.createRow(sn++);
@@ -598,10 +625,10 @@ public class ExportController {
         Cell fhc = fh.createCell(0); fhc.setCellValue("Financial Summary"); fhc.setCellStyle(hStyle);
 
         String[][] fin = {
-            {"Total Spent (All)",        "₹" + totalSpent.toPlainString()},
-            {"Total Paid to Vendors",    "₹" + totalVendorPd.toPlainString()},
-            {"Total Received (Client)", "₹" + totalReceived.toPlainString()},
-            {"Net Balance",              "₹" + totalReceived.subtract(totalSpent).toPlainString()},
+            {"Total Spent (All)",        fmtRupee(totalSpent)},
+            {"Total Paid to Vendors",    fmtRupee(totalVendorPd)},
+            {"Total Received (Client)",  fmtRupee(totalReceived)},
+            {"Net Balance",              fmtRupee(totalReceived.subtract(totalSpent))},
         };
         for (String[] pair : fin) {
             Row r = sumSheet.createRow(sn++);
