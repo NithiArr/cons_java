@@ -435,7 +435,7 @@ Purchases
                 : '');
 
         // Update all existing item rows — destroy & recreate to avoid auto-open bug
-        document.querySelectorAll('.item-name').forEach(select => {
+        document.querySelectorAll('select.item-name').forEach(select => {
             const prevVal = select.tomselect ? select.tomselect.getValue() : select.value;
             if (select.tomselect) select.tomselect.destroy();
 
@@ -663,7 +663,7 @@ Purchases
 
                     // Initialize TomSelect on the new item-name select with proper value
                     const lastItem = container.lastElementChild;
-                    const select = lastItem.querySelector('.item-name');
+                    const select = lastItem.querySelector('select.item-name');
                     if (select) {
                         // Ensure the option exists to prevent selectedIndex = -1 which crashes TomSelect
                         if (item.item_name) {
