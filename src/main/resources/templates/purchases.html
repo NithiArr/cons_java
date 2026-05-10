@@ -740,11 +740,17 @@ Purchases
 
     // Export purchases to Excel
     function exportPurchasesToExcel() {
-        const dateFrom = document.getElementById('header-filter-date-from')?.value || '';
-        const dateTo = document.getElementById('header-filter-date-to')?.value || '';
+        const dateRangeStr = document.getElementById('header-filter-date')?.value || '';
         const project = document.getElementById('header-filter-project')?.value || '';
         const vendor = document.getElementById('header-filter-vendor')?.value || '';
         const category = document.getElementById('header-filter-category')?.value || '';
+
+        let dateFrom = '', dateTo = '';
+        if (dateRangeStr && dateRangeStr.includes(' to ')) {
+            [dateFrom, dateTo] = dateRangeStr.split(' to ');
+        } else if (dateRangeStr) {
+            dateFrom = dateTo = dateRangeStr;
+        }
 
         // Build query string
         const params = new URLSearchParams();

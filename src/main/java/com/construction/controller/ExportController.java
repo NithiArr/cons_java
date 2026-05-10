@@ -116,6 +116,8 @@ public class ExportController {
 
     // ─────────────────────────────────────────────────────────────────────
     // EXPORT PURCHASES  →  /export_purchases
+    //   No project filter → Sheet 1: All Purchases + one sheet per project
+    //   Project filtered  → Single sheet (original behaviour)
     // ─────────────────────────────────────────────────────────────────────
     @GetMapping("/export_purchases")
     public ResponseEntity<byte[]> exportPurchases(
@@ -132,7 +134,9 @@ public class ExportController {
                 .filter(e -> "Material Purchase".equals(e.getExpenseType()))
                 .collect(Collectors.toList());
 
-        if (project != null && !project.isBlank()) {
+        boolean noProjectFilter = (project == null || project.isBlank());
+
+        if (!noProjectFilter) {
             Long pid = Long.parseLong(project);
             rows = rows.stream().filter(e -> e.getProject() != null && e.getProject().getProjectId().equals(pid))
                     .collect(Collectors.toList());
@@ -158,31 +162,147 @@ public class ExportController {
         rows.sort(Comparator.comparing(e -> e.getExpenseDate() != null ? e.getExpenseDate() : LocalDate.MIN));
 
         Workbook wb = new XSSFWorkbook();
-        Sheet sheet = wb.createSheet("Purchases");
         CellStyle hStyle = headerStyle(wb), aStyle = amountStyle(wb),
                   tStyle = totalStyle(wb), tAmt = totalAmountStyle(wb);
 
-        hdr(sheet, hStyle, "Date", "Project", "Vendor", "Category", "Invoice #", "Amount", "Payment Type");
+        if (noProjectFilter) {
+            // ── Sheet 1: All Purchases ────────────────────────────────────
+            Sheet allSheet = wb.createSheet("All Purchases");
+            hdr(allSheet, hStyle, "Date", "Project", "Vendor", "Category", "Item", "Qty", "Unit", "Unit Price", "Total", "Invoice #", "Payment Type");
+            int rn = 1; BigDecimal grand = BigDecimal.ZERO;
+            for (Expense e : rows) {
+                List<ExpenseItem> items = e.getItems();
+                if (items != null && !items.isEmpty()) {
+                    for (ExpenseItem item : items) {
+                        Row r = allSheet.createRow(rn++);
+                        str(r, 0, fmt(e.getExpenseDate()));
+                        str(r, 1, e.getProject() != null ? e.getProject().getName() : "");
+                        str(r, 2, e.getVendor()  != null ? e.getVendor().getName()  : "");
+                        str(r, 3, e.getCategory() != null ? e.getCategory() : "");
+                        str(r, 4, item.getItemName() != null ? item.getItemName() : "");
+                        Cell c5 = r.createCell(5);
+                        c5.setCellValue(item.getQuantity() != null ? item.getQuantity().doubleValue() : 0.0);
+                        str(r, 6, item.getMeasuringUnit() != null ? item.getMeasuringUnit() : "");
+                        amt(r, 7, item.getUnitPrice(), aStyle);
+                        amt(r, 8, item.getTotalPrice(), aStyle);
+                        str(r, 9, e.getInvoiceNumber() != null ? e.getInvoiceNumber() : "");
+                        str(r, 10, e.getPaymentMode() != null ? e.getPaymentMode() : "");
+                        grand = grand.add(item.getTotalPrice() != null ? item.getTotalPrice() : BigDecimal.ZERO);
+                    }
+                } else {
+                    Row r = allSheet.createRow(rn++);
+                    str(r, 0, fmt(e.getExpenseDate()));
+                    str(r, 1, e.getProject() != null ? e.getProject().getName() : "");
+                    str(r, 2, e.getVendor()  != null ? e.getVendor().getName()  : "");
+                    str(r, 3, e.getCategory() != null ? e.getCategory() : "");
+                    str(r, 4, ""); r.createCell(5).setCellValue(0.0); str(r, 6, "");
+                    amt(r, 7, BigDecimal.ZERO, aStyle);
+                    amt(r, 8, e.getAmount(), aStyle);
+                    str(r, 9, e.getInvoiceNumber() != null ? e.getInvoiceNumber() : "");
+                    str(r, 10, e.getPaymentMode() != null ? e.getPaymentMode() : "");
+                    grand = grand.add(e.getAmount() != null ? e.getAmount() : BigDecimal.ZERO);
+                }
+            }
+            totalRow(allSheet, rn, 0, 8, 10, grand, tStyle, tAmt);
+            for (int i = 0; i < 11; i++) allSheet.autoSizeColumn(i);
 
-        int rn = 1; BigDecimal grand = BigDecimal.ZERO;
-        for (Expense e : rows) {
-            Row r = sheet.createRow(rn++);
-            str(r, 0, fmt(e.getExpenseDate()));
-            str(r, 1, e.getProject() != null ? e.getProject().getName() : "");
-            str(r, 2, e.getVendor()  != null ? e.getVendor().getName()  : "");
-            str(r, 3, e.getCategory());
-            str(r, 4, e.getInvoiceNumber());
-            amt(r, 5, e.getAmount(), aStyle);
-            str(r, 6, e.getPaymentMode());
-            grand = grand.add(e.getAmount() != null ? e.getAmount() : BigDecimal.ZERO);
+            // ── One sheet per project ─────────────────────────────────────
+            Map<String, List<Expense>> byProject = rows.stream()
+                    .collect(Collectors.groupingBy(
+                            e -> e.getProject() != null ? e.getProject().getName() : "No Project",
+                            LinkedHashMap::new, Collectors.toList()));
+
+            for (Map.Entry<String, List<Expense>> entry : byProject.entrySet()) {
+                String sheetName = entry.getKey().replaceAll("[\\[\\]\\*\\?:/\\\\]", "");
+                if (sheetName.length() > 31) sheetName = sheetName.substring(0, 31);
+
+                Sheet ps = wb.createSheet(sheetName);
+                hdr(ps, hStyle, "Date", "Vendor", "Category", "Item", "Qty", "Unit", "Unit Price", "Total", "Invoice #", "Payment Type");
+                int pn = 1; BigDecimal pTot = BigDecimal.ZERO;
+                for (Expense e : entry.getValue()) {
+                    List<ExpenseItem> items = e.getItems();
+                    if (items != null && !items.isEmpty()) {
+                        for (ExpenseItem item : items) {
+                            Row r = ps.createRow(pn++);
+                            str(r, 0, fmt(e.getExpenseDate()));
+                            str(r, 1, e.getVendor()  != null ? e.getVendor().getName()  : "");
+                            str(r, 2, e.getCategory() != null ? e.getCategory() : "");
+                            str(r, 3, item.getItemName() != null ? item.getItemName() : "");
+                            Cell c4 = r.createCell(4);
+                            c4.setCellValue(item.getQuantity() != null ? item.getQuantity().doubleValue() : 0.0);
+                            str(r, 5, item.getMeasuringUnit() != null ? item.getMeasuringUnit() : "");
+                            amt(r, 6, item.getUnitPrice(), aStyle);
+                            amt(r, 7, item.getTotalPrice(), aStyle);
+                            str(r, 8, e.getInvoiceNumber() != null ? e.getInvoiceNumber() : "");
+                            str(r, 9, e.getPaymentMode() != null ? e.getPaymentMode() : "");
+                            pTot = pTot.add(item.getTotalPrice() != null ? item.getTotalPrice() : BigDecimal.ZERO);
+                        }
+                    } else {
+                        Row r = ps.createRow(pn++);
+                        str(r, 0, fmt(e.getExpenseDate()));
+                        str(r, 1, e.getVendor()  != null ? e.getVendor().getName()  : "");
+                        str(r, 2, e.getCategory() != null ? e.getCategory() : "");
+                        str(r, 3, ""); r.createCell(4).setCellValue(0.0); str(r, 5, "");
+                        amt(r, 6, BigDecimal.ZERO, aStyle);
+                        amt(r, 7, e.getAmount(), aStyle);
+                        str(r, 8, e.getInvoiceNumber() != null ? e.getInvoiceNumber() : "");
+                        str(r, 9, e.getPaymentMode() != null ? e.getPaymentMode() : "");
+                        pTot = pTot.add(e.getAmount() != null ? e.getAmount() : BigDecimal.ZERO);
+                    }
+                }
+                totalRow(ps, pn, 0, 7, 9, pTot, tStyle, tAmt);
+                for (int i = 0; i < 10; i++) ps.autoSizeColumn(i);
+            }
+
+        } else {
+            // ── Single sheet (project filtered) ──────────────────────────
+            Sheet sheet = wb.createSheet("Purchases");
+            hdr(sheet, hStyle, "Date", "Project", "Vendor", "Category", "Item", "Qty", "Unit", "Unit Price", "Total", "Invoice #", "Payment Type");
+            int rn = 1; BigDecimal grand = BigDecimal.ZERO;
+            for (Expense e : rows) {
+                List<ExpenseItem> items = e.getItems();
+                if (items != null && !items.isEmpty()) {
+                    for (ExpenseItem item : items) {
+                        Row r = sheet.createRow(rn++);
+                        str(r, 0, fmt(e.getExpenseDate()));
+                        str(r, 1, e.getProject() != null ? e.getProject().getName() : "");
+                        str(r, 2, e.getVendor()  != null ? e.getVendor().getName()  : "");
+                        str(r, 3, e.getCategory() != null ? e.getCategory() : "");
+                        str(r, 4, item.getItemName() != null ? item.getItemName() : "");
+                        Cell c5 = r.createCell(5);
+                        c5.setCellValue(item.getQuantity() != null ? item.getQuantity().doubleValue() : 0.0);
+                        str(r, 6, item.getMeasuringUnit() != null ? item.getMeasuringUnit() : "");
+                        amt(r, 7, item.getUnitPrice(), aStyle);
+                        amt(r, 8, item.getTotalPrice(), aStyle);
+                        str(r, 9, e.getInvoiceNumber() != null ? e.getInvoiceNumber() : "");
+                        str(r, 10, e.getPaymentMode() != null ? e.getPaymentMode() : "");
+                        grand = grand.add(item.getTotalPrice() != null ? item.getTotalPrice() : BigDecimal.ZERO);
+                    }
+                } else {
+                    Row r = sheet.createRow(rn++);
+                    str(r, 0, fmt(e.getExpenseDate()));
+                    str(r, 1, e.getProject() != null ? e.getProject().getName() : "");
+                    str(r, 2, e.getVendor()  != null ? e.getVendor().getName()  : "");
+                    str(r, 3, e.getCategory() != null ? e.getCategory() : "");
+                    str(r, 4, ""); r.createCell(5).setCellValue(0.0); str(r, 6, "");
+                    amt(r, 7, BigDecimal.ZERO, aStyle);
+                    amt(r, 8, e.getAmount(), aStyle);
+                    str(r, 9, e.getInvoiceNumber() != null ? e.getInvoiceNumber() : "");
+                    str(r, 10, e.getPaymentMode() != null ? e.getPaymentMode() : "");
+                    grand = grand.add(e.getAmount() != null ? e.getAmount() : BigDecimal.ZERO);
+                }
+            }
+            totalRow(sheet, rn, 0, 8, 10, grand, tStyle, tAmt);
+            for (int i = 0; i < 11; i++) sheet.autoSizeColumn(i);
         }
-        totalRow(sheet, rn, 0, 5, 6, grand, tStyle, tAmt);
-        for (int i = 0; i < 7; i++) sheet.autoSizeColumn(i);
+
         return respond(wb, "purchases_" + LocalDate.now() + ".xlsx");
     }
 
     // ─────────────────────────────────────────────────────────────────────
     // EXPORT EXPENSES  →  /export_expenses
+    //   No project filter → Sheet 1: All Expenses + one sheet per project
+    //   Project filtered  → Single sheet (original behaviour)
     // ─────────────────────────────────────────────────────────────────────
     @GetMapping("/export_expenses")
     public ResponseEntity<byte[]> exportExpenses(
@@ -197,7 +317,9 @@ public class ExportController {
                 .filter(e -> "Regular Expense".equals(e.getExpenseType()))
                 .collect(Collectors.toList());
 
-        if (project != null && !project.isBlank()) {
+        boolean noProjectFilter = (project == null || project.isBlank());
+
+        if (!noProjectFilter) {
             Long pid = Long.parseLong(project);
             rows = rows.stream().filter(e -> e.getProject() != null && e.getProject().getProjectId().equals(pid))
                     .collect(Collectors.toList());
@@ -218,25 +340,85 @@ public class ExportController {
         rows.sort(Comparator.comparing(e -> e.getExpenseDate() != null ? e.getExpenseDate() : LocalDate.MIN));
 
         Workbook wb = new XSSFWorkbook();
-        Sheet sheet = wb.createSheet("Expenses");
         CellStyle hStyle = headerStyle(wb), aStyle = amountStyle(wb),
                   tStyle = totalStyle(wb), tAmt = totalAmountStyle(wb);
 
-        hdr(sheet, hStyle, "Date", "Project", "Category", "Description", "Amount", "Payment Mode");
+        // ── Helper: write expenses into a sheet ──────────────────────────
+        // (reused for All-sheet and per-project sheets)
 
-        int rn = 1; BigDecimal grand = BigDecimal.ZERO;
-        for (Expense e : rows) {
-            Row r = sheet.createRow(rn++);
-            str(r, 0, fmt(e.getExpenseDate()));
-            str(r, 1, e.getProject() != null ? e.getProject().getName() : "");
-            str(r, 2, e.getCategory());
-            str(r, 3, e.getDescription());
-            amt(r, 4, e.getAmount(), aStyle);
-            str(r, 5, e.getPaymentMode());
-            grand = grand.add(e.getAmount() != null ? e.getAmount() : BigDecimal.ZERO);
+        if (noProjectFilter) {
+            // ── Sheet 1: All Expenses ────────────────────────────────────
+            Sheet allSheet = wb.createSheet("All Expenses");
+            hdr(allSheet, hStyle, "Date", "Project", "Category", "Subcategory", "Description", "Amount", "Payment Mode");
+            int rn = 1; BigDecimal grand = BigDecimal.ZERO;
+            for (Expense e : rows) {
+                String subcat = (e.getItems() != null && !e.getItems().isEmpty() && e.getItems().get(0).getItemName() != null)
+                        ? e.getItems().get(0).getItemName() : "";
+                Row r = allSheet.createRow(rn++);
+                str(r, 0, fmt(e.getExpenseDate()));
+                str(r, 1, e.getProject() != null ? e.getProject().getName() : "");
+                str(r, 2, e.getCategory());
+                str(r, 3, subcat);
+                str(r, 4, e.getDescription());
+                amt(r, 5, e.getAmount(), aStyle);
+                str(r, 6, e.getPaymentMode());
+                grand = grand.add(e.getAmount() != null ? e.getAmount() : BigDecimal.ZERO);
+            }
+            totalRow(allSheet, rn, 0, 5, 6, grand, tStyle, tAmt);
+            for (int i = 0; i < 7; i++) allSheet.autoSizeColumn(i);
+
+            // ── One sheet per project ────────────────────────────────────
+            Map<String, List<Expense>> byProject = rows.stream()
+                    .collect(Collectors.groupingBy(
+                            e -> e.getProject() != null ? e.getProject().getName() : "No Project",
+                            LinkedHashMap::new, Collectors.toList()));
+
+            for (Map.Entry<String, List<Expense>> entry : byProject.entrySet()) {
+                // Excel sheet names max 31 chars, strip illegal chars
+                String sheetName = entry.getKey().replaceAll("[\\[\\]\\*\\?:/\\\\]", "");
+                if (sheetName.length() > 31) sheetName = sheetName.substring(0, 31);
+
+                Sheet ps = wb.createSheet(sheetName);
+                hdr(ps, hStyle, "Date", "Category", "Subcategory", "Description", "Amount", "Payment Mode");
+                int pn = 1; BigDecimal pTot = BigDecimal.ZERO;
+                for (Expense e : entry.getValue()) {
+                    String subcat = (e.getItems() != null && !e.getItems().isEmpty() && e.getItems().get(0).getItemName() != null)
+                            ? e.getItems().get(0).getItemName() : "";
+                    Row r = ps.createRow(pn++);
+                    str(r, 0, fmt(e.getExpenseDate()));
+                    str(r, 1, e.getCategory());
+                    str(r, 2, subcat);
+                    str(r, 3, e.getDescription());
+                    amt(r, 4, e.getAmount(), aStyle);
+                    str(r, 5, e.getPaymentMode());
+                    pTot = pTot.add(e.getAmount() != null ? e.getAmount() : BigDecimal.ZERO);
+                }
+                totalRow(ps, pn, 0, 4, 5, pTot, tStyle, tAmt);
+                for (int i = 0; i < 6; i++) ps.autoSizeColumn(i);
+            }
+
+        } else {
+            // ── Single sheet (project filtered) ──────────────────────────
+            Sheet sheet = wb.createSheet("Expenses");
+            hdr(sheet, hStyle, "Date", "Project", "Category", "Subcategory", "Description", "Amount", "Payment Mode");
+            int rn = 1; BigDecimal grand = BigDecimal.ZERO;
+            for (Expense e : rows) {
+                String subcat = (e.getItems() != null && !e.getItems().isEmpty() && e.getItems().get(0).getItemName() != null)
+                        ? e.getItems().get(0).getItemName() : "";
+                Row r = sheet.createRow(rn++);
+                str(r, 0, fmt(e.getExpenseDate()));
+                str(r, 1, e.getProject() != null ? e.getProject().getName() : "");
+                str(r, 2, e.getCategory());
+                str(r, 3, subcat);
+                str(r, 4, e.getDescription());
+                amt(r, 5, e.getAmount(), aStyle);
+                str(r, 6, e.getPaymentMode());
+                grand = grand.add(e.getAmount() != null ? e.getAmount() : BigDecimal.ZERO);
+            }
+            totalRow(sheet, rn, 0, 5, 6, grand, tStyle, tAmt);
+            for (int i = 0; i < 7; i++) sheet.autoSizeColumn(i);
         }
-        totalRow(sheet, rn, 0, 4, 5, grand, tStyle, tAmt);
-        for (int i = 0; i < 6; i++) sheet.autoSizeColumn(i);
+
         return respond(wb, "expenses_" + LocalDate.now() + ".xlsx");
     }
 
@@ -431,7 +613,7 @@ public class ExportController {
         // ── Sheet 2: Material Purchases ─────────
         Sheet ps = wb.createSheet("Material Purchases");
 
-        String[] psHdr = {"Date", "Category", "Sub Category", "Vendor", "Qty", "Payment", "Unit Price", "Total Amount"};
+        String[] psHdr = {"Date", "Category", "Sub Category", "Vendor", "Qty", "Unit", "Payment", "Unit Price", "Total Amount"};
         hdr(ps, hStyle, psHdr);
 
         materialRows.sort(Comparator.comparing(e -> e.getExpenseDate() != null ? e.getExpenseDate() : LocalDate.MIN));
@@ -451,9 +633,10 @@ public class ExportController {
                     Cell c4 = ir.createCell(4);
                     c4.setCellValue(item.getQuantity() != null ? item.getQuantity().doubleValue() : 0.0);
                     
-                    str(ir, 5, e.getPaymentMode() != null ? e.getPaymentMode() : "");
-                    amt(ir, 6, item.getUnitPrice(), aStyle);
-                    amt(ir, 7, item.getTotalPrice(), aStyle);
+                    str(ir, 5, item.getMeasuringUnit() != null ? item.getMeasuringUnit() : "");
+                    str(ir, 6, e.getPaymentMode() != null ? e.getPaymentMode() : "");
+                    amt(ir, 7, item.getUnitPrice(), aStyle);
+                    amt(ir, 8, item.getTotalPrice(), aStyle);
                     pTot = pTot.add(item.getTotalPrice() != null ? item.getTotalPrice() : BigDecimal.ZERO);
                 }
             } else {
@@ -466,15 +649,16 @@ public class ExportController {
                 Cell c4 = ir.createCell(4);
                 c4.setCellValue(0.0);
                 
-                str(ir, 5, e.getPaymentMode() != null ? e.getPaymentMode() : "");
-                amt(ir, 6, BigDecimal.ZERO, aStyle);
-                amt(ir, 7, e.getAmount(), aStyle);
+                str(ir, 5, "");
+                str(ir, 6, e.getPaymentMode() != null ? e.getPaymentMode() : "");
+                amt(ir, 7, BigDecimal.ZERO, aStyle);
+                amt(ir, 8, e.getAmount(), aStyle);
                 pTot = pTot.add(e.getAmount() != null ? e.getAmount() : BigDecimal.ZERO);
             }
         }
 
-        totalRow(ps, pn, 0, 7, 7, pTot, tStyle, tAmt);
-        for (int i = 0; i < 8; i++) ps.autoSizeColumn(i);
+        totalRow(ps, pn, 0, 8, 8, pTot, tStyle, tAmt);
+        for (int i = 0; i < 9; i++) ps.autoSizeColumn(i);
 
 
         // ── Sheet 3: Regular Expenses ─────────────────────────────────
@@ -526,6 +710,103 @@ public class ExportController {
         }
         totalRow(cs, cn, 0, 1, 4, cTot, tStyle, tAmt);
         for (int i = 0; i < 5; i++) cs.autoSizeColumn(i);
+
+        // ── Sheet 6: Material Wise Summary ──────────────────────────
+        Sheet mws = wb.createSheet("Material Wise Summary");
+        hdr(mws, hStyle, "MATERIALS", "QTY", "MEASURING IN", "TOTAL AMOUNT");
+        
+        Map<String, List<ExpenseItem>> matMap = new LinkedHashMap<>();
+        for (Expense e : materialRows) {
+            if (e.getItems() != null) {
+                for (ExpenseItem item : e.getItems()) {
+                    String name = item.getItemName() != null && !item.getItemName().isBlank() ? item.getItemName() : "Unknown";
+                    matMap.computeIfAbsent(name, k -> new ArrayList<>()).add(item);
+                }
+            }
+        }
+        
+        int mwsRow = 1;
+        BigDecimal mwsTotal = BigDecimal.ZERO;
+        for (Map.Entry<String, List<ExpenseItem>> entry : matMap.entrySet()) {
+            Row r = mws.createRow(mwsRow++);
+            str(r, 0, entry.getKey());
+            
+            BigDecimal qty = entry.getValue().stream()
+                .map(i -> i.getQuantity() != null ? i.getQuantity() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            Cell c1 = r.createCell(1);
+            c1.setCellValue(qty.doubleValue());
+            
+            String unit = entry.getValue().isEmpty() ? "" : 
+                          (entry.getValue().get(0).getMeasuringUnit() != null ? entry.getValue().get(0).getMeasuringUnit() : "");
+            str(r, 2, unit);
+            
+            BigDecimal amt = entry.getValue().stream()
+                .map(i -> i.getTotalPrice() != null ? i.getTotalPrice() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+            amt(r, 3, amt, aStyle);
+            
+            mwsTotal = mwsTotal.add(amt);
+        }
+        totalRow(mws, mwsRow, 0, 3, 3, mwsTotal, tStyle, tAmt);
+        for (int i = 0; i < 4; i++) mws.autoSizeColumn(i);
+        
+        // ── Sheet 7: Vendor Wise Summary ──────────────────────────
+        Sheet vws = wb.createSheet("Vendor Wise Summary");
+        hdr(vws, hStyle, "VENDOR NAME", "TOTAL BILL AMOUNT", "TOTAL AMOUNT PAID", "BALANCE AMOUNT");
+        
+        Map<String, BigDecimal> vendorBillMap = new LinkedHashMap<>();
+        for (Expense e : materialRows) {
+            if (e.getVendor() != null) {
+                String vName = e.getVendor().getName();
+                BigDecimal amt = e.getAmount() != null ? e.getAmount() : BigDecimal.ZERO;
+                vendorBillMap.put(vName, vendorBillMap.getOrDefault(vName, BigDecimal.ZERO).add(amt));
+            }
+        }
+        
+        Map<String, BigDecimal> vendorPaidMap = new LinkedHashMap<>();
+        for (Payment p : vendorPayRows) {
+            if (p.getVendor() != null) {
+                String vName = p.getVendor().getName();
+                BigDecimal amt = p.getAmount() != null ? p.getAmount() : BigDecimal.ZERO;
+                vendorPaidMap.put(vName, vendorPaidMap.getOrDefault(vName, BigDecimal.ZERO).add(amt));
+            }
+        }
+        
+        Set<String> allVendors = new TreeSet<>(vendorBillMap.keySet());
+        allVendors.addAll(vendorPaidMap.keySet());
+        
+        int vwsRow = 1;
+        BigDecimal vwsBillTotal = BigDecimal.ZERO;
+        BigDecimal vwsPaidTotal = BigDecimal.ZERO;
+        BigDecimal vwsBalTotal = BigDecimal.ZERO;
+        
+        for (String vName : allVendors) {
+            Row r = vws.createRow(vwsRow++);
+            str(r, 0, vName);
+            
+            BigDecimal bill = vendorBillMap.getOrDefault(vName, BigDecimal.ZERO);
+            BigDecimal paid = vendorPaidMap.getOrDefault(vName, BigDecimal.ZERO);
+            BigDecimal bal = bill.subtract(paid);
+            if (bal.compareTo(BigDecimal.ZERO) < 0) bal = BigDecimal.ZERO;
+            
+            amt(r, 1, bill, aStyle);
+            amt(r, 2, paid, aStyle);
+            amt(r, 3, bal, aStyle);
+            
+            vwsBillTotal = vwsBillTotal.add(bill);
+            vwsPaidTotal = vwsPaidTotal.add(paid);
+            vwsBalTotal = vwsBalTotal.add(bal);
+        }
+        
+        Row rVwsTot = vws.createRow(vwsRow);
+        Cell cellTot = rVwsTot.createCell(0); cellTot.setCellValue("TOTAL"); cellTot.setCellStyle(tStyle);
+        amt(rVwsTot, 1, vwsBillTotal, tAmt);
+        amt(rVwsTot, 2, vwsPaidTotal, tAmt);
+        amt(rVwsTot, 3, vwsBalTotal, tAmt);
+        
+        for (int i = 0; i < 4; i++) vws.autoSizeColumn(i);
 
         String safe = project.getName().replaceAll("[^a-zA-Z0-9 ]", "").trim().replace(' ', '_');
         return respond(wb, safe + "_report_" + LocalDate.now() + ".xlsx");
