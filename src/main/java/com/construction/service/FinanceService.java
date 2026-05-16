@@ -317,14 +317,22 @@ public class FinanceService {
             clientPaymentsList.add(m);
         }
 
-        BigDecimal totalSpent = totalPurchasesAmount.add(totalExpensesAmount);
-        BigDecimal totalReceived = clientPayments.stream().map(ClientPayment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal totalVendorPayments = payments.stream().map(Payment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        // Calculate Total Spent based on actual cash outflow (Non-Credit Expenses + Vendor Payments)
+        BigDecimal cashBankUpiExpenses = expenses.stream()
+                .filter(e -> !"CREDIT".equalsIgnoreCase(e.getPaymentMode()))
+                .map(Expense::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalSpent = cashBankUpiExpenses.add(totalVendorPayments);
+
+        BigDecimal totalReceived = clientPayments.stream().map(ClientPayment::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        
         BigDecimal creditPurchases = expenses.stream()
                 .filter(e -> "Material Purchase".equals(e.getExpenseType()) && "CREDIT".equalsIgnoreCase(e.getPaymentMode()))
                 .map(Expense::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal vendorOutstanding = creditPurchases.subtract(totalVendorPayments);
         if (vendorOutstanding.compareTo(BigDecimal.ZERO) < 0) vendorOutstanding = BigDecimal.ZERO;
+        
         BigDecimal clientOutstanding = totalSpent.subtract(totalReceived);
         BigDecimal remainingBudget = project.getBudget() != null ? project.getBudget().subtract(totalSpent) : BigDecimal.ZERO;
 
