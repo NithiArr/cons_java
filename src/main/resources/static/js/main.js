@@ -475,6 +475,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupMobileMenu();
     setActiveNavLink();
     initAmountFormatting();
+    setupThemeToggle();
 });
 
 // Global error handler
@@ -482,3 +483,35 @@ window.addEventListener('unhandledrejection', (event) => {
     console.error('Unhandled promise rejection:', event.reason);
     showNotification('An error occurred. Please try again.', 'error');
 });
+
+// Theme toggle logic
+function setupThemeToggle() {
+    const themeCheckbox = document.getElementById('theme-toggle-checkbox');
+    
+    if (!themeCheckbox) return;
+
+    // Check localStorage for saved theme
+    const savedTheme = localStorage.getItem('theme');
+    
+    // Default is light (checkbox checked = light based on our CSS)
+    // If dark mode is saved, uncheck the box and remove light-theme class
+    if (savedTheme === 'dark') {
+        document.body.classList.remove('light-theme');
+        themeCheckbox.checked = false; // Unchecked = Dark
+    } else {
+        document.body.classList.add('light-theme');
+        themeCheckbox.checked = true; // Checked = Light
+    }
+
+    themeCheckbox.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            // Checked = Light
+            document.body.classList.add('light-theme');
+            localStorage.setItem('theme', 'light');
+        } else {
+            // Unchecked = Dark
+            document.body.classList.remove('light-theme');
+            localStorage.setItem('theme', 'dark');
+        }
+    });
+}

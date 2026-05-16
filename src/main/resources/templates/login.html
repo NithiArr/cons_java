@@ -10,8 +10,8 @@
     <style>
         body {
             font-family: 'Outfit', sans-serif;
-            background: radial-gradient(circle at 10% 20%, #0f172a 0%, #020617 90%);
-            color: #f8fafc;
+            background: #f1f5f9;
+            color: #0f172a;
             margin: 0;
             overflow-x: hidden;
             display: flex;
@@ -32,7 +32,7 @@
         }
         
         .orb-1 {
-            background: var(--primary, #4f46e5);
+            background: rgba(79, 70, 229, 0.15);
             width: 400px;
             height: 400px;
             top: -100px;
@@ -40,7 +40,7 @@
         }
         
         .orb-2 {
-            background: var(--secondary, #8b5cf6);
+            background: rgba(139, 92, 246, 0.15);
             width: 350px;
             height: 350px;
             bottom: -50px;
@@ -63,24 +63,22 @@
         }
 
         .auth-card {
-            background: rgba(15, 23, 42, 0.4);
+            background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(25px);
             -webkit-backdrop-filter: blur(25px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
-            border-left: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(0, 0, 0, 0.1);
             border-radius: 24px;
             padding: 3rem 2.5rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 
-                        0 0 30px rgba(79, 70, 229, 0.2);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1), 
+                        0 0 30px rgba(79, 70, 229, 0.05);
             transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             animation: slideUp 0.8s ease-out forwards;
         }
 
         .auth-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.6), 
-                        0 0 40px rgba(79, 70, 229, 0.3);
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.15), 
+                        0 0 40px rgba(79, 70, 229, 0.1);
         }
 
         @keyframes slideUp {
@@ -97,7 +95,7 @@
             font-weight: 800;
             font-size: 2.2rem;
             margin: 0;
-            background: linear-gradient(135deg, #fff, #a5b4fc);
+            background: linear-gradient(135deg, #1e1b4b, #4c1d95);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             display: flex;
@@ -114,7 +112,7 @@
 
         .auth-header p {
             margin-top: 0.75rem;
-            color: #94a3b8;
+            color: #64748b;
             font-size: 0.95rem;
             font-weight: 400;
         }
@@ -128,8 +126,8 @@
             display: block;
             margin-bottom: 0.5rem;
             font-size: 0.85rem;
-            font-weight: 500;
-            color: #cbd5e1;
+            font-weight: 600;
+            color: #475569;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
@@ -137,10 +135,10 @@
         .form-control {
             width: 100%;
             padding: 1rem 1.2rem;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(0, 0, 0, 0.2);
             border-radius: 12px;
-            color: #fff;
+            color: #0f172a;
             font-size: 1rem;
             font-family: inherit;
             transition: all 0.3s ease;
@@ -149,13 +147,13 @@
 
         .form-control:focus {
             outline: none;
-            background: rgba(255, 255, 255, 0.08);
-            border-color: #8b5cf6;
-            box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15);
+            background: #ffffff;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15);
         }
         
         .form-control::placeholder {
-            color: #64748b;
+            color: #94a3b8;
         }
 
         .btn-login {

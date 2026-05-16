@@ -219,7 +219,7 @@
     </style>
 </head>
 
-<body>
+<body class="light-theme">
     <div class="main-layout">
         <!-- Modern Glass Sidebar -->
         <aside class="sidebar">
@@ -229,6 +229,16 @@
                     <span th:text="${#authentication.principal.company.name}">Company</span>
                     <span class="role-badge" th:text="${#authentication.principal.role}">ROLE</span>
                 </div>
+            </div>
+
+            <!-- Neomorphic Theme Switch -->
+            <div class="theme-switch-wrapper">
+                <span class="theme-label">Light</span>
+                <label class="theme-switch" for="theme-toggle-checkbox">
+                    <input type="checkbox" id="theme-toggle-checkbox" />
+                    <div class="slider round"></div>
+                </label>
+                <span class="theme-label">Dark</span>
             </div>
 
             <nav>
@@ -325,6 +335,7 @@
                             Activity Log
                         </a>
                     </li>
+
 
                     <!-- ALL roles: Logout -->
                     <li class="nav-item" style="margin-top: 1rem;">
