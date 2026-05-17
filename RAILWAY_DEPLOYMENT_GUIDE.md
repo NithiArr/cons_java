@@ -1,6 +1,6 @@
 # Railway Deployment Guide
 
-Deploying to **Railway.app** is incredibly simple because it directly integrates with your GitHub repository and automatically manages the PostgreSQL database and reverse proxy (so you don't even need Nginx).
+Deploying this **Spring Boot** application to **Railway.app** is incredibly simple because Railway directly integrates with your GitHub repository and automatically manages the PostgreSQL database, Java build, and reverse proxy.
 
 Follow these exact steps to successfully deploy the application on Railway.
 
@@ -16,42 +16,36 @@ Railway pulls your code directly from a visual dashboard. Make sure your latest 
 
 ### Step 3: Deploy your Code
 1. In the same project dashboard, click the **+ Create** button (or **+ New**).
-2. Select **GitHub Repo** and choose your `Construction` repository.
+2. Select **GitHub Repo** and choose your repository.
 3. Railway will start cloning the repo.
+4. **Important**: Wait for the first build. It might fail because it doesn't know about the database yet, which is fine.
 
-### Step 4: Configure the Deployment settings
-Because your project has multiple files and a custom Dockerfile name, you need to tell Railway where to look.
+### Step 4: Configure the Deployment Settings
+By default, Railway can detect Maven and build it via Nixpacks, but we already have a specialized `Dockerfile` that optimizes the build process.
 
 1. Click on your newly created web service box in the Railway dashboard.
 2. Go to the **Settings** tab.
 3. Scroll down to the **Build** section:
    - Change the **Builder** to `Dockerfile`.
-   - Set the **Dockerfile Path** to `/Dockerfile.backend`.
+   - Set the **Dockerfile Path** to `/Dockerfile` (if it isn't already).
 4. Scroll down to the **Deploy** section:
-   - Under **Start Command**, leave it blank (it will use the `CMD` from your Dockerfile).
-   - Under **Custom Domain**, click **Generate Domain** to get a free `x.up.railway.app` URL for your site.
+   - Under **Start Command**, leave it blank (it will use the `ENTRYPOINT` from our Dockerfile).
+   - Under **Networking** / **Custom Domain**, click **Generate Domain** to get a free `x.up.railway.app` URL for your site.
 
 ### Step 5: Configure Environment Variables
 Railway needs the same secret variables you use locally, plus a connection to the newly created database.
 
 1. Still on your web service, go to the **Variables** tab.
-2. Click **New Variable** -> **Add Reference** -> Select the `DATABASE_URL` from your PostgreSQL plugin. Railway will automatically link the database!
-3. Add the following additional variables manually:
-   - `SECRET_KEY`: (Enter any secret string, e.g., `my-production-secret-key`)
-   - `DEBUG`: `False`
-   - `PORT`: `8000` *(Very Important: Since your `Dockerfile.backend` explicitly binds gunicorn to port 8000, you must tell Railway to listen on port 8000).*
+2. Click **New Variable** -> **Add Reference** -> Select the `DATABASE_URL` from your PostgreSQL plugin.
+   *(This actually automatically brings in `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, and `PGDATABASE` under the hood! Our `application.yml` is already configured to automatically use these `PG*` variables when running on Railway).*
+3. Add the following additional variable manually:
+   - `PORT`: `8080` *(Very Important: Our `Dockerfile` exposes port 8080, and Railway must be told to map its public traffic to this port inside the container).*
 
-### Step 6: Wait for the Build and Migrate DB
+### Step 6: Wait for the Build and Verify
 Whenever you update settings or variables, Railway triggers a new deployment.
 Wait for it to show a green **Success** badge.
 
-Once deployed, you need to create your database tables:
-1. In the Railway dashboard for your web service, click the **Terminal** tab or the `>_` icon.
-2. Run the migration and create a superuser:
-```bash
-python manage.py migrate
-python manage.py createsuperuser
-```
+Because Spring Boot is configured with `spring.jpa.hibernate.ddl-auto=update`, the application will automatically create all your database tables upon startup!
 
 **That's it!** You can now visit the custom URL generated in Step 4, and your app will be live with full SSL and a connected database.
 
