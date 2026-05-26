@@ -81,6 +81,7 @@
             margin-left: 280px;
             padding: 3rem 2rem;
             z-index: 1;
+            min-width: 0; /* Prevents flex children from stretching outside viewport */
         }
 
         /* User Header Premium */
@@ -350,6 +351,21 @@
                 margin-left: 0 !important;
                 padding: 5.5rem 1rem 2rem 1rem !important;
                 width: 100% !important;
+                min-width: 0 !important;
+            }
+
+            /* Ensure every table container and table scales perfectly to fit mobile viewports */
+            .table-container {
+                width: 100% !important;
+                max-width: 100% !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
+            
+            /* Make sure table container margins don't break flex layouts */
+            .card-body {
+                width: 100% !important;
+                overflow: hidden !important;
             }
         }
     </style>
