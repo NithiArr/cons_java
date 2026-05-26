@@ -63,7 +63,7 @@ public class SecurityConfig {
                 // ── MANAGER + ADMIN ──────────────────────────────────────────
                 .requestMatchers(
                     "/projects", "/vendors",
-                    "/expenses", "/payments",
+                    "/payments",
                     "/client-payments", "/client_payments",
                     "/dashboard/daily-cash", "/daily_cash", "/daily-cash",
                     "/dashboard/vendor-analytics", "/vendor_analytics", "/vendor-analytics",
@@ -72,7 +72,7 @@ public class SecurityConfig {
                 ).hasAnyRole("ADMIN", "MANAGER")
 
                 // ── EMPLOYEE, MANAGER, ADMIN ─────────────────────────────────
-                .requestMatchers("/purchases").hasAnyRole("ADMIN", "MANAGER", "EMPLOYEE")
+                .requestMatchers("/purchases", "/expenses").hasAnyRole("ADMIN", "MANAGER", "EMPLOYEE")
 
                 // ── API write restrictions (EMPLOYEE = read-only) ────────────
                 // Allow EMPLOYEE GET on purchases API only
