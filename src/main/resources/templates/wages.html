@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{base}">
+<head>
+    <title>Labour Wages</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        /* ── Wage Sheet Page Styles ─────────────────────────────────── */
+        .wage-toolbar {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+            padding: 1.25rem 1.5rem;
+            background: rgba(15,23,42,0.5);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            backdrop-filter: blur(12px);
+        }
+        .wage-toolbar .form-group { margin: 0; min-width: 180px; }
+        .wage-toolbar label { font-size: 0.78rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; display: block; margin-bottom: 0.4rem; }
+
+        /* Sheet list sidebar + editor layout */
+        .wage-layout { display: grid; grid-template-columns: 280px 1fr; gap: 1.5rem; }
+        @media(max-width: 900px) { .wage-layout { grid-template-columns: 1fr; } }
+
+        .sheet-list { display: flex; flex-direction: column; gap: 0.6rem; }
+        .sheet-card {
+            padding: 0.9rem 1.1rem;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.07);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .sheet-card:hover { background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.3); transform: translateX(3px); }
+        .sheet-card.active { background: linear-gradient(135deg,rgba(79,70,229,0.3),rgba(139,92,246,0.3)); border-color: rgba(139,92,246,0.5); }
+        .sheet-card .sc-project { font-weight: 600; font-size: 0.9rem; color: #e2e8f0; }
+        .sheet-card .sc-week { font-size: 0.78rem; color: #94a3b8; margin-top: 0.2rem; }
+        .sheet-card .sc-total { font-size: 0.82rem; color: #a78bfa; font-weight: 700; margin-top: 0.3rem; }
+
+        /* Editor panel */
+        .wage-editor { background: rgba(15,23,42,0.55); border: 1px solid rgba(255,255,255,0.09); border-radius: 20px; backdrop-filter: blur(20px); padding: 1.5rem; }
+        .wage-editor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem; }
+
+        /* Week header */
+        .week-info { font-size: 0.88rem; color: #94a3b8; }
+        .week-info strong { color: #c4b5fd; }
+
+        /* Main wage table */
+        .wage-table-wrap { overflow-x: auto; }
+        .wage-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            min-width: 800px;
+        }
+        .wage-table th {
+            background: rgba(0,0,0,0.4) !important;
+            color: #a5b4fc !important;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 0.6rem 0.5rem;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .wage-table td {
+            padding: 0.35rem 0.4rem;
+            border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+            text-align: center;
+            vertical-align: middle;
+        }
+        .wage-table td.td-left { text-align: left; }
+        .wage-table .day-input {
+            width: 52px;
+            padding: 0.3rem 0.25rem;
+            text-align: center;
+            font-size: 0.85rem;
+            border-radius: 8px !important;
+        }
+        .wage-table .name-input { width: 130px; font-size: 0.83rem; }
+        .wage-table .cat-input  { width: 68px;  font-size: 0.83rem; }
+        .wage-table .wage-input { width: 90px;  font-size: 0.83rem; text-align: right; }
+        .wage-table .calc-cell  { color: #a78bfa; font-weight: 600; white-space: nowrap; }
+        .wage-table .sl-cell    { color: #64748b; font-size: 0.78rem; width: 30px; }
+
+        .del-row-btn { background: none; border: none; color: #f87171; cursor: pointer; font-size: 1.1rem; padding: 0.2rem 0.4rem; border-radius: 6px; transition: background 0.2s; }
+        .del-row-btn:hover { background: rgba(248,113,113,0.15); }
+
+        /* Summary section */
+        .summary-section { margin-top: 1.25rem; }
+        .summary-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+        .summary-table td, .summary-table th { padding: 0.5rem 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.06) !important; }
+        .summary-table th { background: rgba(0,0,0,0.3) !important; color: #a5b4fc !important; font-size: 0.72rem; text-transform: uppercase; }
+        .summary-table .sum-total-row td { color: #e2e8f0; font-weight: 700; border-top: 1px solid rgba(255,255,255,0.15) !important; }
+        .summary-table .sum-advance-row td { color: #fbbf24; }
+        .summary-table .sum-net-row { background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(16,185,129,0.1)) !important; }
+        .summary-table .sum-net-row td { color: #4ade80 !important; font-weight: 800; font-size: 1rem; border-radius: 8px; }
+        .advance-input-cell { display: flex; align-items: center; gap: 0.5rem; justify-content: flex-end; }
+        .advance-input { width: 120px; text-align: right; }
+
+        /* Empty state */
+        .empty-state { text-align: center; padding: 4rem 2rem; color: #64748b; }
+        .empty-state svg { width: 64px; height: 64px; margin: 0 auto 1rem; display: block; opacity: 0.3; }
+        .empty-state p { font-size: 1rem; }
+
+        /* New sheet form */
+        .new-sheet-bar { display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1rem; }
+        .new-sheet-bar .form-group { margin: 0; }
+
+        .btn-icon { display: inline-flex; align-items: center; gap: 0.4rem; }
+        .btn-add-row { background: rgba(139,92,246,0.15); border: 1px dashed rgba(139,92,246,0.4); color: #a78bfa; padding: 0.5rem 1rem; border-radius: 10px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.2s; margin-top: 0.5rem; }
+        .btn-add-row:hover { background: rgba(139,92,246,0.25); border-color: rgba(139,92,246,0.7); }
+        .project-title { color: #e2e8f0; }
+
+        /* ── Light Theme Overrides ─────────────────────────────────── */
+        body.light-theme .wage-toolbar {
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+            backdrop-filter: blur(12px);
+        }
+        body.light-theme .wage-toolbar label {
+            color: #475569;
+        }
+        body.light-theme .sheet-card {
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+        }
+        body.light-theme .sheet-card:hover {
+            background: rgba(139, 92, 246, 0.05);
+            border-color: rgba(139, 92, 246, 0.25);
+        }
+        body.light-theme .sheet-card.active {
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(139, 92, 246, 0.1));
+            border-color: rgba(139, 92, 246, 0.4);
+        }
+        body.light-theme .sheet-card .sc-project {
+            color: #0f172a;
+        }
+        body.light-theme .sheet-card .sc-week {
+            color: #475569;
+        }
+        body.light-theme .sheet-card .sc-total {
+            color: #6d28d9;
+        }
+        body.light-theme .wage-editor {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(15, 23, 42, 0.09);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+            backdrop-filter: blur(20px);
+        }
+        body.light-theme .project-title {
+            color: #0f172a;
+        }
+        body.light-theme .week-info {
+            color: #475569;
+        }
+        body.light-theme .week-info strong {
+            color: #6d28d9;
+        }
+        body.light-theme .wage-table th {
+            background: rgba(15, 23, 42, 0.05) !important;
+            color: #0f172a !important;
+            font-weight: 700;
+        }
+        body.light-theme .wage-table td {
+            border-bottom: 1px solid rgba(15, 23, 42, 0.06) !important;
+            color: #334155;
+        }
+        body.light-theme .wage-table .calc-cell {
+            color: #6d28d9;
+        }
+        body.light-theme .wage-table .sl-cell {
+            color: #64748b;
+        }
+        body.light-theme .btn-add-row {
+            background: rgba(139, 92, 246, 0.05);
+            border: 1px dashed rgba(139, 92, 246, 0.3);
+            color: #6d28d9;
+        }
+        body.light-theme .btn-add-row:hover {
+            background: rgba(139, 92, 246, 0.1);
+            border-color: rgba(139, 92, 246, 0.6);
+        }
+        body.light-theme .summary-table th {
+            background: rgba(15, 23, 42, 0.04) !important;
+            color: #0f172a !important;
+        }
+        body.light-theme .summary-table td {
+            border-bottom: 1px solid rgba(15, 23, 42, 0.06) !important;
+            color: #334155;
+        }
+        body.light-theme .summary-table .sum-total-row td {
+            color: #0f172a;
+            border-top: 1px solid rgba(15, 23, 42, 0.15) !important;
+        }
+        body.light-theme .summary-table .sum-advance-row td {
+            color: #b45309;
+        }
+        body.light-theme .summary-table .sum-net-row {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.08), rgba(16, 185, 129, 0.05)) !important;
+        }
+        body.light-theme .summary-table .sum-net-row td {
+            color: #15803d !important;
+        }
+        body.light-theme .empty-state {
+            color: #64748b;
+        }
+        body.light-theme .empty-state svg {
+            opacity: 0.6;
+        }
+    </style>
+</head>
+<body>
+<div layout:fragment="content">
+
+<div class="container fade-in">
+    <!-- Page Header -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+        <div>
+            <h1>
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+                </svg>
+                Labour Wages
+            </h1>
+            <p class="text-secondary">Weekly wage sheets by project</p>
+        </div>
+        <button class="btn btn-primary btn-icon" onclick="showNewSheetForm()">
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            New Week Sheet
+        </button>
+    </div>
+
+    <!-- Toolbar: filter by project -->
+    <div class="wage-toolbar">
+        <div class="form-group">
+            <label>Filter by Project</label>
+            <select id="filter-project" class="form-control" onchange="filterSheets()" style="min-width:200px;">
+                <option value="">All Projects</option>
+            </select>
+        </div>
+        <div style="color:#64748b; font-size:0.82rem; align-self:center;">
+            <span id="sheet-count">0</span> sheet(s) found
+        </div>
+    </div>
+
+    <!-- New Sheet Form (hidden by default) -->
+    <div id="new-sheet-panel" class="card" style="display:none; margin-bottom:1.5rem;">
+        <div class="card-body">
+            <h3 style="margin:0 0 1rem;">Create New Wage Sheet</h3>
+            <div class="new-sheet-bar">
+                <div class="form-group">
+                    <label class="form-label">Project *</label>
+                    <select id="new-project" class="form-control" style="min-width:200px;" required>
+                        <option value="">-- Select Project --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Any date in the week *</label>
+                    <input type="date" id="new-week-date" class="form-control" style="width:170px;"
+                           onchange="updateWeekPreview()" required>
+                </div>
+                <div class="form-group" style="align-self:flex-end;">
+                    <div id="week-preview" style="color:#a78bfa; font-size:0.88rem; font-weight:600; padding:0.6rem 0;">
+                        Pick a date to see week range
+                    </div>
+                </div>
+                <div style="align-self:flex-end; display:flex; gap:0.5rem;">
+                    <button class="btn btn-primary" onclick="createSheet()">Create Sheet</button>
+                    <button class="btn btn-secondary" onclick="hideNewSheetForm()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main layout: sheet list + editor -->
+    <div class="wage-layout">
+        <!-- Left: sheet list -->
+        <div>
+            <button class="btn btn-secondary btn-icon" onclick="exportAllPdf()" style="width:100%; margin-bottom:0.8rem; justify-content:center; border-radius:12px;">
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg>
+                Export All Sheets (PDF)
+            </button>
+            <div class="sheet-list" id="sheet-list">
+                <div class="empty-state">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z"/></svg>
+                    <p>No sheets yet</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: editor -->
+        <div class="wage-editor" id="wage-editor">
+            <div class="empty-state">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M15.042 21.672 13.684 16.6m0 0-2.51 2.225.569-9.47 5.227 7.917-3.286-.672Zm-7.518-.267A8.25 8.25 0 1 1 20.25 10.5M8.288 14.212A5.25 5.25 0 1 1 17.25 10.5"/></svg>
+                <p>Select a sheet from the left to view or edit it,<br>or create a new week sheet.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let allSheets = [];
+let projects  = [];
+let currentSheetId = null;
+
+const DAY_NAMES = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+
+// ── Init ─────────────────────────────────────────────────────────────────
+async function loadAll() {
+    const [sheetsRes, projectsRes] = await Promise.all([
+        fetch('/api/wages'),
+        fetch('/api_projects_list')
+    ]);
+    allSheets = await sheetsRes.json();
+    projects  = await projectsRes.json();
+
+    // Populate project dropdowns
+    const opts = projects.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
+    document.getElementById('filter-project').innerHTML = '<option value="">All Projects</option>' + opts;
+    document.getElementById('new-project').innerHTML    = '<option value="">-- Select Project --</option>' + opts;
+
+    renderSheetList(allSheets);
+}
+
+function filterSheets() {
+    const pid = document.getElementById('filter-project').value;
+    const filtered = pid ? allSheets.filter(s => String(s.project_id) === pid) : allSheets;
+    renderSheetList(filtered);
+}
+
+function renderSheetList(sheets) {
+    document.getElementById('sheet-count').textContent = sheets.length;
+    const el = document.getElementById('sheet-list');
+    if (sheets.length === 0) {
+        el.innerHTML = `<div class="empty-state" style="padding:2rem;">
+            <p style="color:#64748b;">No sheets found</p></div>`;
+        return;
+    }
+    el.innerHTML = sheets.map(s => `
+        <div class="sheet-card ${s.id === currentSheetId ? 'active' : ''}"
+             onclick="loadSheet(${s.id})" id="sc-${s.id}">
+            <div class="sc-project">${s.project_name}</div>
+            <div class="sc-week">${formatSheetDate(s.week_start)} – ${formatSheetDate(s.week_end)}</div>
+            <div class="sc-total">₹${fmt(s.net_total)} net &nbsp;·&nbsp; ${s.row_count} workers</div>
+        </div>`).join('');
+}
+
+// ── Week snapping logic ───────────────────────────────────────────────────
+function getWeekSaturday(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const day = d.getDay(); // 0=Sun,6=Sat
+    const diff = day === 6 ? 0 : -(day + 1);
+    d.setDate(d.getDate() + diff);
+    return d;
+}
+
+function updateWeekPreview() {
+    const v = document.getElementById('new-week-date').value;
+    if (!v) { document.getElementById('week-preview').textContent = 'Pick a date to see week range'; return; }
+    const sat = getWeekSaturday(v);
+    const fri = new Date(sat); fri.setDate(sat.getDate() + 6);
+    document.getElementById('week-preview').textContent =
+        `Week: ${fmtD(sat)} (Sat) → ${fmtD(fri)} (Fri)`;
+}
+
+// ── Create new sheet ──────────────────────────────────────────────────────
+function showNewSheetForm() {
+    document.getElementById('new-sheet-panel').style.display = '';
+    const today = new Date();
+    document.getElementById('new-week-date').value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    updateWeekPreview();
+}
+function hideNewSheetForm() { document.getElementById('new-sheet-panel').style.display = 'none'; }
+
+async function createSheet() {
+    const projectId = document.getElementById('new-project').value;
+    const dateVal   = document.getElementById('new-week-date').value;
+    if (!projectId) { showNotification('Please select a project', 'error'); return; }
+    if (!dateVal)   { showNotification('Please pick a week date', 'error'); return; }
+
+    const sat = getWeekSaturday(dateVal);
+    const weekStart = `${sat.getFullYear()}-${String(sat.getMonth() + 1).padStart(2, '0')}-${String(sat.getDate()).padStart(2, '0')}`;
+
+    const res = await fetch('/api/wages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: projectId, week_start: weekStart, advance: 0, rows: [] })
+    });
+    if (!res.ok) { showNotification('Failed to create sheet', 'error'); return; }
+    const data = await res.json();
+    hideNewSheetForm();
+    showNotification('Wage sheet created!', 'success');
+    await loadAll();
+    loadSheet(data.id);
+}
+
+// ── Load + render editor ──────────────────────────────────────────────────
+async function loadSheet(id) {
+    currentSheetId = id;
+    // highlight card
+    document.querySelectorAll('.sheet-card').forEach(c => c.classList.remove('active'));
+    const card = document.getElementById('sc-' + id);
+    if (card) card.classList.add('active');
+
+    const res = await fetch('/api/wages/' + id);
+    if (!res.ok) { showNotification('Failed to load sheet', 'error'); return; }
+    const sheet = await res.json();
+    renderEditor(sheet);
+}
+
+function renderEditor(sheet) {
+    // Build day-header dates
+    const sat = new Date(sheet.week_start + 'T00:00:00');
+    const dayDates = Array.from({length:7}, (_,i) => {
+        const d = new Date(sat); d.setDate(sat.getDate()+i);
+        return { label: DAY_NAMES[i], date: fmtShort(d) };
+    });
+
+    const editor = document.getElementById('wage-editor');
+    editor.innerHTML = `
+        <div class="wage-editor-header">
+            <div>
+                <div class="project-title" style="font-weight:700; font-size:1.05rem;">${sheet.project_name}</div>
+                <div class="week-info">Week: <strong>${formatSheetDate(sheet.week_start)}</strong> (Sat) → <strong>${formatSheetDate(sheet.week_end)}</strong> (Fri)</div>
+            </div>
+            <div style="display:flex; gap:0.6rem; flex-wrap:wrap;">
+                <button class="btn btn-primary btn-icon" onclick="saveSheet()">
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
+                    Save
+                </button>
+                <button class="btn btn-secondary btn-icon" onclick="exportPdf()">
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg>
+                    Export PDF
+                </button>
+                <button class="btn btn-danger btn-icon" onclick="deleteSheet(${sheet.id})">
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+                    Delete
+                </button>
+            </div>
+        </div>
+
+        <!-- Employee table -->
+        <div class="wage-table-wrap">
+        <table class="wage-table" id="wage-table">
+            <thead>
+                <tr>
+                    <th>Sl</th>
+                    <th style="text-align:left;">Cat</th>
+                    <th style="text-align:left;">Name</th>
+                    ${dayDates.map(d => `<th>${d.label}<br><span style="font-weight:400;font-size:0.68rem;color:#94a3b8;">${d.date}</span></th>`).join('')}
+                    <th>No of Days</th>
+                    <th>Wages/Day</th>
+                    <th>Amount</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="wage-tbody">
+                ${sheet.rows.map((r,i) => buildRowHTML(r, i+1, dayDates)).join('')}
+            </tbody>
+        </table>
+        </div>
+        <button class="btn-add-row" onclick="addRow()">+ Add Worker</button>
+
+        <!-- Summary -->
+        <div class="summary-section" id="summary-section"></div>
+    `;
+
+    // store sheet data for save
+    editor.dataset.sheetId      = sheet.id;
+    editor.dataset.projectId    = sheet.project_id;
+    editor.dataset.weekStart    = sheet.week_start;
+
+    recalcAll();
+}
+
+function buildRowHTML(r, slNo, dayDates) {
+    const days = [r.day1,r.day2,r.day3,r.day4,r.day5,r.day6,r.day7].map((v,i) =>
+        `<td><input type="number" class="form-control day-input" min="0" max="2" step="0.5"
+            value="${v||0}" oninput="recalcAll()" data-day="${i+1}"></td>`).join('');
+    return `
+    <tr class="wage-row">
+        <td class="sl-cell">${slNo}</td>
+        <td class="td-left"><input type="text" class="form-control cat-input" placeholder="Cat" value="${r.category||''}" oninput="recalcAll()"></td>
+        <td class="td-left"><input type="text" class="form-control name-input" placeholder="Name" value="${r.employee_name||''}"></td>
+        ${days}
+        <td class="calc-cell no-of-days">0</td>
+        <td><input type="number" class="form-control wage-input" min="0" step="0.01"
+            value="${r.wage_per_day||0}" oninput="recalcAll()" placeholder="0"></td>
+        <td class="calc-cell row-amount">0</td>
+        <td><button class="del-row-btn" onclick="deleteRow(this)" title="Remove">✕</button></td>
+    </tr>`;
+}
+
+function addRow() {
+    const tbody = document.getElementById('wage-tbody');
+    const slNo  = tbody.querySelectorAll('.wage-row').length + 1;
+    const emptyRow = { category:'', employee_name:'', day1:0,day2:0,day3:0,day4:0,day5:0,day6:0,day7:0, wage_per_day:0 };
+    // get day labels from existing header
+    const dayDates = Array.from({length:7}, (_,i)=>({ label:DAY_NAMES[i], date:'' }));
+    const tr = document.createElement('tr');
+    tr.className = 'wage-row';
+    tr.innerHTML = buildRowHTML(emptyRow, slNo, dayDates).replace(/<tr[^>]*>|<\/tr>/g,'');
+    tbody.appendChild(tr);
+    renumberRows();
+    recalcAll();
+}
+
+function deleteRow(btn) {
+    btn.closest('tr').remove();
+    renumberRows();
+    recalcAll();
+}
+
+function renumberRows() {
+    document.querySelectorAll('#wage-tbody .wage-row').forEach((r,i) => {
+        r.querySelector('.sl-cell').textContent = i+1;
+    });
+}
+
+// ── Calculations ──────────────────────────────────────────────────────────
+function recalcAll() {
+    let grandTotal = 0;
+    const catMap   = {}; // category -> { days, wage }
+
+    document.querySelectorAll('#wage-tbody .wage-row').forEach(row => {
+        const dayInputs = row.querySelectorAll('.day-input');
+        let days = 0;
+        dayInputs.forEach(inp => { days += parseFloat(inp.value) || 0; });
+
+        const wagePer = parseFloat(row.querySelector('.wage-input').value) || 0;
+        const amount  = days * wagePer;
+
+        row.querySelector('.no-of-days').textContent = days % 1 === 0 ? days : days.toFixed(1);
+        row.querySelector('.row-amount').textContent  = '₹' + fmt(amount);
+        grandTotal += amount;
+
+        // category grouping
+        const cat = (row.querySelector('.cat-input').value || '').toUpperCase() || '—';
+        if (!catMap[cat]) catMap[cat] = { days:0, wage:0 };
+        catMap[cat].days += days;
+        if (wagePer > 0) catMap[cat].wage = wagePer; // use latest seen wage for that cat
+    });
+
+    renderSummary(catMap, grandTotal);
+}
+
+function renderSummary(catMap, grandTotal) {
+    const advance   = parseFloat(document.getElementById('advance-input')?.value) || 0;
+    const netTotal  = grandTotal - advance;
+
+    const catRows = Object.entries(catMap).map(([cat, data]) => {
+        const sub = data.days * data.wage;
+        return `<tr>
+            <td>${cat}</td>
+            <td style="text-align:center;">${data.days % 1 === 0 ? data.days : data.days.toFixed(1)}</td>
+            <td style="text-align:center;">×</td>
+            <td style="text-align:right;">₹${fmt(data.wage)}</td>
+            <td style="text-align:right; color:#a78bfa; font-weight:600;">₹${fmt(sub)}</td>
+        </tr>`;
+    }).join('');
+
+    document.getElementById('summary-section').innerHTML = `
+        <table class="summary-table">
+            <thead><tr>
+                <th>Category</th><th style="text-align:center;">Days</th>
+                <th></th><th style="text-align:right;">Rate</th>
+                <th style="text-align:right;">Amount</th>
+            </tr></thead>
+            <tbody>
+                ${catRows}
+                <tr class="sum-total-row">
+                    <td colspan="4" style="text-align:right;">TOTAL AMOUNT</td>
+                    <td style="text-align:right; color:#c4b5fd;">₹${fmt(grandTotal)}</td>
+                </tr>
+                <tr class="sum-advance-row">
+                    <td colspan="4" style="text-align:right;">Advance</td>
+                    <td style="text-align:right;">
+                        <div class="advance-input-cell">
+                            <span>₹</span>
+                            <input type="number" id="advance-input" class="form-control advance-input"
+                                min="0" step="0.01" value="${advance}"
+                                oninput="recalcAdvance(${grandTotal})">
+                        </div>
+                    </td>
+                </tr>
+                <tr class="sum-net-row">
+                    <td colspan="4" style="text-align:right;">Total Amount</td>
+                    <td style="text-align:right;" id="net-total-cell">₹${fmt(netTotal)}</td>
+                </tr>
+            </tbody>
+        </table>`;
+}
+
+function recalcAdvance(grandTotal) {
+    const advance  = parseFloat(document.getElementById('advance-input')?.value) || 0;
+    const netTotal = grandTotal - advance;
+    const cell = document.getElementById('net-total-cell');
+    if (cell) cell.textContent = '₹' + fmt(netTotal);
+}
+
+// ── Save ──────────────────────────────────────────────────────────────────
+async function saveSheet() {
+    const editor    = document.getElementById('wage-editor');
+    const sheetId   = editor.dataset.sheetId;
+    const projectId = editor.dataset.projectId;
+    const weekStart = editor.dataset.weekStart;
+    const advance   = parseFloat(document.getElementById('advance-input')?.value) || 0;
+
+    const rows = [];
+    document.querySelectorAll('#wage-tbody .wage-row').forEach(row => {
+        const dayInputs = row.querySelectorAll('.day-input');
+        rows.push({
+            category:       row.querySelector('.cat-input').value,
+            employee_name:  row.querySelector('.name-input').value,
+            day1: parseFloat(dayInputs[0].value) || 0,
+            day2: parseFloat(dayInputs[1].value) || 0,
+            day3: parseFloat(dayInputs[2].value) || 0,
+            day4: parseFloat(dayInputs[3].value) || 0,
+            day5: parseFloat(dayInputs[4].value) || 0,
+            day6: parseFloat(dayInputs[5].value) || 0,
+            day7: parseFloat(dayInputs[6].value) || 0,
+            wage_per_day: parseFloat(row.querySelector('.wage-input').value) || 0
+        });
+    });
+
+    const payload = { project_id: projectId, week_start: weekStart, advance, rows };
+    const res = await fetch('/api/wages/' + sheetId, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+        showNotification('Wage sheet saved!', 'success');
+        await loadAll();
+        // re-highlight
+        document.querySelectorAll('.sheet-card').forEach(c => c.classList.remove('active'));
+        const card = document.getElementById('sc-' + sheetId);
+        if (card) card.classList.add('active');
+    } else {
+        showNotification('Failed to save sheet', 'error');
+    }
+}
+
+// ── Delete ────────────────────────────────────────────────────────────────
+async function deleteSheet(id) {
+    if (!confirm('Delete this wage sheet and all its rows?')) return;
+    const res = await fetch('/api/wages/' + id, { method: 'DELETE' });
+    if (res.ok) {
+        showNotification('Sheet deleted', 'success');
+        currentSheetId = null;
+        document.getElementById('wage-editor').innerHTML = `
+            <div class="empty-state">
+                <p>Select a sheet from the left to view or edit it.</p>
+            </div>`;
+        await loadAll();
+    } else {
+        showNotification('Failed to delete sheet', 'error');
+    }
+}
+
+// ── Export PDF ───────────────────────────────────────────────────────────
+function exportPdf() {
+    const editor     = document.getElementById('wage-editor');
+    const projectName = editor.querySelector('[style*="font-weight:700"]')?.textContent?.trim() || 'Project';
+    
+    // Snag the week start and end from dataset to build a clean week string
+    const weekStartRaw = editor.dataset.weekStart || '';
+    let weekInfo = '';
+    if (weekStartRaw) {
+        const startD = new Date(weekStartRaw);
+        const endD = new Date(startD);
+        endD.setDate(endD.getDate() + 6);
+        weekInfo = `Week: ${fmtD(startD)} (Sat) to ${fmtD(endD)} (Fri)`;
+    } else {
+        weekInfo = editor.querySelector('.week-info')?.textContent?.trim()?.replace('→', 'to') || '';
+    }
+
+    const advance    = parseFloat(document.getElementById('advance-input')?.value) || 0;
+
+    // ── Collect employee rows ────────────────────────────────────────────
+    const headers = ['Sl', 'Cat', 'Employee Name'];
+    if (weekStartRaw) {
+        const sat = new Date(weekStartRaw + 'T00:00:00');
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(sat);
+            d.setDate(sat.getDate() + i);
+            headers.push(`${DAY_NAMES[i]}\n${fmtShort(d)}`);
+        }
+    } else {
+        headers.push('Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri');
+    }
+    headers.push('Days', 'Wages/Day', 'Amount');
+
+    const bodyRows = [];
+    let grandTotal = 0;
+    const catMap = {};
+
+    document.querySelectorAll('#wage-tbody .wage-row').forEach((row, idx) => {
+        const dayInputs = row.querySelectorAll('.day-input');
+        let days = 0;
+        const dayVals = [];
+        dayInputs.forEach(inp => {
+            const v = parseFloat(inp.value) || 0;
+            days += v;
+            dayVals.push(v % 1 === 0 ? String(v) : v.toFixed(1));
+        });
+        const wagePer = parseFloat(row.querySelector('.wage-input').value) || 0;
+        const amount  = days * wagePer;
+        const cat     = row.querySelector('.cat-input').value || '';
+        const name    = row.querySelector('.name-input').value || '';
+        grandTotal   += amount;
+
+        // category map
+        const catKey = cat.toUpperCase() || '—';
+        if (!catMap[catKey]) catMap[catKey] = { days: 0, wage: 0 };
+        catMap[catKey].days += days;
+        if (wagePer > 0) catMap[catKey].wage = wagePer;
+
+        bodyRows.push([
+            idx + 1, cat, name,
+            ...dayVals,
+            days % 1 === 0 ? String(days) : days.toFixed(1),
+            fmtNum(wagePer),
+            fmtNum(amount)
+        ]);
+    });
+
+    const netTotal = grandTotal - advance;
+
+    // ── Build PDF ────────────────────────────────────────────────────────
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+    // Decorative top accent bar (Slate-900)
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, 297, 4, 'F');
+
+    // Title / Project name
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(projectName.toUpperCase(), 14, 16);
+
+    // Subtitle / Week info
+    doc.setFontSize(9.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(71, 85, 105);
+    doc.text(weekInfo, 14, 22);
+
+    // Generation timestamp (right aligned)
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(148, 163, 184);
+    const dateStr = 'Generated: ' + new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    doc.text(dateStr, 283, 16, { align: 'right' });
+
+    // Employee table
+    doc.autoTable({
+        startY: 27,
+        head: [headers],
+        body: bodyRows,
+        styles: { fontSize: 8.5, cellPadding: 3, halign: 'center', font: 'helvetica' },
+        headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
+        columnStyles: {
+            0: { cellWidth: 10 },
+            1: { cellWidth: 20, halign: 'left' },
+            2: { cellWidth: 35, halign: 'left' },
+            10: { cellWidth: 14, fontStyle: 'bold' },
+            11: { cellWidth: 22, halign: 'right' },
+            12: { cellWidth: 22, halign: 'right', fontStyle: 'bold', textColor: [15, 23, 42] }
+        },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { left: 14, right: 14 }
+    });
+
+    // Category summary table
+    const summaryY = doc.lastAutoTable.finalY + 8;
+    const summaryHead = [ [ 'Category', 'Total Days', 'x', 'Rate (Rs.)', 'Amount (Rs.)' ] ];
+    const summaryBody = Object.entries(catMap).map(([cat, d]) => [
+        cat,
+        d.days % 1 === 0 ? String(d.days) : d.days.toFixed(1),
+        'x',
+        fmtNum(d.wage),
+        fmtNum(d.days * d.wage)
+    ]);
+    summaryBody.push(['', '', '', 'TOTAL AMOUNT', fmtNum(grandTotal)]);
+    summaryBody.push(['', '', '', 'Advance', fmtNum(advance)]);
+
+    doc.autoTable({
+        startY: summaryY,
+        head: summaryHead,
+        body: summaryBody,
+        styles: { fontSize: 8.5, cellPadding: 3, font: 'helvetica' },
+        headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
+        columnStyles: {
+            0: { cellWidth: 30 },
+            1: { cellWidth: 22, halign: 'center' },
+            2: { cellWidth: 8,  halign: 'center' },
+            3: { cellWidth: 30, halign: 'right' },
+            4: { cellWidth: 30, halign: 'right', fontStyle: 'bold', textColor: [15, 23, 42] }
+        },
+        didParseCell(data) {
+            const totalRowIdx = summaryBody.length - 2;
+            const advRowIdx   = summaryBody.length - 1;
+            if (data.section === 'body') {
+                if (data.row.index === totalRowIdx || data.row.index === advRowIdx) {
+                    data.cell.styles.fontStyle = 'bold';
+                    if (data.row.index === totalRowIdx) {
+                        data.cell.styles.textColor = [15, 23, 42];
+                    } else {
+                        data.cell.styles.textColor = [180, 100, 20];
+                    }
+                }
+            }
+        },
+        margin: { left: 14, right: 14 },
+        tableWidth: 120
+    });
+
+    // Net total elegant box
+    const netY = doc.lastAutoTable.finalY + 4;
+    doc.setFillColor(22, 163, 74); // Emerald-600
+    doc.roundedRect(14, netY, 120, 10, 1, 1, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Total Amount', 18, netY + 6.5);
+    doc.text('Rs. ' + fmtNum(netTotal), 130, netY + 6.5, { align: 'right' });
+
+    // Save
+    const safeName = projectName.replace(/[^a-zA-Z0-9]/g, '_');
+    const weekTag  = editor.dataset.weekStart || 'week';
+    doc.save(`Wages_${safeName}_${weekTag}.pdf`);
+    showNotification('PDF exported successfully!', 'success');
+}
+
+async function exportAllPdf() {
+    if (!allSheets || allSheets.length === 0) {
+        showNotification('No sheets available to export', 'warning');
+        return;
+    }
+
+    const pidFilter = document.getElementById('filter-project').value;
+    const sheetsToExport = pidFilter ? allSheets.filter(s => String(s.project_id) === pidFilter) : allSheets;
+
+    if (!sheetsToExport || sheetsToExport.length === 0) {
+        showNotification('No sheets found under the selected project filter', 'warning');
+        return;
+    }
+
+    showNotification('Preparing filtered PDF export...', 'info');
+
+    try {
+        // Fetch detailed data for filtered sheets in parallel
+        const detailedSheets = await Promise.all(
+            sheetsToExport.map(async (s) => {
+                const res = await fetch('/api/wages/' + s.id);
+                if (!res.ok) throw new Error(`Failed to load sheet ${s.id}`);
+                return res.json();
+            })
+        );
+
+        // Sort sheets by project name and then by week_start (descending) so the export is perfectly ordered
+        detailedSheets.sort((a, b) => {
+            const projComp = a.project_name.localeCompare(b.project_name);
+            if (projComp !== 0) return projComp;
+            return new Date(b.week_start) - new Date(a.week_start);
+        });
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+        detailedSheets.forEach((sheet, pageIdx) => {
+            if (pageIdx > 0) {
+                doc.addPage();
+            }
+
+            // Draw content for this sheet
+            const projectName = sheet.project_name || 'Project';
+            const weekStartD = new Date(sheet.week_start);
+            const weekEndD = new Date(weekStartD);
+            weekEndD.setDate(weekEndD.getDate() + 6);
+            const weekInfo = `Week: ${fmtD(weekStartD)} (Sat) to ${fmtD(weekEndD)} (Fri)`;
+            const advance = sheet.advance || 0;
+
+            // ── Collect employee rows ────────────────────────────────────────────
+            const headers = ['Sl', 'Cat', 'Employee Name'];
+            const sat = new Date(sheet.week_start + 'T00:00:00');
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(sat);
+                d.setDate(sat.getDate() + i);
+                headers.push(`${DAY_NAMES[i]}\n${fmtShort(d)}`);
+            }
+            headers.push('Days', 'Wages/Day', 'Amount');
+
+            const bodyRows = [];
+            let grandTotal = 0;
+            const catMap = {};
+
+            (sheet.rows || []).forEach((row, idx) => {
+                const days = [row.day1, row.day2, row.day3, row.day4, row.day5, row.day6, row.day7].map(v => parseFloat(v) || 0);
+                const daySum = days.reduce((sum, d) => sum + d, 0);
+                const dayVals = days.map(v => v % 1 === 0 ? String(v) : v.toFixed(1));
+
+                const wagePer = row.wage_per_day || 0;
+                const amount = daySum * wagePer;
+                const cat = row.category || '';
+                const name = row.employee_name || '';
+                grandTotal += amount;
+
+                // category map
+                const catKey = cat.toUpperCase() || '—';
+                if (!catMap[catKey]) catMap[catKey] = { days: 0, wage: 0 };
+                catMap[catKey].days += daySum;
+                if (wagePer > 0) catMap[catKey].wage = wagePer;
+
+                bodyRows.push([
+                    idx + 1, cat, name,
+                    ...dayVals,
+                    daySum % 1 === 0 ? String(daySum) : daySum.toFixed(1),
+                    fmtNum(wagePer),
+                    fmtNum(amount)
+                ]);
+            });
+
+            const netTotal = grandTotal - advance;
+
+            // Decorative top accent bar (Slate-900)
+            doc.setFillColor(15, 23, 42);
+            doc.rect(0, 0, 297, 4, 'F');
+
+            // Title / Project name
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(15, 23, 42);
+            doc.text(projectName.toUpperCase(), 14, 16);
+
+            // Subtitle / Week info
+            doc.setFontSize(9.5);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(71, 85, 105);
+            doc.text(weekInfo, 14, 22);
+
+            // Generation timestamp (right aligned)
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(148, 163, 184);
+            const dateStr = 'Generated: ' + new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            doc.text(dateStr, 283, 16, { align: 'right' });
+
+            // Employee table
+            doc.autoTable({
+                startY: 27,
+                head: [headers],
+                body: bodyRows,
+                styles: { fontSize: 8.5, cellPadding: 3, halign: 'center', font: 'helvetica' },
+                headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
+                columnStyles: {
+                    0: { cellWidth: 10 },
+                    1: { cellWidth: 20, halign: 'left' },
+                    2: { cellWidth: 35, halign: 'left' },
+                    10: { cellWidth: 14, fontStyle: 'bold' },
+                    11: { cellWidth: 22, halign: 'right' },
+                    12: { cellWidth: 22, halign: 'right', fontStyle: 'bold', textColor: [15, 23, 42] }
+                },
+                alternateRowStyles: { fillColor: [248, 250, 252] },
+                margin: { left: 14, right: 14 }
+            });
+
+            // Category summary table
+            const summaryY = doc.lastAutoTable.finalY + 8;
+            const summaryHead = [ [ 'Category', 'Total Days', 'x', 'Rate (Rs.)', 'Amount (Rs.)' ] ];
+            const summaryBody = Object.entries(catMap).map(([cat, d]) => [
+                cat,
+                d.days % 1 === 0 ? String(d.days) : d.days.toFixed(1),
+                'x',
+                fmtNum(d.wage),
+                fmtNum(d.days * d.wage)
+            ]);
+            summaryBody.push(['', '', '', 'TOTAL AMOUNT', fmtNum(grandTotal)]);
+            summaryBody.push(['', '', '', 'Advance', fmtNum(advance)]);
+
+            doc.autoTable({
+                startY: summaryY,
+                head: summaryHead,
+                body: summaryBody,
+                styles: { fontSize: 8.5, cellPadding: 3, font: 'helvetica' },
+                headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
+                columnStyles: {
+                    0: { cellWidth: 30 },
+                    1: { cellWidth: 22, halign: 'center' },
+                    2: { cellWidth: 8,  halign: 'center' },
+                    3: { cellWidth: 30, halign: 'right' },
+                    4: { cellWidth: 30, halign: 'right', fontStyle: 'bold', textColor: [15, 23, 42] }
+                },
+                didParseCell(data) {
+                    const totalRowIdx = summaryBody.length - 2;
+                    const advRowIdx   = summaryBody.length - 1;
+                    if (data.section === 'body') {
+                        if (data.row.index === totalRowIdx || data.row.index === advRowIdx) {
+                            data.cell.styles.fontStyle = 'bold';
+                            if (data.row.index === totalRowIdx) {
+                                data.cell.styles.textColor = [15, 23, 42];
+                            } else {
+                                data.cell.styles.textColor = [180, 100, 20];
+                            }
+                        }
+                    }
+                },
+                margin: { left: 14, right: 14 },
+                tableWidth: 120
+            });
+
+            // Net total elegant box
+            const netY = doc.lastAutoTable.finalY + 4;
+            doc.setFillColor(22, 163, 74); // Emerald-600
+            doc.roundedRect(14, netY, 120, 10, 1, 1, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Total Amount', 18, netY + 6.5);
+            doc.text('Rs. ' + fmtNum(netTotal), 130, netY + 6.5, { align: 'right' });
+        });
+
+        // Determine filename based on filter
+        let filename = `All_Wages_Sheet_Summary_${new Date().toISOString().split('T')[0]}.pdf`;
+        if (pidFilter && detailedSheets.length > 0) {
+            const projName = detailedSheets[0].project_name.replace(/[^a-zA-Z0-9]/g, '_');
+            filename = `Wages_${projName}_All_Weeks_${new Date().toISOString().split('T')[0]}.pdf`;
+        }
+
+        doc.save(filename);
+        showNotification('Wages sheets successfully exported to PDF!', 'success');
+    } catch (err) {
+        console.error(err);
+        showNotification('Error exporting all sheets: ' + err.message, 'error');
+    }
+}
+
+function fmtNum(v) {
+    return Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function fmt(v) {
+    return Number(v).toLocaleString('en-IN', { minimumFractionDigits:2, maximumFractionDigits:2 });
+}
+function formatSheetDate(s) {
+    if (!s) return '';
+    const [y,m,d] = s.split('-');
+    return `${d}-${m}-${y}`;
+}
+function fmtD(d) {
+    return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+}
+function fmtShort(d) {
+    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+loadAll();
+</script>
+
+</div>
+</body>
+</html>

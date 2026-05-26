@@ -107,6 +107,11 @@ public class ViewController {
         return "client_payments";
     }
 
+    @GetMapping("/wages")
+    public String wages() {
+        return "wages";
+    }
+
     // User Pages
     @GetMapping("/register")
     public String register() {
