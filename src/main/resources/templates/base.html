@@ -216,13 +216,168 @@
             -webkit-text-fill-color: transparent;
             font-weight: 800 !important;
         }
+
+        /* ── Mobile Layout & Drawer CSS (Screens <= 768px) ───────────── */
+        .mobile-header {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 64px;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            z-index: 999;
+            align-items: center;
+            padding: 0 1.25rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+        }
+        
+        body.light-theme .mobile-header {
+            background: rgba(255, 255, 255, 0.8);
+            border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+        }
+        
+        .menu-toggle-btn {
+            background: none;
+            border: none;
+            color: #f8fafc;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        body.light-theme .menu-toggle-btn {
+            color: #0f172a;
+        }
+        .menu-toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+        body.light-theme .menu-toggle-btn:hover {
+            background: rgba(15, 23, 42, 0.05);
+        }
+        
+        .mobile-logo-text {
+            font-weight: 700;
+            font-size: 1.15rem;
+            margin-left: 0.75rem;
+            background: linear-gradient(to right, #a78bfa, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .sidebar-close-btn {
+            display: none;
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 0.4rem;
+            border-radius: 8px;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .sidebar-close-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+        }
+        body.light-theme .sidebar-close-btn {
+            color: #64748b;
+        }
+        body.light-theme .sidebar-close-btn:hover {
+            background: rgba(15, 23, 42, 0.05);
+            color: #0f172a;
+        }
+        
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(2, 6, 23, 0.7);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            z-index: 998;
+            opacity: 0;
+            transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+        }
+        .sidebar-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-header {
+                display: flex;
+            }
+            .sidebar-close-btn {
+                display: flex;
+            }
+            .sidebar-overlay {
+                display: block;
+            }
+            
+            /* Slide sidebar completely off-screen and add premium cubic-bezier transitions */
+            .sidebar {
+                left: -280px !important;
+                transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                box-shadow: none !important;
+                z-index: 1000 !important;
+            }
+            .sidebar.active {
+                left: 0 !important;
+                box-shadow: 15px 0 40px rgba(0, 0, 0, 0.6) !important;
+            }
+            body.light-theme .sidebar.active {
+                box-shadow: 15px 0 40px rgba(0, 0, 0, 0.12) !important;
+            }
+            
+            /* Remove desktop sidebar offset and add top spacing for mobile header bar */
+            .main-content {
+                margin-left: 0 !important;
+                padding: 5.5rem 1rem 2rem 1rem !important;
+                width: 100% !important;
+            }
+        }
     </style>
 </head>
 
 <body class="light-theme">
+    <!-- Mobile Header Bar -->
+    <header class="mobile-header">
+        <button class="menu-toggle-btn" id="mobile-menu-toggle" aria-label="Toggle Menu">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:24px;height:24px;stroke-width:2;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            </svg>
+        </button>
+        <span class="mobile-logo-text" th:text="${#authentication.principal.company.name}">Elite Build</span>
+    </header>
+
+    <!-- Sidebar Overlay Backdrop -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
     <div class="main-layout">
         <!-- Modern Glass Sidebar -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="app-sidebar">
+            <!-- Close Button inside Sidebar (Mobile only) -->
+            <button class="sidebar-close-btn" id="sidebar-close" aria-label="Close Menu">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:20px;height:20px;stroke-width:2.5;">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+            </button>
             <div class="user-info">
                 <div class="user-name" th:text="${#authentication.principal.name}">User Name</div>
                 <div class="user-role">
@@ -363,7 +518,7 @@
         </main>
     </div>
 
-    <!-- Active Link highlighter script -->
+    <!-- Active Link highlighter script and Mobile Menu Controllers -->
     <script>
         document.addEventListener("DOMContentLoaded", () => {
             const path = window.location.pathname;
@@ -371,6 +526,41 @@
                 if (link.getAttribute('href') === path && path !== '/') {
                     link.classList.add('active');
                 }
+            });
+
+            // Mobile menu drawer controllers
+            const sidebar = document.getElementById("app-sidebar");
+            const overlay = document.getElementById("sidebar-overlay");
+            const toggleBtn = document.getElementById("mobile-menu-toggle");
+            const closeBtn = document.getElementById("sidebar-close");
+
+            const openSidebar = () => {
+                if (sidebar && overlay) {
+                    sidebar.classList.add("active");
+                    overlay.classList.add("active");
+                    document.body.style.overflow = "hidden"; // Freeze scroll under drawer
+                }
+            };
+
+            const closeSidebar = () => {
+                if (sidebar && overlay) {
+                    sidebar.classList.remove("active");
+                    overlay.classList.remove("active");
+                    document.body.style.overflow = ""; // Restore scroll
+                }
+            };
+
+            if (toggleBtn) toggleBtn.addEventListener("click", openSidebar);
+            if (closeBtn) closeBtn.addEventListener("click", closeSidebar);
+            if (overlay) overlay.addEventListener("click", closeSidebar);
+
+            // Automatically close sidebar drawer when a navigation link is clicked
+            document.querySelectorAll(".nav-link").forEach(link => {
+                link.addEventListener("click", () => {
+                    if (window.innerWidth <= 768) {
+                        closeSidebar();
+                    }
+                });
             });
         });
     </script>

@@ -214,6 +214,218 @@
         body.light-theme .empty-state svg {
             opacity: 0.6;
         }
+
+        /* ── Mobile Responsive Styles (Screens <= 768px) ─────────────── */
+        @media (max-width: 768px) {
+            .wage-table-wrap {
+                overflow-x: visible !important;
+            }
+            .wage-table {
+                min-width: unset !important;
+            }
+            
+            /* Hide table headers on mobile */
+            .wage-table thead, .summary-table thead {
+                display: none !important;
+            }
+
+            /* Stack structural elements as block-level */
+            .wage-table, 
+            .wage-table tbody, 
+            .wage-table tr, 
+            .summary-table, 
+            .summary-table tbody, 
+            .summary-table tr {
+                display: block !important;
+                width: 100% !important;
+            }
+
+            /* Convert each worker row into a premium card */
+            .wage-table tr.wage-row {
+                background: rgba(30, 41, 59, 0.45);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 16px;
+                padding: 1.25rem;
+                margin-bottom: 1.25rem;
+                display: flex !important;
+                flex-direction: column;
+                gap: 0.75rem;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+            }
+            
+            body.light-theme .wage-table tr.wage-row {
+                background: #ffffff;
+                border: 1px solid rgba(15, 23, 42, 0.08);
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+            }
+
+            /* Format cells as horizontal label-value pairs */
+            .wage-table td, .summary-table td {
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: center !important;
+                padding: 0.6rem 0 !important;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+                text-align: right !important;
+                width: 100% !important;
+            }
+
+            body.light-theme .wage-table td, body.light-theme .summary-table td {
+                border-bottom: 1px solid rgba(15, 23, 42, 0.06) !important;
+            }
+
+            /* Text labels via data-label attributes */
+            .wage-table td::before, .summary-table td::before {
+                content: attr(data-label);
+                font-size: 0.78rem;
+                color: #94a3b8;
+                font-weight: 700;
+                text-transform: uppercase;
+                text-align: left;
+                margin-right: 1rem;
+            }
+
+            body.light-theme .wage-table td::before, body.light-theme .summary-table td::before {
+                color: #64748b;
+            }
+
+            /* Input styling for touch devices */
+            .wage-table input.form-control {
+                font-size: 0.95rem !important;
+                padding: 0.6rem !important;
+                border-radius: 8px !important;
+                height: 38px !important;
+            }
+            .wage-table .day-input {
+                width: 80px !important;
+                text-align: right !important;
+            }
+            .wage-table .name-input {
+                width: 180px !important;
+                text-align: right !important;
+            }
+            .wage-table .cat-input {
+                width: 100px !important;
+                text-align: right !important;
+            }
+            .wage-table .wage-input {
+                width: 130px !important;
+                text-align: right !important;
+            }
+
+            /* Sl No block separator styling */
+            .wage-table .sl-cell {
+                font-size: 0.95rem;
+                font-weight: 800;
+                color: #a78bfa !important;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+                padding-bottom: 0.5rem !important;
+            }
+            body.light-theme .wage-table .sl-cell {
+                color: #6d28d9 !important;
+                border-bottom: 1px solid rgba(15, 23, 42, 0.12) !important;
+            }
+
+            /* touch safe full width delete button */
+            .del-row-btn {
+                width: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.5rem;
+                padding: 0.75rem !important;
+                background: rgba(248, 113, 113, 0.1) !important;
+                border: 1px solid rgba(248, 113, 113, 0.2) !important;
+                border-radius: 10px;
+                color: #f87171 !important;
+                margin-top: 0.25rem;
+                font-size: 0.9rem !important;
+            }
+            .del-row-btn:hover {
+                background: rgba(248, 113, 113, 0.2) !important;
+            }
+            .mobile-only-text {
+                display: inline !important;
+            }
+
+            /* Category Summary Cards */
+            .summary-table tr {
+                background: rgba(30, 41, 59, 0.3);
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                border-radius: 12px;
+                padding: 1rem;
+                margin-bottom: 0.8rem;
+                display: flex !important;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            body.light-theme .summary-table tr {
+                background: rgba(255, 255, 255, 0.5);
+                border: 1px solid rgba(15, 23, 42, 0.05);
+            }
+            .summary-table .sum-total-row td,
+            .summary-table .sum-advance-row td,
+            .summary-table .sum-net-row td {
+                border-top: none !important;
+                border-bottom: none !important;
+                padding: 0.4rem 0 !important;
+            }
+            .summary-table .sum-label {
+                display: none !important;
+            }
+            .mobile-hide {
+                display: none !important;
+            }
+            .advance-input {
+                width: 130px !important;
+                text-align: right !important;
+            }
+
+            /* Stacking inputs & selectors inside toolbar */
+            .wage-toolbar .form-group {
+                width: 100% !important;
+            }
+            .wage-toolbar .form-control {
+                width: 100% !important;
+            }
+
+            /* Stacking create sheet form inputs */
+            .new-sheet-bar {
+                flex-direction: column;
+                align-items: stretch !important;
+                gap: 0.8rem;
+            }
+            .new-sheet-bar .form-group {
+                width: 100% !important;
+            }
+            .new-sheet-bar .form-control {
+                width: 100% !important;
+                min-width: unset !important;
+            }
+            .new-sheet-bar button {
+                width: 100%;
+            }
+
+            /* Grid for active sheet actions header */
+            .wage-editor-header {
+                flex-direction: column;
+                align-items: stretch !important;
+                gap: 1rem;
+            }
+            .wage-editor-header div:last-child {
+                width: 100%;
+                display: grid !important;
+                grid-template-columns: 1fr 1fr;
+                gap: 0.5rem !important;
+            }
+            .wage-editor-header div:last-child button {
+                justify-content: center;
+                width: 100%;
+            }
+            .wage-editor-header div:last-child button:last-child {
+                grid-column: span 2;
+            }
+        }
     </style>
 </head>
 <body>
@@ -481,20 +693,24 @@ function renderEditor(sheet) {
 }
 
 function buildRowHTML(r, slNo, dayDates) {
-    const days = [r.day1,r.day2,r.day3,r.day4,r.day5,r.day6,r.day7].map((v,i) =>
-        `<td><input type="number" class="form-control day-input" min="0" max="2" step="0.5"
-            value="${v||0}" oninput="recalcAll()" data-day="${i+1}"></td>`).join('');
+    const days = [r.day1,r.day2,r.day3,r.day4,r.day5,r.day6,r.day7].map((v,i) => {
+        const dayLabel = dayDates && dayDates[i] && dayDates[i].date ? `${dayDates[i].label} (${dayDates[i].date})` : (dayDates && dayDates[i] ? dayDates[i].label : DAY_NAMES[i]);
+        return `<td data-label="${dayLabel}"><input type="number" class="form-control day-input" min="0" max="2" step="0.5"
+            value="${v||0}" oninput="recalcAll()" data-day="${i+1}"></td>`;
+    }).join('');
     return `
     <tr class="wage-row">
-        <td class="sl-cell">${slNo}</td>
-        <td class="td-left"><input type="text" class="form-control cat-input" placeholder="Cat" value="${r.category||''}" oninput="recalcAll()"></td>
-        <td class="td-left"><input type="text" class="form-control name-input" placeholder="Name" value="${r.employee_name||''}"></td>
+        <td class="sl-cell" data-label="Sl">${slNo}</td>
+        <td class="td-left" data-label="Cat"><input type="text" class="form-control cat-input" placeholder="Cat" value="${r.category||''}" oninput="recalcAll()"></td>
+        <td class="td-left" data-label="Name"><input type="text" class="form-control name-input" placeholder="Name" value="${r.employee_name||''}"></td>
         ${days}
-        <td class="calc-cell no-of-days">0</td>
-        <td><input type="number" class="form-control wage-input" min="0" step="0.01"
+        <td class="calc-cell no-of-days" data-label="Days">0</td>
+        <td data-label="Wages/Day"><input type="number" class="form-control wage-input" min="0" step="0.01"
             value="${r.wage_per_day||0}" oninput="recalcAll()" placeholder="0"></td>
-        <td class="calc-cell row-amount">0</td>
-        <td><button class="del-row-btn" onclick="deleteRow(this)" title="Remove">✕</button></td>
+        <td class="calc-cell row-amount" data-label="Amount">0</td>
+        <td data-label="Action">
+            <button class="del-row-btn" onclick="deleteRow(this)" title="Remove">✕<span class="mobile-only-text" style="display: none;">Remove Worker</span></button>
+        </td>
     </tr>`;
 }
 
@@ -502,8 +718,21 @@ function addRow() {
     const tbody = document.getElementById('wage-tbody');
     const slNo  = tbody.querySelectorAll('.wage-row').length + 1;
     const emptyRow = { category:'', employee_name:'', day1:0,day2:0,day3:0,day4:0,day5:0,day6:0,day7:0, wage_per_day:0 };
-    // get day labels from existing header
-    const dayDates = Array.from({length:7}, (_,i)=>({ label:DAY_NAMES[i], date:'' }));
+    
+    // Construct actual dayDates from the sheet's week start!
+    const editor = document.getElementById('wage-editor');
+    const weekStart = editor.dataset.weekStart;
+    let dayDates = [];
+    if (weekStart) {
+        const sat = new Date(weekStart + 'T00:00:00');
+        dayDates = Array.from({length:7}, (_,i) => {
+            const d = new Date(sat); d.setDate(sat.getDate()+i);
+            return { label: DAY_NAMES[i], date: fmtShort(d) };
+        });
+    } else {
+        dayDates = Array.from({length:7}, (_,i)=>({ label:DAY_NAMES[i], date:'' }));
+    }
+    
     const tr = document.createElement('tr');
     tr.className = 'wage-row';
     tr.innerHTML = buildRowHTML(emptyRow, slNo, dayDates).replace(/<tr[^>]*>|<\/tr>/g,'');
@@ -558,11 +787,11 @@ function renderSummary(catMap, grandTotal) {
     const catRows = Object.entries(catMap).map(([cat, data]) => {
         const sub = data.days * data.wage;
         return `<tr>
-            <td>${cat}</td>
-            <td style="text-align:center;">${data.days % 1 === 0 ? data.days : data.days.toFixed(1)}</td>
-            <td style="text-align:center;">×</td>
-            <td style="text-align:right;">₹${fmt(data.wage)}</td>
-            <td style="text-align:right; color:#a78bfa; font-weight:600;">₹${fmt(sub)}</td>
+            <td data-label="Category">${cat}</td>
+            <td data-label="Days" style="text-align:center;">${data.days % 1 === 0 ? data.days : data.days.toFixed(1)}</td>
+            <td class="mobile-hide" style="text-align:center;">×</td>
+            <td data-label="Rate" style="text-align:right;">₹${fmt(data.wage)}</td>
+            <td data-label="Amount" style="text-align:right; color:#a78bfa; font-weight:600;">₹${fmt(sub)}</td>
         </tr>`;
     }).join('');
 
@@ -576,12 +805,12 @@ function renderSummary(catMap, grandTotal) {
             <tbody>
                 ${catRows}
                 <tr class="sum-total-row">
-                    <td colspan="4" style="text-align:right;">TOTAL AMOUNT</td>
-                    <td style="text-align:right; color:#c4b5fd;">₹${fmt(grandTotal)}</td>
+                    <td colspan="4" class="sum-label" style="text-align:right;">TOTAL AMOUNT</td>
+                    <td style="text-align:right; color:#c4b5fd;" data-label="Total Amount">₹${fmt(grandTotal)}</td>
                 </tr>
                 <tr class="sum-advance-row">
-                    <td colspan="4" style="text-align:right;">Advance</td>
-                    <td style="text-align:right;">
+                    <td colspan="4" class="sum-label" style="text-align:right;">Advance</td>
+                    <td style="text-align:right;" data-label="Advance">
                         <div class="advance-input-cell">
                             <span>₹</span>
                             <input type="number" id="advance-input" class="form-control advance-input"
@@ -591,8 +820,8 @@ function renderSummary(catMap, grandTotal) {
                     </td>
                 </tr>
                 <tr class="sum-net-row">
-                    <td colspan="4" style="text-align:right;">Total Amount</td>
-                    <td style="text-align:right;" id="net-total-cell">₹${fmt(netTotal)}</td>
+                    <td colspan="4" class="sum-label" style="text-align:right;">Total Amount</td>
+                    <td style="text-align:right;" id="net-total-cell" data-label="Net Total">₹${fmt(netTotal)}</td>
                 </tr>
             </tbody>
         </table>`;
