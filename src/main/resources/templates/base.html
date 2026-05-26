@@ -360,6 +360,12 @@
                 max-width: 100% !important;
                 overflow-x: auto !important;
                 -webkit-overflow-scrolling: touch !important;
+                display: block !important; /* Force block-level box to capture horizontal scroll boundaries */
+            }
+
+            .table-container table {
+                width: max-content !important;
+                min-width: 100% !important;
             }
             
             /* Make sure table container margins don't break flex layouts */
