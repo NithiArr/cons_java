@@ -1,18 +1,6 @@
 spring:
   application:
     name: construction-manager
-  datasource:
-    url: jdbc:postgresql://${PGHOST:${DB_HOST:localhost}}:${PGPORT:${DB_PORT:5432}}/${PGDATABASE:${DB_NAME:construction_db}}?sslmode=${DB_SSLMODE:prefer}
-    username: ${PGUSER:${DB_USERNAME:postgres}}
-    password: ${PGPASSWORD:${DB_PASSWORD:admin123}}
-    driver-class-name: org.postgresql.Driver
-    hikari:
-      connection-timeout: 30000
-      maximum-pool-size: 3
-      minimum-idle: 1
-      idle-timeout: 300000
-      max-lifetime: 600000
-      connection-test-query: SELECT 1
   jpa:
     hibernate:
       ddl-auto: update
