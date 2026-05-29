@@ -469,6 +469,69 @@ function teleportModalsToBody() {
     });
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// MOBILE TABLE → CARD TRANSFORM
+// Reads <th> header text and stamps data-label on every <td> so CSS can
+// display them as label:value cards.  Works for BOTH static Thymeleaf tables
+// and JS-rendered tables (dynamic innerHTML).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Stamp data-label attributes on all <td>s in a given <table>
+ * by reading the corresponding <th> text.
+ */
+function labelTableCells(table) {
+    // Collect header labels, stripping any nested filter-input text
+    const headers = Array.from(table.querySelectorAll('thead th')).map(th => {
+        // Clone to safely read just the direct text nodes (ignoring nested <input>/<select>)
+        const clone = th.cloneNode(true);
+        clone.querySelectorAll('input, select, button').forEach(el => el.remove());
+        return clone.textContent.trim();
+    });
+
+    if (headers.length === 0) return;
+
+    table.querySelectorAll('tbody tr').forEach(row => {
+        Array.from(row.querySelectorAll('td')).forEach((td, i) => {
+            if (headers[i]) td.setAttribute('data-label', headers[i]);
+        });
+    });
+}
+
+/**
+ * Label all tables on the page.
+ */
+function labelAllTables() {
+    if (window.innerWidth > 768) return; // Desktop: skip
+    document.querySelectorAll('table').forEach(labelTableCells);
+}
+
+/**
+ * Watch every <tbody> for dynamically injected rows (JS-rendered tables).
+ * When innerHTML is replaced we re-label the parent table immediately.
+ */
+function watchDynamicTables() {
+    if (window.innerWidth > 768) return;
+
+    const observer = new MutationObserver(mutations => {
+        mutations.forEach(mutation => {
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                const tbody = mutation.target.closest('tbody') || mutation.target;
+                const table = tbody.closest('table');
+                if (table) labelTableCells(table);
+            }
+        });
+    });
+
+    // Observe existing tbodys
+    document.querySelectorAll('tbody').forEach(tbody => {
+        observer.observe(tbody, { childList: true, subtree: false });
+    });
+
+    // Also observe the whole document for tables added later
+    observer.observe(document.body, { childList: true, subtree: true });
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     teleportModalsToBody();
@@ -476,6 +539,10 @@ document.addEventListener('DOMContentLoaded', () => {
     setActiveNavLink();
     initAmountFormatting();
     setupThemeToggle();
+
+    // Mobile table card transform
+    labelAllTables();
+    watchDynamicTables();
 });
 
 // Global error handler
