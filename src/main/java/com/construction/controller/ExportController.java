@@ -905,6 +905,98 @@ public class ExportController {
         BigDecimal expBankUpi     = expenses.stream().filter(e -> "BANK".equalsIgnoreCase(e.getPaymentMode()) || "UPI".equalsIgnoreCase(e.getPaymentMode())).map(Expense::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal closingBal     = openingBal.add(clientReceipts).subtract(expCash).subtract(expBankUpi).subtract(vendorPayTotal);
 
+        // Resolve list of projects to process
+        List<Project> projectsToProcess;
+        if (allProjects) {
+            projectsToProcess = projectRepository.findByCompanyOrderByCreatedAtDesc(company);
+        } else {
+            List<Long> safeIds = finalPidList != null ? finalPidList : Collections.emptyList();
+            projectsToProcess = projectRepository.findAllById(safeIds).stream()
+                    .filter(p -> p.getCompany().getCompanyId().equals(company.getCompanyId()))
+                    .collect(Collectors.toList());
+        }
+
+        // Local class to store project summary values
+        class ProjectSummary {
+            Project proj;
+            BigDecimal op = BigDecimal.ZERO;
+            BigDecimal receipts = BigDecimal.ZERO;
+            BigDecimal credit = BigDecimal.ZERO;
+            BigDecimal cash = BigDecimal.ZERO;
+            BigDecimal bankUpi = BigDecimal.ZERO;
+            BigDecimal vendorPaid = BigDecimal.ZERO;
+            BigDecimal cl = BigDecimal.ZERO;
+        }
+
+        List<ProjectSummary> projSummaries = new ArrayList<>();
+        BigDecimal totalOp = BigDecimal.ZERO;
+        BigDecimal totalCl = BigDecimal.ZERO;
+        BigDecimal totalReceipts = BigDecimal.ZERO;
+        BigDecimal totalCredit = BigDecimal.ZERO;
+        BigDecimal totalCash = BigDecimal.ZERO;
+        BigDecimal totalBankUpi = BigDecimal.ZERO;
+        BigDecimal totalVendorPaid = BigDecimal.ZERO;
+
+        for (Project pObj : projectsToProcess) {
+            ProjectSummary ps = new ProjectSummary();
+            ps.proj = pObj;
+            Long pid = pObj.getProjectId();
+
+            // Calculate opening balance for this project
+            BigDecimal pOpInflow = opClientPays.stream()
+                    .filter(cp -> cp.getProject() != null && cp.getProject().getProjectId().equals(pid))
+                    .map(ClientPayment::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal pOpExpOut = opExpenses.stream()
+                    .filter(e -> e.getProject() != null && e.getProject().getProjectId().equals(pid))
+                    .filter(e -> !"CREDIT".equalsIgnoreCase(e.getPaymentMode()))
+                    .map(Expense::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal pOpPayOut = opVendorPays.stream()
+                    .filter(p -> p.getProject() != null && p.getProject().getProjectId().equals(pid))
+                    .map(Payment::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            ps.op = pOpInflow.subtract(pOpExpOut).subtract(pOpPayOut);
+
+            // Calculate period data for this project
+            ps.receipts = clientPays.stream()
+                    .filter(cp -> cp.getProject() != null && cp.getProject().getProjectId().equals(pid))
+                    .map(ClientPayment::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            ps.vendorPaid = vendorPays.stream()
+                    .filter(p -> p.getProject() != null && p.getProject().getProjectId().equals(pid))
+                    .map(Payment::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            ps.credit = expenses.stream()
+                    .filter(e -> e.getProject() != null && e.getProject().getProjectId().equals(pid))
+                    .filter(e -> "CREDIT".equalsIgnoreCase(e.getPaymentMode()))
+                    .map(Expense::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            ps.cash = expenses.stream()
+                    .filter(e -> e.getProject() != null && e.getProject().getProjectId().equals(pid))
+                    .filter(e -> "CASH".equalsIgnoreCase(e.getPaymentMode()))
+                    .map(Expense::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            ps.bankUpi = expenses.stream()
+                    .filter(e -> e.getProject() != null && e.getProject().getProjectId().equals(pid))
+                    .filter(e -> "BANK".equalsIgnoreCase(e.getPaymentMode()) || "UPI".equalsIgnoreCase(e.getPaymentMode()))
+                    .map(Expense::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            ps.cl = ps.op.add(ps.receipts).subtract(ps.cash).subtract(ps.bankUpi).subtract(ps.vendorPaid);
+
+            projSummaries.add(ps);
+
+            // Accumulate totals
+            totalOp = totalOp.add(ps.op);
+            totalCl = totalCl.add(ps.cl);
+            totalReceipts = totalReceipts.add(ps.receipts);
+            totalCredit = totalCredit.add(ps.credit);
+            totalCash = totalCash.add(ps.cash);
+            totalBankUpi = totalBankUpi.add(ps.bankUpi);
+            totalVendorPaid = totalVendorPaid.add(ps.vendorPaid);
+        }
+
         Workbook wb = new XSSFWorkbook();
         XSSFWorkbook xwb = (XSSFWorkbook) wb;
         CellStyle hStyle  = headerStyle(wb);
@@ -984,69 +1076,237 @@ public class ExportController {
                 r.createCell(1).setCellValue((String) row[1]);
             }
         }
-        sum.setColumnWidth(0, 10000); sum.setColumnWidth(1, 5000);
 
-        // ── Sheet 2: Transactions ─────────────────────────────────────
-        Sheet txSheet = wb.createSheet("Transactions");
-        hdr(txSheet, hStyle, "Date", "Type", "Project", "Details", "Payment Mode", "Amount");
+        // Add spacing before project summary table
+        sn += 2;
 
-        // Combine and sort all transactions by date
-        List<Object[]> txRows = new ArrayList<>();
-        for (ClientPayment cp : clientPays)
-            txRows.add(new Object[]{ cp.getPaymentDate(), "Client Payment",
-                cp.getProject() != null ? cp.getProject().getName() : "",
-                cp.getReferenceNumber() != null ? "Ref: " + cp.getReferenceNumber() : "",
-                cp.getPaymentMode(), cp.getAmount() });
-        for (Payment p : vendorPays)
-            txRows.add(new Object[]{ p.getPaymentDate(), "Vendor Payment",
-                p.getProject() != null ? p.getProject().getName() : "",
-                p.getVendor() != null ? p.getVendor().getName() : "",
-                p.getPaymentMode(), p.getAmount() });
-        for (Expense e : expenses)
-            txRows.add(new Object[]{ e.getExpenseDate(), e.getExpenseType(),
-                e.getProject() != null ? e.getProject().getName() : "",
-                e.getCategory() != null ? e.getCategory() : "",
-                e.getPaymentMode(), e.getAmount() });
+        // Styles for project breakdown table
+        CellStyle cellBorder = wb.createCellStyle();
+        cellBorder.setBorderTop(BorderStyle.THIN);
+        cellBorder.setBorderBottom(BorderStyle.THIN);
+        cellBorder.setBorderLeft(BorderStyle.THIN);
+        cellBorder.setBorderRight(BorderStyle.THIN);
 
-        txRows.sort(Comparator.comparing(r -> (LocalDate) r[0]));
+        CellStyle projDataStyle = wb.createCellStyle();
+        projDataStyle.cloneStyleFrom(cellBorder);
 
-        int tn = 1; BigDecimal netFlow = BigDecimal.ZERO;
-        for (Object[] tx : txRows) {
-            String type = (String) tx[1];
-            boolean isIncome = "Client Payment".equals(type);
-            CellStyle textStyle = isIncome ? greenText : redText;
-            CellStyle amtStyle2 = isIncome ? greenAmt  : redAmt;
+        CellStyle opDataStyle = wb.createCellStyle();
+        opDataStyle.cloneStyleFrom(cellBorder);
+        opDataStyle.setFont(bold);
+        opDataStyle.setDataFormat(wb.createDataFormat().getFormat("[$₹-en-IN]##,##,##0.00"));
 
-            Row r = txSheet.createRow(tn++);
-            for (int col = 0; col < 5; col++) {
-                Cell c = r.createCell(col);
-                c.setCellValue(col == 0
-                        ? ((LocalDate) tx[0]).format(DATE_FMT)
-                        : (String) tx[col]);
-                c.setCellStyle(textStyle);
+        CellStyle greenDataStyle = wb.createCellStyle();
+        greenDataStyle.cloneStyleFrom(cellBorder);
+        greenDataStyle.setFont(greenFont2);
+        greenDataStyle.setDataFormat(wb.createDataFormat().getFormat("[$₹-en-IN]##,##,##0.00"));
+
+        CellStyle redDataStyle = wb.createCellStyle();
+        redDataStyle.cloneStyleFrom(cellBorder);
+        redDataStyle.setFont(redFont2);
+        redDataStyle.setDataFormat(wb.createDataFormat().getFormat("[$₹-en-IN]##,##,##0.00"));
+
+        // Header styles for project breakdown table
+        CellStyle headerCommon = wb.createCellStyle();
+        headerCommon.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+        headerCommon.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        headerCommon.setBorderTop(BorderStyle.THIN);
+        headerCommon.setBorderBottom(BorderStyle.THIN);
+        headerCommon.setBorderLeft(BorderStyle.THIN);
+        headerCommon.setBorderRight(BorderStyle.THIN);
+        headerCommon.setAlignment(HorizontalAlignment.CENTER);
+
+        CellStyle projHdr = wb.createCellStyle();
+        projHdr.cloneStyleFrom(headerCommon);
+        projHdr.setFont(bold);
+
+        CellStyle opHdr = wb.createCellStyle();
+        opHdr.cloneStyleFrom(headerCommon);
+        opHdr.setFont(bold);
+
+        CellStyle clHdr = wb.createCellStyle();
+        clHdr.cloneStyleFrom(headerCommon);
+        clHdr.setFont(bold);
+
+        XSSFFont greenFont2Bold = xwb.createFont();
+        greenFont2Bold.setBold(true);
+        greenFont2Bold.setColor(new XSSFColor(new byte[]{(byte)0, (byte)130, (byte)0}, null));
+
+        XSSFFont redFont2Bold = xwb.createFont();
+        redFont2Bold.setBold(true);
+        redFont2Bold.setColor(new XSSFColor(new byte[]{(byte)192, (byte)0, (byte)0}, null));
+
+        CellStyle greenHdr = wb.createCellStyle();
+        greenHdr.cloneStyleFrom(headerCommon);
+        greenHdr.setFont(greenFont2Bold);
+
+        CellStyle redHdr = wb.createCellStyle();
+        redHdr.cloneStyleFrom(headerCommon);
+        redHdr.setFont(redFont2Bold);
+
+        // Write Project Breakdown Table headers
+        Row tblHdrRow = sum.createRow(sn++);
+        String[] headers = {
+            "Project", "Opening Balance", "Closing Balance", "Client Receipts",
+            "Expenses - Credit", "Expenses - Cash", "Expenses - Bank/UPI", "Vendor Payments Made"
+        };
+        CellStyle[] headerStyles = {
+            projHdr, opHdr, clHdr, greenHdr, redHdr, redHdr, redHdr, redHdr
+        };
+        for (int i = 0; i < headers.length; i++) {
+            Cell c = tblHdrRow.createCell(i);
+            c.setCellValue(headers[i]);
+            c.setCellStyle(headerStyles[i]);
+        }
+
+        // Render project data rows
+        for (ProjectSummary ps : projSummaries) {
+            Row r = sum.createRow(sn++);
+            Cell c0 = r.createCell(0); c0.setCellValue(ps.proj.getName()); c0.setCellStyle(projDataStyle);
+            Cell c1 = r.createCell(1); c1.setCellValue(ps.op.doubleValue()); c1.setCellStyle(opDataStyle);
+            Cell c2 = r.createCell(2); c2.setCellValue(ps.cl.doubleValue()); c2.setCellStyle(opDataStyle);
+            Cell c3 = r.createCell(3); c3.setCellValue(ps.receipts.doubleValue()); c3.setCellStyle(greenDataStyle);
+            Cell c4 = r.createCell(4); c4.setCellValue(-ps.credit.doubleValue()); c4.setCellStyle(redDataStyle);
+            Cell c5 = r.createCell(5); c5.setCellValue(-ps.cash.doubleValue()); c5.setCellStyle(redDataStyle);
+            Cell c6 = r.createCell(6); c6.setCellValue(-ps.bankUpi.doubleValue()); c6.setCellStyle(redDataStyle);
+            Cell c7 = r.createCell(7); c7.setCellValue(-ps.vendorPaid.doubleValue()); c7.setCellStyle(redDataStyle);
+        }
+
+        // Render project data total row
+        Row rTot = sum.createRow(sn++);
+        CellStyle totalLabelStyle = wb.createCellStyle();
+        totalLabelStyle.cloneStyleFrom(cellBorder);
+        totalLabelStyle.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex());
+        totalLabelStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        totalLabelStyle.setFont(bold);
+
+        CellStyle totalOpStyle = wb.createCellStyle();
+        totalOpStyle.cloneStyleFrom(totalLabelStyle);
+        totalOpStyle.setDataFormat(wb.createDataFormat().getFormat("[$₹-en-IN]##,##,##0.00"));
+
+        CellStyle totalGreenStyle = wb.createCellStyle();
+        totalGreenStyle.cloneStyleFrom(totalLabelStyle);
+        totalGreenStyle.setFont(greenFont2Bold);
+        totalGreenStyle.setDataFormat(wb.createDataFormat().getFormat("[$₹-en-IN]##,##,##0.00"));
+
+        CellStyle totalRedStyle = wb.createCellStyle();
+        totalRedStyle.cloneStyleFrom(totalLabelStyle);
+        totalRedStyle.setFont(redFont2Bold);
+        totalRedStyle.setDataFormat(wb.createDataFormat().getFormat("[$₹-en-IN]##,##,##0.00"));
+
+        Cell t0 = rTot.createCell(0); t0.setCellValue("TOTAL"); t0.setCellStyle(totalLabelStyle);
+        Cell t1 = rTot.createCell(1); t1.setCellValue(totalOp.doubleValue()); t1.setCellStyle(totalOpStyle);
+        Cell t2 = rTot.createCell(2); t2.setCellValue(totalCl.doubleValue()); t2.setCellStyle(totalOpStyle);
+        Cell t3 = rTot.createCell(3); t3.setCellValue(totalReceipts.doubleValue()); t3.setCellStyle(totalGreenStyle);
+        Cell t4 = rTot.createCell(4); t4.setCellValue(-totalCredit.doubleValue()); t4.setCellStyle(totalRedStyle);
+        Cell t5 = rTot.createCell(5); t5.setCellValue(-totalCash.doubleValue()); t5.setCellStyle(totalRedStyle);
+        Cell t6 = rTot.createCell(6); t6.setCellValue(-totalBankUpi.doubleValue()); t6.setCellStyle(totalRedStyle);
+        Cell t7 = rTot.createCell(7); t7.setCellValue(-totalVendorPaid.doubleValue()); t7.setCellStyle(totalRedStyle);
+
+        // Auto-fit all 8 summary sheet columns
+        for (int i = 0; i < 8; i++) {
+            sum.autoSizeColumn(i);
+        }
+
+        // ── Sheet 2 onwards: Individual Project Transaction Sheets ────
+        Set<String> usedSheetNames = new HashSet<>();
+        for (ProjectSummary ps : projSummaries) {
+            Project pObj = ps.proj;
+            String baseSheetName = pObj.getName().replaceAll("[\\[\\]\\*\\?:/\\\\]", "");
+            if (baseSheetName.length() > 31) {
+                baseSheetName = baseSheetName.substring(0, 31);
             }
-            BigDecimal amt = (BigDecimal) tx[5];
-            String payMode = (String) tx[4];
-            boolean isCredit = "CREDIT".equalsIgnoreCase(payMode);
-            // Outflows stored as negative numbers
-            double displayAmt = amt != null ? (isIncome ? amt.doubleValue() : -amt.doubleValue()) : 0.0;
-            Cell amtCell = r.createCell(5);
-            amtCell.setCellValue(displayAmt);
-            amtCell.setCellStyle(amtStyle2);
-            // Credit expenses don't move cash — exclude from net total
-            if (amt != null) {
-                if (isIncome) {
-                    netFlow = netFlow.add(amt);
-                } else if (!isCredit) {
-                    netFlow = netFlow.add(amt.negate());
+            String finalSheetName = baseSheetName;
+            int counter = 1;
+            while (usedSheetNames.contains(finalSheetName.toLowerCase())) {
+                String suffix = " (" + counter + ")";
+                int maxLen = 31 - suffix.length();
+                if (baseSheetName.length() > maxLen) {
+                    finalSheetName = baseSheetName.substring(0, maxLen) + suffix;
+                } else {
+                    finalSheetName = baseSheetName + suffix;
+                }
+                counter++;
+            }
+            usedSheetNames.add(finalSheetName.toLowerCase());
+            Sheet projTxSheet = wb.createSheet(finalSheetName);
+
+            // Write Headers
+            hdr(projTxSheet, hStyle, "Date", "Type", "Project", "Details", "Payment Mode", "Amount");
+
+            // Write Opening Balance row
+            Row opRow = projTxSheet.createRow(1);
+            Cell opCell0 = opRow.createCell(0); opCell0.setCellValue(from.format(DATE_FMT)); opCell0.setCellStyle(boldStyle);
+            Cell opCell1 = opRow.createCell(1); opCell1.setCellValue("Opening Balance"); opCell1.setCellStyle(boldStyle);
+            Cell opCell2 = opRow.createCell(2); opCell2.setCellValue(pObj.getName()); opCell2.setCellStyle(boldStyle);
+            Cell opCell3 = opRow.createCell(3); opCell3.setCellValue("Opening Balance"); opCell3.setCellStyle(boldStyle);
+            Cell opCell4 = opRow.createCell(4); opCell4.setCellValue(""); opCell4.setCellStyle(boldStyle);
+            Cell opCell5 = opRow.createCell(5); opCell5.setCellValue(ps.op.doubleValue()); opCell5.setCellStyle(boldAmt);
+
+            // Filter and sort transactions for this project
+            List<Object[]> projTxRows = new ArrayList<>();
+            for (ClientPayment cp : clientPays) {
+                if (cp.getProject() != null && cp.getProject().getProjectId().equals(pObj.getProjectId())) {
+                    projTxRows.add(new Object[]{ cp.getPaymentDate(), "Client Payment",
+                        pObj.getName(),
+                        cp.getReferenceNumber() != null ? "Ref: " + cp.getReferenceNumber() : "",
+                        cp.getPaymentMode(), cp.getAmount() });
+                }
+            }
+            for (Payment p : vendorPays) {
+                if (p.getProject() != null && p.getProject().getProjectId().equals(pObj.getProjectId())) {
+                    projTxRows.add(new Object[]{ p.getPaymentDate(), "Vendor Payment",
+                        pObj.getName(),
+                        p.getVendor() != null ? p.getVendor().getName() : "",
+                        p.getPaymentMode(), p.getAmount() });
+                }
+            }
+            for (Expense e : expenses) {
+                if (e.getProject() != null && e.getProject().getProjectId().equals(pObj.getProjectId())) {
+                    projTxRows.add(new Object[]{ e.getExpenseDate(), e.getExpenseType(),
+                        pObj.getName(),
+                        e.getCategory() != null ? e.getCategory() : "",
+                        e.getPaymentMode(), e.getAmount() });
                 }
             }
 
+            projTxRows.sort(Comparator.comparing(r -> (LocalDate) r[0]));
 
+            int tn = 2; // Rows start at index 2 since index 1 is Opening Balance
+            for (Object[] tx : projTxRows) {
+                String type = (String) tx[1];
+                boolean isIncome = "Client Payment".equals(type);
+                CellStyle textStyle = isIncome ? greenText : redText;
+                CellStyle amtStyle2 = isIncome ? greenAmt  : redAmt;
+
+                Row r = projTxSheet.createRow(tn++);
+                for (int col = 0; col < 5; col++) {
+                    Cell c = r.createCell(col);
+                    c.setCellValue(col == 0
+                            ? ((LocalDate) tx[0]).format(DATE_FMT)
+                            : (String) tx[col]);
+                    c.setCellStyle(textStyle);
+                }
+                BigDecimal amt = (BigDecimal) tx[5];
+                double displayAmt = amt != null ? (isIncome ? amt.doubleValue() : -amt.doubleValue()) : 0.0;
+                Cell amtCell = r.createCell(5);
+                amtCell.setCellValue(displayAmt);
+                amtCell.setCellStyle(amtStyle2);
+            }
+
+            // Write Closing Balance row at the end (first line after all transactions)
+            Row clRow = projTxSheet.createRow(tn++);
+            Cell clCell0 = clRow.createCell(0); clCell0.setCellValue(to.format(DATE_FMT)); clCell0.setCellStyle(boldStyle);
+            Cell clCell1 = clRow.createCell(1); clCell1.setCellValue("Closing Balance"); clCell1.setCellStyle(boldStyle);
+            Cell clCell2 = clRow.createCell(2); clCell2.setCellValue(pObj.getName()); clCell2.setCellStyle(boldStyle);
+            Cell clCell3 = clRow.createCell(3); clCell3.setCellValue("Closing Balance"); clCell3.setCellStyle(boldStyle);
+            Cell clCell4 = clRow.createCell(4); clCell4.setCellValue(""); clCell4.setCellStyle(boldStyle);
+            Cell clCell5 = clRow.createCell(5); clCell5.setCellValue(ps.cl.doubleValue()); clCell5.setCellStyle(boldAmt);
+
+            // Auto-size columns for this project sheet
+            for (int i = 0; i < 6; i++) {
+                projTxSheet.autoSizeColumn(i);
+            }
         }
-        // Net cash flow total
-        totalRow(txSheet, tn, 0, 5, 5, netFlow, tStyle, tAmt);
-        for (int i = 0; i < 6; i++) txSheet.autoSizeColumn(i);
 
         // Use project name in filename
         String safeName = projectsLabel.replaceAll("[^a-zA-Z0-9 ,]", "").trim()

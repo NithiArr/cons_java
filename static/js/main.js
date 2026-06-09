@@ -1,6 +1,6 @@
 // Shared utility functions for all pages
 
-// API helper
+// ==================== API HELPER ====================
 async function apiCall(url, method = 'GET', data = null) {
     const options = {
         method: method,
@@ -24,6 +24,8 @@ async function apiCall(url, method = 'GET', data = null) {
         throw error;
     }
 }
+
+// ==================== CURRENCY / NUMBER FORMATTING ====================
 
 // Format currency in Indian format
 function formatCurrency(amount) {
@@ -68,6 +70,8 @@ function formatNumber(num) {
     return parts.length > 1 ? res + "." + parts[1] : res;
 }
 
+// ==================== AMOUNT INPUT FORMATTING ====================
+
 // Initialize amount formatting for inputs with .amount-input class
 function initAmountFormatting() {
     document.body.addEventListener('input', (e) => {
@@ -80,7 +84,6 @@ function initAmountFormatting() {
             const oldCursor = input.selectionStart;
 
             // 1. Remove all characters except digits, shorthands, and one dot
-            // We keep characters we want to allow the user to type
             let cleanVal = val.replace(/[^0-9kKlLcCrR.]/g, '');
 
             // 2. Handle shorthand characters - if they exist, don't comma-format yet
@@ -110,7 +113,6 @@ function initAmountFormatting() {
             input.value = newVal;
 
             // Cursor logic: find how many digits were before the cursor and find them again
-            // This handles commas being added/removed
             let digitsBeforeCursor = oldVal.substring(0, oldCursor).replace(/\D/g, '').length;
             let newCursor = 0;
             let digitsCount = 0;
@@ -140,6 +142,8 @@ function initAmountFormatting() {
         }
     }, true);
 }
+
+// ==================== DATE PICKER ====================
 
 // Initialize date range picker for elements with .date-range-picker class
 function initDateRangePicker(selector, onChangeCallback) {
@@ -199,14 +203,12 @@ function initDateRangePicker(selector, onChangeCallback) {
     return instance;
 }
 
-// Format date
-// Format date
+// ==================== DATE FORMAT ====================
 function formatDate(dateString) {
     if (!dateString) return '-';
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return '-';
 
-    // Enforce dd/mm/yyyy format
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
@@ -214,7 +216,8 @@ function formatDate(dateString) {
     return `${day}/${month}/${year}`;
 }
 
-// Show loading state
+// ==================== LOADING / ERROR STATES ====================
+
 function showLoading(elementId) {
     const element = document.getElementById(elementId);
     if (element) {
@@ -222,7 +225,6 @@ function showLoading(elementId) {
     }
 }
 
-// Show error message
 function showError(elementId, message) {
     const element = document.getElementById(elementId);
     if (element) {
@@ -230,11 +232,14 @@ function showError(elementId, message) {
     }
 }
 
-// Modal helpers
+// ==================== MODAL HELPERS ====================
+
 function openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.classList.add('active');
+        // Prevent body scroll when modal is open on mobile
+        document.body.style.overflow = 'hidden';
     }
 }
 
@@ -242,17 +247,20 @@ function closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.classList.remove('active');
+        document.body.style.overflow = '';
     }
 }
 
-// Close modal on outside click
+// Close modal on outside click (background)
 document.addEventListener('click', (e) => {
     if (e.target.classList.contains('modal')) {
         e.target.classList.remove('active');
+        document.body.style.overflow = '';
     }
 });
 
-// Form validation
+// ==================== FORM HELPERS ====================
+
 function validateForm(formId) {
     const form = document.getElementById(formId);
     if (!form) return false;
@@ -272,37 +280,52 @@ function validateForm(formId) {
     return isValid;
 }
 
-// Reset form
 function resetForm(formId) {
     const form = document.getElementById(formId);
     if (form) {
         form.reset();
-        // Reset any custom styling
         form.querySelectorAll('input, select, textarea').forEach(el => {
             el.style.borderColor = '';
         });
     }
 }
 
-// Show notification
+// ==================== NOTIFICATIONS ====================
+
 function showNotification(message, type = 'info') {
     const notification = document.createElement('div');
     notification.className = `alert alert-${type}`;
     notification.textContent = message;
-    notification.style.position = 'fixed';
-    notification.style.top = '20px';
-    notification.style.right = '20px';
-    notification.style.zIndex = '9999';
-    notification.style.minWidth = '300px';
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        min-width: 280px;
+        max-width: calc(100vw - 40px);
+        animation: slideUp 0.3s ease-out;
+        box-shadow: var(--shadow-lg);
+    `;
+
+    // On mobile, show at top below the header
+    if (window.innerWidth <= 768) {
+        notification.style.top = 'calc(var(--mobile-header-height, 56px) + 0.5rem)';
+        notification.style.left = '1rem';
+        notification.style.right = '1rem';
+        notification.style.minWidth = 'unset';
+    }
 
     document.body.appendChild(notification);
 
     setTimeout(() => {
-        notification.remove();
+        notification.style.opacity = '0';
+        notification.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
     }, 3000);
 }
 
-// Debounce function for search inputs
+// ==================== UTILITIES ====================
+
 function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -341,71 +364,218 @@ function exportTableToCSV(tableId, filename) {
     window.URL.revokeObjectURL(url);
 }
 
-// Mobile menu toggle
+// ==================== MOBILE MENU SETUP ====================
+
 function setupMobileMenu() {
-    const sidebar = document.querySelector('.sidebar');
+    const sidebar = document.getElementById('sidebar');
+    const menuToggle = document.getElementById('mobileMenuToggle');
+    const overlay = document.getElementById('mobileOverlay');
+    const sidebarClose = document.getElementById('sidebarClose');
+
     if (!sidebar) return;
 
-    // Create mobile menu button
-    const menuButton = document.createElement('button');
-    menuButton.className = 'mobile-menu-toggle';
-    menuButton.innerHTML = '☰';
-    menuButton.setAttribute('aria-label', 'Toggle menu');
+    function openSidebar() {
+        sidebar.classList.add('active');
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
 
-    // Create overlay
-    const overlay = document.createElement('div');
-    overlay.className = 'mobile-overlay';
-
-    // Add to DOM
-    document.body.appendChild(menuButton);
-    document.body.appendChild(overlay);
-
-    // Toggle menu
-    menuButton.addEventListener('click', () => {
-        sidebar.classList.toggle('active');
-        overlay.classList.toggle('active');
-    });
-
-    // Close on overlay click
-    overlay.addEventListener('click', () => {
+    function closeSidebar() {
         sidebar.classList.remove('active');
         overlay.classList.remove('active');
-    });
+        document.body.style.overflow = '';
+    }
 
-    // Close on nav link click (mobile)
+    // Hamburger button in mobile header
+    if (menuToggle) {
+        menuToggle.addEventListener('click', () => {
+            if (sidebar.classList.contains('active')) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        });
+    }
+
+    // Close button inside sidebar
+    if (sidebarClose) {
+        sidebarClose.addEventListener('click', closeSidebar);
+    }
+
+    // Overlay click
+    if (overlay) {
+        overlay.addEventListener('click', closeSidebar);
+    }
+
+    // Close when a nav link is clicked on mobile
     const navLinks = sidebar.querySelectorAll('.nav-link');
     navLinks.forEach(link => {
         link.addEventListener('click', () => {
             if (window.innerWidth <= 768) {
-                sidebar.classList.remove('active');
-                overlay.classList.remove('active');
+                closeSidebar();
             }
         });
     });
+
+    // Bottom nav "More" button opens sidebar
+    const bottomNavMore = document.getElementById('bottomNavMore');
+    if (bottomNavMore) {
+        bottomNavMore.addEventListener('click', () => {
+            if (sidebar.classList.contains('active')) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        });
+    }
+
+    // Touch swipe-right to open sidebar (from left edge)
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    document.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+        const touchEndX = e.changedTouches[0].clientX;
+        const touchEndY = e.changedTouches[0].clientY;
+        const deltaX = touchEndX - touchStartX;
+        const deltaY = Math.abs(touchEndY - touchStartY);
+
+        // Swipe right from left edge (within 40px of left) to open
+        if (touchStartX < 40 && deltaX > 80 && deltaY < 80) {
+            openSidebar();
+        }
+
+        // Swipe left on sidebar to close
+        if (sidebar.classList.contains('active') && deltaX < -80 && deltaY < 80) {
+            closeSidebar();
+        }
+    }, { passive: true });
 }
 
-// Set active nav link
+// ==================== SET ACTIVE NAV LINK ====================
+
 function setActiveNavLink() {
     const currentPath = window.location.pathname;
-    const navLinks = document.querySelectorAll('.nav-link');
 
-    navLinks.forEach(link => {
-        if (link.getAttribute('href') === currentPath) {
+    // Highlight sidebar links
+    document.querySelectorAll('.nav-link').forEach(link => {
+        const href = link.getAttribute('href');
+        if (href && (href === currentPath || (currentPath.startsWith(href) && href !== '/'))) {
             link.classList.add('active');
         } else {
             link.classList.remove('active');
         }
     });
+
+    // Highlight bottom nav items
+    document.querySelectorAll('.bottom-nav-item[data-url]').forEach(item => {
+        const url = item.getAttribute('data-url');
+        if (url && (url === currentPath || (currentPath.startsWith(url) && url !== '/'))) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
 }
 
-// Initialize on page load
+// ==================== FILTER BAR TOGGLE (MOBILE) ====================
+
+function setupFilterToggle() {
+    // Inject toggle button before each filter-bar that doesn't already have one
+    document.querySelectorAll('.filter-bar').forEach(bar => {
+        // Only on mobile
+        if (window.innerWidth > 768) return;
+
+        // Check if a toggle already exists immediately before this bar
+        const prev = bar.previousElementSibling;
+        if (prev && prev.classList.contains('filter-panel-toggle')) return;
+
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'btn btn-secondary filter-panel-toggle';
+        toggleBtn.innerHTML = `
+            <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="16" height="16">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
+            </svg>
+            Filters
+        `;
+
+        bar.parentNode.insertBefore(toggleBtn, bar);
+
+        toggleBtn.addEventListener('click', () => {
+            const isOpen = bar.classList.contains('filter-open');
+            bar.classList.toggle('filter-open', !isOpen);
+            toggleBtn.innerHTML = isOpen
+                ? `<svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" /></svg> Filters`
+                : `<svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" /></svg> Hide Filters`;
+        });
+    });
+}
+
+// ==================== TABLE SWIPE HINTS ====================
+
+function addTableSwipeHints() {
+    if (window.innerWidth > 768) return;
+
+    document.querySelectorAll('.table-container').forEach(container => {
+        if (container.querySelector('.swipe-hint')) return;
+
+        const hint = document.createElement('div');
+        hint.className = 'swipe-hint';
+        hint.textContent = '← Scroll horizontally to see more →';
+        container.insertBefore(hint, container.firstChild);
+
+        // Hide hint after first scroll
+        container.addEventListener('scroll', () => {
+            hint.style.display = 'none';
+        }, { once: true });
+    });
+}
+
+// ==================== PREVENT DOUBLE SUBMIT ====================
+
+function preventDoubleSubmit() {
+    document.querySelectorAll('form').forEach(form => {
+        let submitted = false;
+        form.addEventListener('submit', (e) => {
+            if (submitted) {
+                e.preventDefault();
+                return;
+            }
+            submitted = true;
+            // Auto-reset after 5s in case of error
+            setTimeout(() => { submitted = false; }, 5000);
+
+            // Visually disable the submit button
+            const submitBtn = form.querySelector('[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.style.opacity = '0.6';
+                setTimeout(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.style.opacity = '';
+                }, 5000);
+            }
+        });
+    });
+}
+
+// ==================== INITIALISE ON DOM READY ====================
+
 document.addEventListener('DOMContentLoaded', () => {
     setupMobileMenu();
     setActiveNavLink();
     initAmountFormatting();
+    setupFilterToggle();
+    addTableSwipeHints();
+    preventDoubleSubmit();
 });
 
-// Global error handler
+// ==================== GLOBAL ERROR HANDLER ====================
+
 window.addEventListener('unhandledrejection', (event) => {
     console.error('Unhandled promise rejection:', event.reason);
     showNotification('An error occurred. Please try again.', 'error');
