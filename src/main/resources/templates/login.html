@@ -13,11 +13,11 @@
             background: #f1f5f9;
             color: #0f172a;
             margin: 0;
-            overflow-x: hidden;
+            overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
+            height: 100vh;
             position: relative;
         }
 
@@ -57,8 +57,8 @@
             position: relative;
             z-index: 10;
             width: 100%;
-            max-width: 480px;
-            padding: 2rem;
+            max-width: 420px;
+            padding: 1.5rem;
             perspective: 1000px;
         }
 
@@ -68,7 +68,7 @@
             -webkit-backdrop-filter: blur(25px);
             border: 1px solid rgba(0, 0, 0, 0.1);
             border-radius: 24px;
-            padding: 3.5rem 3rem;
+            padding: 2.5rem 2rem;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1), 
                         0 0 30px rgba(79, 70, 229, 0.05);
             transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -88,12 +88,12 @@
 
         .auth-header {
             text-align: center;
-            margin-bottom: 2.5rem;
+            margin-bottom: 1.5rem;
         }
 
         .auth-header h1 {
             font-weight: 800;
-            font-size: 2.2rem;
+            font-size: 1.8rem;
             margin: 0;
             background: linear-gradient(135deg, #1e1b4b, #4c1d95);
             -webkit-background-clip: text;
@@ -118,14 +118,14 @@
         }
 
         .form-group {
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.25rem;
             position: relative;
         }
         
         .form-label {
             display: block;
-            margin-bottom: 0.5rem;
-            font-size: 0.85rem;
+            margin-bottom: 0.4rem;
+            font-size: 0.8rem;
             font-weight: 600;
             color: #475569;
             text-transform: uppercase;
@@ -134,12 +134,12 @@
 
         .form-control {
             width: 100%;
-            padding: 1rem 1.2rem;
+            padding: 0.8rem 1rem;
             background: rgba(255, 255, 255, 0.9);
             border: 1px solid rgba(0, 0, 0, 0.2);
             border-radius: 12px;
             color: #0f172a;
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-family: inherit;
             transition: all 0.3s ease;
             box-sizing: border-box;
@@ -158,13 +158,13 @@
 
         .btn-login {
             width: 100%;
-            padding: 1rem;
-            margin-top: 1.5rem;
+            padding: 0.85rem;
+            margin-top: 1rem;
             background: linear-gradient(135deg, #4f46e5, #8b5cf6);
             color: white;
             border: none;
             border-radius: 12px;
-            font-size: 1.05rem;
+            font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
             font-family: inherit;
@@ -228,7 +228,7 @@
     <div class="auth-container">
         <div class="auth-card">
             <div class="auth-header">
-                <img th:src="@{/logo.jpeg}" alt="TSK Logo" style="max-height: 280px; width: auto; margin-bottom: 1rem;">
+                <img th:src="@{/logo.jpeg}" alt="TSK Logo" style="max-height: 160px; width: auto; margin-bottom: 0.75rem;">
                 <h1>TSK Constructions</h1>
                 <p>Welcome back! Securely manage your projects.</p>
             </div>
