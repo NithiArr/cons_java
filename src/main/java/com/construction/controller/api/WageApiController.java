@@ -80,6 +80,7 @@ public class WageApiController {
         WageSheet sheet = new WageSheet();
         sheet.setProject(projectOpt.get());
         sheet.setWeekStart(weekStart);
+        sheet.setWeekEnd(weekEnd);
         BigDecimal masonAdvance = body.get("mason_advance") != null ? new BigDecimal(body.get("mason_advance").toString()) : BigDecimal.ZERO;
         BigDecimal fitterAdvance = body.get("fitter_advance") != null ? new BigDecimal(body.get("fitter_advance").toString()) : BigDecimal.ZERO;
         sheet.setMasonAdvance(masonAdvance);
