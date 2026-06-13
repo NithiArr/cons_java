@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{base}">
+<head>
+    <title>Weekly Summary</title>
+    <!-- jsPDF and AutoTable libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    
+    <style>
+        .inline-icon {
+            width: 20px;
+            height: 20px;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+        .section-header {
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 0.5rem;
+        }
+        .section-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #a5b4fc;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0;
+            display: flex;
+            align-items: center;
+        }
+        .total-badge {
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            color: #c7d2fe;
+            padding: 3px 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .empty-placeholder {
+            padding: 2.5rem;
+            text-align: center;
+            color: #94a3b8;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px dashed rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+        }
+        .payment-badge {
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .badge-cash { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .badge-credit { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .badge-bank-upi { background: rgba(139, 92, 246, 0.2); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.3); }
+    </style>
+</head>
+<body>
+    <div layout:fragment="content">
+        <div class="container fade-in">
+            <h1>
+                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="inline-icon">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Weekly Summary
+            </h1>
+            <p class="text-secondary mb-4">View and export weekly transaction summary sheets snapped from Saturday to Friday</p>
+
+            <!-- Filters Card -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="grid grid-3" style="gap: 1.25rem;">
+                        <div class="form-group">
+                            <label class="form-label">Select Project</label>
+                            <select id="project-select" class="form-control" onchange="loadWeeklySummary()">
+                                <option value="">🏢 All Projects</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Pick Week (Snaps to Saturday)</label>
+                            <input type="text" id="week-date" class="form-control" placeholder="Select any date..." style="cursor: pointer;">
+                            <input type="hidden" id="week-start-val">
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: flex-end; gap: 0.75rem;">
+                            <button class="btn btn-primary" onclick="loadWeeklySummary()" style="flex: 1; height: 42px;">
+                                Load Summary
+                            </button>
+                            <button id="btn-export-pdf" class="btn btn-success" onclick="exportPdf()" style="height: 42px; display: none;">
+                                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" style="width: 18px; height: 18px; vertical-align: middle; margin-right: 4px;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9Z" />
+                                </svg>
+                                Export PDF
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-secondary" id="week-range-preview" style="font-size: 0.875rem; font-weight: 500;">
+                        Please select a date to verify the Saturday-to-Friday week range.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Overview KPIs -->
+            <div id="summary-kpi-grid" class="grid grid-5 mb-4" style="display: none; gap: 1rem;">
+                <div class="card kpi-card">
+                    <div class="card-body">
+                        <div class="text-secondary" style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">Purchases</div>
+                        <div class="kpi-value" id="kpi-purchases" style="font-size: 1.4rem; margin-top: 0.25rem;">₹0.00</div>
+                    </div>
+                </div>
+                <div class="card kpi-card">
+                    <div class="card-body">
+                        <div class="text-secondary" style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">Regular Expenses</div>
+                        <div class="kpi-value" id="kpi-expenses" style="font-size: 1.4rem; margin-top: 0.25rem;">₹0.00</div>
+                    </div>
+                </div>
+                <div class="card kpi-card">
+                    <div class="card-body">
+                        <div class="text-secondary" style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">Settlements</div>
+                        <div class="kpi-value" id="kpi-settlements" style="font-size: 1.4rem; margin-top: 0.25rem;">₹0.00</div>
+                    </div>
+                </div>
+                <div class="card kpi-card">
+                    <div class="card-body">
+                        <div class="text-secondary" style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">Client Receipts</div>
+                        <div class="kpi-value" id="kpi-receipts" style="font-size: 1.4rem; margin-top: 0.25rem;">₹0.00</div>
+                    </div>
+                </div>
+                <div class="card kpi-card">
+                    <div class="card-body">
+                        <div class="text-secondary" style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">Wages Net</div>
+                        <div class="kpi-value" id="kpi-wages" style="font-size: 1.4rem; margin-top: 0.25rem;">₹0.00</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loader -->
+            <div id="loading-spinner" style="display: none; padding: 4rem; text-align: center;">
+                <div style="display: inline-block; width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-top-color: #8b5cf6; border-radius: 50%; animation: spin-loader 1s infinite linear;"></div>
+                <div class="text-secondary mt-3">Loading weekly transaction summary...</div>
+            </div>
+            
+            <style>
+                @keyframes spin-loader { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+            </style>
+
+            <!-- Results Tables -->
+            <div id="summary-tables-container" style="display: none;">
+                <!-- 1. MATERIAL PURCHASES -->
+                <div class="section-header">
+                    <h3 class="section-title">
+                        <svg class="inline-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" /></svg>
+                        Material Purchases
+                    </h3>
+                    <span class="total-badge" id="total-badge-purchases">₹0.00</span>
+                </div>
+                <div id="purchases-table-wrapper">
+                    <div class="table-container" id="purchases-table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px;">Date</th>
+                                    <th>Project</th>
+                                    <th>Vendor</th>
+                                    <th>Category</th>
+                                    <th style="width: 100px; text-align: center;">Mode</th>
+                                    <th>Invoice No.</th>
+                                    <th>Description</th>
+                                    <th style="width: 130px; text-align: right;">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="purchases-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="empty-placeholder" id="purchases-empty" style="display: none;">
+                        No material purchases recorded for this week.
+                    </div>
+                </div>
+
+                <!-- 2. REGULAR EXPENSES -->
+                <div class="section-header">
+                    <h3 class="section-title">
+                        <svg class="inline-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" /></svg>
+                        Regular Expenses
+                    </h3>
+                    <span class="total-badge" id="total-badge-expenses">₹0.00</span>
+                </div>
+                <div id="expenses-table-wrapper">
+                    <div class="table-container" id="expenses-table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px;">Date</th>
+                                    <th>Project</th>
+                                    <th>Category</th>
+                                    <th>Subcategory</th>
+                                    <th style="width: 100px; text-align: center;">Mode</th>
+                                    <th>Description</th>
+                                    <th style="width: 130px; text-align: right;">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="expenses-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="empty-placeholder" id="expenses-empty" style="display: none;">
+                        No regular operational expenses recorded for this week.
+                    </div>
+                </div>
+
+                <!-- 3. VENDOR SETTLEMENTS -->
+                <div class="section-header">
+                    <h3 class="section-title">
+                        <svg class="inline-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22M21.75 8.814v4.5A.75.75 0 0 1 21 14.064H16.5" /></svg>
+                        Vendor Settlements
+                    </h3>
+                    <span class="total-badge" id="total-badge-settlements">₹0.00</span>
+                </div>
+                <div id="settlements-table-wrapper">
+                    <div class="table-container" id="settlements-table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px;">Date</th>
+                                    <th>Project</th>
+                                    <th>Vendor</th>
+                                    <th style="width: 100px; text-align: center;">Mode</th>
+                                    <th>Purchase Invoice</th>
+                                    <th style="width: 130px; text-align: right;">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="settlements-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="empty-placeholder" id="settlements-empty" style="display: none;">
+                        No vendor settlement payments recorded for this week.
+                    </div>
+                </div>
+
+                <!-- 4. CLIENT ADVANCES / RECEIPTS -->
+                <div class="section-header">
+                    <h3 class="section-title">
+                        <svg class="inline-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.25 6 9 12.75l4.286-4.286a11.948 11.948 0 0 1 4.306 6.43l.776 2.898m0 0 3.182-5.514m-3.182 5.514-5.514-3.182" /></svg>
+                        Client Receipts
+                    </h3>
+                    <span class="total-badge" id="total-badge-receipts">₹0.00</span>
+                </div>
+                <div id="receipts-table-wrapper">
+                    <div class="table-container" id="receipts-table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px;">Date</th>
+                                    <th>Project</th>
+                                    <th style="width: 100px; text-align: center;">Mode</th>
+                                    <th>Reference No.</th>
+                                    <th>Remarks</th>
+                                    <th style="width: 130px; text-align: right;">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="receipts-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="empty-placeholder" id="receipts-empty" style="display: none;">
+                        No client advances/receipts recorded for this week.
+                    </div>
+                </div>
+
+                <!-- 5. WAGES SHEET SUMMARY -->
+                <div class="section-header">
+                    <h3 class="section-title">
+                        <svg class="inline-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" /></svg>
+                        Labour Wages Sheet
+                    </h3>
+                    <span class="total-badge" id="total-badge-wages">₹0.00</span>
+                </div>
+                <div id="wages-table-wrapper">
+                    <div class="table-container" id="wages-table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Project Name</th>
+                                    <th style="text-align: right;">Wages Total</th>
+                                    <th style="text-align: right;">Mason Advance</th>
+                                    <th style="text-align: right;">Fitter Advance</th>
+                                    <th style="text-align: right;">Other Advance</th>
+                                    <th style="text-align: right;">Net Wages Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="wages-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="empty-placeholder" id="wages-empty" style="display: none;">
+                        No labour wage sheets approved for this week.
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <script th:inline="javascript">
+            // Inject authenticated company name dynamically from security principal
+            const companyName = /*[[${#authentication.principal.company.name}]]*/ 'Elite Build';
+            
+            let currentData = null;
+            let flatpickrInstance = null;
+
+            // Snap date to Saturday
+            function getWeekSaturday(dateStr) {
+                const parts = dateStr.split('-');
+                const year = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1;
+                const day = parseInt(parts[2], 10);
+                const d = new Date(year, month, day, 0, 0, 0, 0);
+                const dayOfWeek = d.getDay(); // 0=Sun, 6=Sat
+                const diff = dayOfWeek === 6 ? 0 : -(dayOfWeek + 1);
+                d.setDate(d.getDate() + diff);
+                return d;
+            }
+
+            function formatDateLocal(date) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+
+            function formatDisplayDate(dateStr) {
+                if (!dateStr) return '—';
+                const parts = dateStr.split('-');
+                if (parts.length !== 3) return dateStr;
+                return `${parts[2]}-${parts[1]}-${parts[0]}`; // DD-MM-YYYY
+            }
+
+            function formatCurrency(amount) {
+                if (amount == null) return '₹0.00';
+                return '₹' + parseFloat(amount).toLocaleString('en-IN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+
+            // Updates the range label e.g., "Week: 09 May 2026 (Sat) to 15 May 2026 (Fri)"
+            function updateWeekRangeLabel(satDate) {
+                const friDate = new Date(satDate);
+                friDate.setDate(satDate.getDate() + 6);
+                
+                const fmtOptions = { day: '2-digit', month: 'short', year: 'numeric' };
+                const satStr = satDate.toLocaleDateString('en-IN', fmtOptions);
+                const friStr = friDate.toLocaleDateString('en-IN', fmtOptions);
+                
+                document.getElementById('week-range-preview').innerHTML = 
+                    `Selected Week Range: <strong>${satStr} (Sat)</strong> to <strong>${friStr} (Fri)</strong>`;
+            }
+
+            // Load projects from API list
+            async function loadProjects() {
+                try {
+                    const response = await fetch("/api_projects_list");
+                    const projects = await response.json();
+                    const select = document.getElementById('project-select');
+                    
+                    const opts = projects.map(p => `<option value="${p.project_id}">${p.name}</option>`).join('');
+                    select.innerHTML = '<option value="">🏢 All Projects</option>' + opts;
+                } catch (error) {
+                    console.error('Error loading projects:', error);
+                }
+            }
+
+            // Fetch transaction details from API
+            async function loadWeeklySummary() {
+                const weekStart = document.getElementById('week-start-val').value;
+                const projectId = document.getElementById('project-select').value;
+
+                if (!weekStart) {
+                    alert('Please select a week starting date.');
+                    return;
+                }
+
+                // Show spinner, hide results
+                document.getElementById('loading-spinner').style.display = 'block';
+                document.getElementById('summary-kpi-grid').style.display = 'none';
+                document.getElementById('summary-tables-container').style.display = 'none';
+                document.getElementById('btn-export-pdf').style.display = 'none';
+
+                try {
+                    let url = `/api/weekly-summary-data?week_start=${weekStart}`;
+                    if (projectId) {
+                        url += `&project_id=${projectId}`;
+                    }
+
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error('Failed to load transaction data');
+                    const data = await response.json();
+                    
+                    currentData = data;
+                    renderData(data);
+                } catch (error) {
+                    console.error('Error loading summary:', error);
+                    alert('An error occurred while fetching weekly summary data.');
+                    document.getElementById('loading-spinner').style.display = 'none';
+                }
+            }
+
+            // Render tables & badges
+            function renderData(data) {
+                document.getElementById('loading-spinner').style.display = 'none';
+                
+                // Summarize totals
+                let sumPurchases = 0;
+                let sumExpenses = 0;
+                let sumSettlements = 0;
+                let sumReceipts = 0;
+                let sumWages = 0;
+
+                // 1. Material Purchases
+                const pTbody = document.getElementById('purchases-tbody');
+                const pContainer = document.getElementById('purchases-table-container');
+                const pEmpty = document.getElementById('purchases-empty');
+                if (data.purchases && data.purchases.length > 0) {
+                    pTbody.innerHTML = data.purchases.map(p => {
+                        sumPurchases += parseFloat(p.amount || 0);
+                        const modeClass = p.payment_mode === 'CASH' ? 'badge-cash' : p.payment_mode === 'CREDIT' ? 'badge-credit' : 'badge-bank-upi';
+                        return `
+                            <tr>
+                                <td>${formatDisplayDate(p.date)}</td>
+                                <td><strong>${p.project_name}</strong></td>
+                                <td>${p.vendor_name || '—'}</td>
+                                <td>${p.category || '—'}</td>
+                                <td style="text-align: center;"><span class="payment-badge ${modeClass}">${p.payment_mode}</span></td>
+                                <td>${p.invoice_number || '—'}</td>
+                                <td>${p.description || '—'}</td>
+                                <td style="text-align: right; font-weight: 600;">${formatCurrency(p.amount)}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                    pContainer.style.display = 'block';
+                    pEmpty.style.display = 'none';
+                } else {
+                    pTbody.innerHTML = '';
+                    pContainer.style.display = 'none';
+                    pEmpty.style.display = 'block';
+                }
+
+                // 2. Regular Expenses
+                const eTbody = document.getElementById('expenses-tbody');
+                const eContainer = document.getElementById('expenses-table-container');
+                const eEmpty = document.getElementById('expenses-empty');
+                if (data.expenses && data.expenses.length > 0) {
+                    eTbody.innerHTML = data.expenses.map(e => {
+                        sumExpenses += parseFloat(e.amount || 0);
+                        const modeClass = e.payment_mode === 'CASH' ? 'badge-cash' : e.payment_mode === 'CREDIT' ? 'badge-credit' : 'badge-bank-upi';
+                        return `
+                            <tr>
+                                <td>${formatDisplayDate(e.date)}</td>
+                                <td><strong>${e.project_name}</strong></td>
+                                <td>${e.category || '—'}</td>
+                                <td>${e.subcategory || '—'}</td>
+                                <td style="text-align: center;"><span class="payment-badge ${modeClass}">${e.payment_mode}</span></td>
+                                <td>${e.description || '—'}</td>
+                                <td style="text-align: right; font-weight: 600;">${formatCurrency(e.amount)}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                    eContainer.style.display = 'block';
+                    eEmpty.style.display = 'none';
+                } else {
+                    eTbody.innerHTML = '';
+                    eContainer.style.display = 'none';
+                    eEmpty.style.display = 'block';
+                }
+
+                // 3. Vendor Settlements
+                const sTbody = document.getElementById('settlements-tbody');
+                const sContainer = document.getElementById('settlements-table-container');
+                const sEmpty = document.getElementById('settlements-empty');
+                if (data.vendor_payments && data.vendor_payments.length > 0) {
+                    sTbody.innerHTML = data.vendor_payments.map(s => {
+                        sumSettlements += parseFloat(s.amount || 0);
+                        const modeClass = s.payment_mode === 'CASH' ? 'badge-cash' : s.payment_mode === 'CREDIT' ? 'badge-credit' : 'badge-bank-upi';
+                        return `
+                            <tr>
+                                <td>${formatDisplayDate(s.date)}</td>
+                                <td><strong>${s.project_name}</strong></td>
+                                <td>${s.vendor_name || '—'}</td>
+                                <td style="text-align: center;"><span class="payment-badge ${modeClass}">${s.payment_mode}</span></td>
+                                <td>${s.purchase_invoice || '—'}</td>
+                                <td style="text-align: right; font-weight: 600;">${formatCurrency(s.amount)}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                    sContainer.style.display = 'block';
+                    sEmpty.style.display = 'none';
+                } else {
+                    sTbody.innerHTML = '';
+                    sContainer.style.display = 'none';
+                    sEmpty.style.display = 'block';
+                }
+
+                // 4. Client Receipts
+                const rTbody = document.getElementById('receipts-tbody');
+                const rContainer = document.getElementById('receipts-table-container');
+                const rEmpty = document.getElementById('receipts-empty');
+                if (data.client_payments && data.client_payments.length > 0) {
+                    rTbody.innerHTML = data.client_payments.map(r => {
+                        sumReceipts += parseFloat(r.amount || 0);
+                        const modeClass = r.payment_mode === 'CASH' ? 'badge-cash' : r.payment_mode === 'CREDIT' ? 'badge-credit' : 'badge-bank-upi';
+                        return `
+                            <tr>
+                                <td>${formatDisplayDate(r.date)}</td>
+                                <td><strong>${r.project_name}</strong></td>
+                                <td style="text-align: center;"><span class="payment-badge ${modeClass}">${r.payment_mode}</span></td>
+                                <td>${r.reference_number || '—'}</td>
+                                <td>${r.remarks || '—'}</td>
+                                <td style="text-align: right; font-weight: 600;">${formatCurrency(r.amount)}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                    rContainer.style.display = 'block';
+                    rEmpty.style.display = 'none';
+                } else {
+                    rTbody.innerHTML = '';
+                    rContainer.style.display = 'none';
+                    rEmpty.style.display = 'block';
+                }
+
+                // 5. Labour Wages Summary
+                const wTbody = document.getElementById('wages-tbody');
+                const wContainer = document.getElementById('wages-table-container');
+                const wEmpty = document.getElementById('wages-empty');
+                if (data.wages && data.wages.length > 0) {
+                    wTbody.innerHTML = data.wages.map(w => {
+                        sumWages += parseFloat(w.net_total || 0);
+                        
+                        const adv = parseFloat(w.advance || 0);
+                        const mAdv = parseFloat(w.mason_advance || 0);
+                        const fAdv = parseFloat(w.fitter_advance || 0);
+                        const otherAdv = adv - mAdv - fAdv;
+                        
+                        return `
+                            <tr>
+                                <td><strong>${w.project_name}</strong></td>
+                                <td style="text-align: right;">${formatCurrency(w.grand_total)}</td>
+                                <td style="text-align: right; color: var(--danger);">${formatCurrency(w.mason_advance)}</td>
+                                <td style="text-align: right; color: var(--danger);">${formatCurrency(w.fitter_advance)}</td>
+                                <td style="text-align: right; color: var(--danger);">${formatCurrency(otherAdv)}</td>
+                                <td style="text-align: right; font-weight: 600; color: #a5b4fc;">${formatCurrency(w.net_total)}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                    wContainer.style.display = 'block';
+                    wEmpty.style.display = 'none';
+                } else {
+                    wTbody.innerHTML = '';
+                    wContainer.style.display = 'none';
+                    wEmpty.style.display = 'block';
+                }
+
+                // Render KPI values
+                document.getElementById('kpi-purchases').textContent = formatCurrency(sumPurchases);
+                document.getElementById('kpi-expenses').textContent = formatCurrency(sumExpenses);
+                document.getElementById('kpi-settlements').textContent = formatCurrency(sumSettlements);
+                document.getElementById('kpi-receipts').textContent = formatCurrency(sumReceipts);
+                document.getElementById('kpi-wages').textContent = formatCurrency(sumWages);
+
+                // Render Section Headers Badges
+                document.getElementById('total-badge-purchases').textContent = formatCurrency(sumPurchases);
+                document.getElementById('total-badge-expenses').textContent = formatCurrency(sumExpenses);
+                document.getElementById('total-badge-settlements').textContent = formatCurrency(sumSettlements);
+                document.getElementById('total-badge-receipts').textContent = formatCurrency(sumReceipts);
+                document.getElementById('total-badge-wages').textContent = formatCurrency(sumWages);
+
+                // Reveal containers
+                document.getElementById('summary-kpi-grid').style.display = 'grid';
+                document.getElementById('summary-tables-container').style.display = 'block';
+                document.getElementById('btn-export-pdf').style.display = 'inline-flex';
+            }
+
+            // Helper function to format labor descriptions
+            function getLaborDescription(row) {
+                let cat = (row.category || '').trim();
+                let name = (row.employee_name || '').trim();
+                let desc = (row.description || '').trim();
+                
+                if (row.row_type === 'MASON' || row.row_type === 'FITTER' || !row.row_type || row.row_type === 'null') {
+                    let catDisplay = cat;
+                    if (!catDisplay || catDisplay.toLowerCase().startsWith('mas')) {
+                        catDisplay = 'Civil Labour';
+                    } else if (catDisplay.toLowerCase().startsWith('fit')) {
+                        catDisplay = 'Centering Labour';
+                    }
+                    
+                    let result = catDisplay;
+                    if (name) {
+                        result += ' - ' + name;
+                    }
+                    if (desc) {
+                        result += ' ' + desc;
+                    }
+                    return result;
+                } else {
+                    // ADDITIONAL
+                    let result = '';
+                    if (cat) result += cat;
+                    if (name) {
+                        if (result) result += ' ';
+                        result += name;
+                    }
+                    if (desc) {
+                        if (desc.startsWith('-') || desc.startsWith('—')) {
+                            result += ' ' + desc;
+                        } else {
+                            if (result) result += ' - ';
+                            result += desc;
+                        }
+                    }
+                    return result;
+                }
+            }
+
+            // Helper to get normalized Split-up names
+            function getSplitUpName(desc, row) {
+                let d = desc.trim();
+                let dLower = d.toLowerCase();
+                
+                if (dLower.includes('kannan extra')) {
+                    return 'Kannan extra payment';
+                }
+                if (dLower.includes('anbu extra')) {
+                    return 'Anbu extra payment';
+                }
+                if (dLower.startsWith('carpenter')) {
+                    return 'Carpenter';
+                }
+                if (dLower.startsWith('vishnu')) {
+                    return 'Vishnu';
+                }
+                if (dLower.includes('iyyappan')) {
+                    return 'Iyyappan';
+                }
+                d = d.replace(/ and /ig, ' & ');
+                return d;
+            }
+
+            // Export to PDF using jsPDF and AutoTable in Portrait Grid format
+            function exportPdf() {
+                if (!currentData) return;
+                
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+                
+                const weekStartStr = document.getElementById('week-start-val').value;
+                const satDate = getWeekSaturday(weekStartStr);
+                const friDate = new Date(satDate);
+                friDate.setDate(satDate.getDate() + 6);
+
+                const formatDateStr = (d) => {
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const yyyy = d.getFullYear();
+                    return `${dd}-${mm}-${yyyy}`;
+                };
+
+                const dateString = formatDateStr(satDate);
+
+                // Helper for sums formatting in Labour PDF (no rupee sign, 2 decimals)
+                const formatLabourNum = (val) => {
+                    if (val === 0 || val == null) return '';
+                    return parseFloat(val).toFixed(2);
+                };
+
+                // Helper for sums formatting in Materials PDF (includes Rs. and commas)
+                const formatMaterialNum = (val) => {
+                    if (val === 0 || val == null) return '';
+                    return 'Rs. ' + parseFloat(val).toLocaleString('en-IN', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                };
+
+                // ─── CONSTRUCT LABOUR SHEET DATA ───
+                const bodyWages = [];
+                bodyWages.push([
+                    { content: 'LABOUR', colSpan: 6, styles: { halign: 'center', fontStyle: 'bold', fontSize: 11, fillColor: [240, 240, 240] } }
+                ]);
+
+                let totalOutstandingLabour = 0;
+                let totalAdvanceLabour = 0;
+                let totalBalanceLabour = 0;
+                let totalPaidLabour = 0;
+                const splitUpMap = {};
+
+                if (currentData.wages && currentData.wages.length > 0) {
+                    currentData.wages.forEach(w => {
+                        // Project header row
+                        bodyWages.push([
+                            '',
+                            { content: w.project_name, colSpan: 5, styles: { fontStyle: 'bold' } }
+                        ]);
+
+                        // Prepare advances
+                        const mAdv = parseFloat(w.mason_advance || 0);
+                        const fAdv = parseFloat(w.fitter_advance || 0);
+                        const totAdv = parseFloat(w.advance || 0);
+                        const otherAdv = totAdv - mAdv - fAdv;
+
+                        const rawRows = w.rows || [];
+                        const masonRows = rawRows.filter(r => r.row_type === 'MASON' || !r.row_type || r.row_type === 'null');
+                        const fitterRows = rawRows.filter(r => r.row_type === 'FITTER');
+                        const additionalRows = rawRows.filter(r => r.row_type === 'ADDITIONAL');
+
+                        const collapsedRows = [];
+
+                        // 1. Collapse MASON rows
+                        if (masonRows.length > 0) {
+                            const hlRow = masonRows.find(r => r.is_head_labour) || masonRows[0];
+                            const totalAmount = masonRows.reduce((sum, r) => sum + parseFloat(r.amount || 0), 0);
+                            collapsedRows.push({
+                                description: getLaborDescription(hlRow),
+                                employee_name: hlRow.employee_name,
+                                row_type: 'MASON',
+                                amount: totalAmount,
+                                advance_paid: mAdv
+                            });
+                        }
+
+                        // 2. Collapse FITTER rows
+                        if (fitterRows.length > 0) {
+                            const hlRow = fitterRows.find(r => r.is_head_labour) || fitterRows[0];
+                            const totalAmount = fitterRows.reduce((sum, r) => sum + parseFloat(r.amount || 0), 0);
+                            collapsedRows.push({
+                                description: getLaborDescription(hlRow),
+                                employee_name: hlRow.employee_name,
+                                row_type: 'FITTER',
+                                amount: totalAmount,
+                                advance_paid: fAdv
+                            });
+                        }
+
+                        // 3. Keep ADDITIONAL rows
+                        additionalRows.forEach(r => {
+                            collapsedRows.push({
+                                description: getLaborDescription(r),
+                                employee_name: r.employee_name,
+                                row_type: 'ADDITIONAL',
+                                amount: parseFloat(r.amount || 0),
+                                advance_paid: 0
+                            });
+                        });
+
+                        // Distribute general advance (otherAdv) to the first ADDITIONAL row if present,
+                        // otherwise to the first row overall.
+                        if (otherAdv > 0) {
+                            const targetAddRow = collapsedRows.find(r => r.row_type === 'ADDITIONAL');
+                            if (targetAddRow) {
+                                targetAddRow.advance_paid += otherAdv;
+                            } else if (collapsedRows.length > 0) {
+                                collapsedRows[0].advance_paid += otherAdv;
+                            }
+                        }
+
+                        // Add worker rows
+                        collapsedRows.forEach((row, idx) => {
+                            const desc = row.description;
+                            const outstanding = row.amount;
+                            const adv = row.advance_paid;
+                            const balance = outstanding - adv;
+                            const paid = balance;
+
+                            totalOutstandingLabour += outstanding;
+                            totalAdvanceLabour += adv;
+                            totalBalanceLabour += balance;
+                            totalPaidLabour += paid;
+
+                            const splitName = getSplitUpName(desc, row);
+                            if (!splitUpMap[splitName]) {
+                                splitUpMap[splitName] = 0;
+                            }
+                            splitUpMap[splitName] += paid;
+
+                            bodyWages.push([
+                                idx + 1,
+                                desc,
+                                formatLabourNum(outstanding),
+                                formatLabourNum(adv),
+                                formatLabourNum(balance),
+                                formatLabourNum(paid)
+                            ]);
+                        });
+                    });
+                }
+
+                // Total Labour Payment row
+                bodyWages.push([
+                    '',
+                    { content: 'TOTAL LABOUR PAYMENT', styles: { fontStyle: 'bold' } },
+                    { content: formatLabourNum(totalOutstandingLabour), styles: { fontStyle: 'bold', halign: 'right' } },
+                    { content: formatLabourNum(totalAdvanceLabour), styles: { fontStyle: 'bold', halign: 'right' } },
+                    { content: formatLabourNum(totalBalanceLabour), styles: { fontStyle: 'bold', halign: 'right' } },
+                    { content: formatLabourNum(totalPaidLabour), styles: { fontStyle: 'bold', halign: 'right' } }
+                ]);
+
+                // Split up table body
+                const splitUpBody = [];
+                // Split up header
+                splitUpBody.push([
+                    '',
+                    { content: 'Split up', colSpan: 5, styles: { fontStyle: 'bold', textDecoration: 'underline' } }
+                ]);
+
+                // Split up rows sorted by amount descending
+                const sortedSplitUpKeys = Object.keys(splitUpMap).sort((a, b) => splitUpMap[b] - splitUpMap[a]);
+                sortedSplitUpKeys.forEach((key, idx) => {
+                    splitUpBody.push([
+                        idx + 1,
+                        key,
+                        '',
+                        '',
+                        formatLabourNum(splitUpMap[key]),
+                        ''
+                    ]);
+                });
+
+                // Split up total row
+                splitUpBody.push([
+                    '',
+                    { content: 'TOTAL LABOUR PAYMENT', styles: { fontStyle: 'bold' } },
+                    '',
+                    '',
+                    { content: formatLabourNum(totalPaidLabour), styles: { fontStyle: 'bold', halign: 'right' } },
+                    ''
+                ]);
+
+                // ─── CONSTRUCT MATERIALS SHEET DATA ───
+                const bodyMaterials = [];
+                bodyMaterials.push([
+                    { content: 'MATERIALS', colSpan: 6, styles: { halign: 'center', fontStyle: 'bold', fontSize: 11, fillColor: [240, 240, 240] } }
+                ]);
+
+                const materialsByProject = {};
+
+                if (currentData.purchases) {
+                    currentData.purchases.forEach(p => {
+                        const pName = p.project_name || 'Other Project';
+                        const vName = p.vendor_name || 'Other Vendor';
+                        const amt = parseFloat(p.amount || 0);
+                        
+                        if (!materialsByProject[pName]) {
+                            materialsByProject[pName] = { name: pName, vendors: {} };
+                        }
+                        if (!materialsByProject[pName].vendors[vName]) {
+                            materialsByProject[pName].vendors[vName] = { name: vName, outstanding: 0, paid: 0 };
+                        }
+                        materialsByProject[pName].vendors[vName].outstanding += amt;
+                    });
+                }
+
+                if (currentData.vendor_payments) {
+                    currentData.vendor_payments.forEach(vp => {
+                        const pName = vp.project_name || 'Other Project';
+                        const vName = vp.vendor_name || 'Other Vendor';
+                        const amt = parseFloat(vp.amount || 0);
+                        
+                        if (!materialsByProject[pName]) {
+                            materialsByProject[pName] = { name: pName, vendors: {} };
+                        }
+                        if (!materialsByProject[pName].vendors[vName]) {
+                            materialsByProject[pName].vendors[vName] = { name: vName, outstanding: 0, paid: 0 };
+                        }
+                        materialsByProject[pName].vendors[vName].paid += amt;
+                    });
+                }
+
+                let grandTotalOutstandingMaterials = 0;
+                let grandTotalPaidMaterials = 0;
+
+                const sortedProjects = Object.keys(materialsByProject).sort();
+                sortedProjects.forEach(pKey => {
+                    const proj = materialsByProject[pKey];
+                    
+                    // Project header row
+                    bodyMaterials.push([
+                        '',
+                        { content: proj.name, colSpan: 5, styles: { fontStyle: 'bold' } }
+                    ]);
+
+                    const vendorsList = Object.values(proj.vendors);
+                    vendorsList.forEach((vendor, idx) => {
+                        const outstanding = vendor.outstanding;
+                        const paid = vendor.paid;
+                        const balance = outstanding - paid;
+
+                        grandTotalOutstandingMaterials += outstanding;
+                        grandTotalPaidMaterials += paid;
+
+                        bodyMaterials.push([
+                            idx + 1,
+                            vendor.name,
+                            formatMaterialNum(outstanding),
+                            '',
+                            formatMaterialNum(balance),
+                            formatMaterialNum(paid)
+                        ]);
+                    });
+                });
+
+                bodyMaterials.push([
+                    '',
+                    { content: 'TOTAL MATERIALS OUTSTANDING', styles: { fontStyle: 'bold' } },
+                    { content: formatMaterialNum(grandTotalOutstandingMaterials), styles: { fontStyle: 'bold', halign: 'right' } },
+                    '',
+                    '',
+                    { content: formatMaterialNum(grandTotalPaidMaterials), styles: { fontStyle: 'bold', halign: 'right' } }
+                ]);
+
+                // Grand Total Row
+                const grandTotalPayments = totalPaidLabour + grandTotalPaidMaterials;
+                const totalPaymentBody = [
+                    [
+                        '',
+                        { content: 'TOTAL PAYMENT', styles: { fontStyle: 'bold' } },
+                        '',
+                        '',
+                        '',
+                        { content: formatMaterialNum(grandTotalPayments), styles: { fontStyle: 'bold', halign: 'right' } }
+                    ]
+                ];
+
+                // ─── RENDER LABOUR TABLE ───
+                const labourHeaders = [];
+                labourHeaders.push(['Si.no', 'Description', 'Out standing\namount', 'Advance\npaid', 'Balance\namount', 'Paid amount']);
+                doc.autoTable({
+                    startY: 24,
+                    head: labourHeaders,
+                    body: bodyWages,
+                    theme: 'grid',
+                    margin: { top: 24, left: 12, right: 12, bottom: 15 },
+                    styles: {
+                        fontSize: 9,
+                        cellPadding: 2,
+                        textColor: [0, 0, 0],
+                        lineColor: [0, 0, 0],
+                        lineWidth: 0.15,
+                        font: 'helvetica'
+                    },
+                    headStyles: {
+                        fillColor: [255, 255, 255],
+                        textColor: [0, 0, 0],
+                        fontStyle: 'bold',
+                        lineWidth: 0.15,
+                        lineColor: [0, 0, 0]
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 12, halign: 'center' },
+                        1: { cellWidth: 74, halign: 'left' },
+                        2: { cellWidth: 25, halign: 'right' },
+                        3: { cellWidth: 25, halign: 'right' },
+                        4: { cellWidth: 25, halign: 'right' },
+                        5: { cellWidth: 25, halign: 'right' }
+                    },
+                    didDrawPage: function (data) {
+                        // Header centered title
+                        doc.setFontSize(14);
+                        doc.setFont('helvetica', 'bold');
+                        doc.setTextColor(0, 0, 0);
+                        const title = `${companyName.toUpperCase()} ALL SITE PAYMENT`;
+                        const pageWidth = doc.internal.pageSize.width;
+                        const titleWidth = doc.getTextWidth(title);
+                        doc.text(title, (pageWidth - titleWidth) / 2, 12);
+
+                        // Header right-aligned date
+                        doc.setFontSize(10);
+                        doc.setFont('helvetica', 'bold');
+                        const dateText = `Date : ${dateString}`;
+                        const dateWidth = doc.getTextWidth(dateText);
+                        doc.text(dateText, pageWidth - 12 - dateWidth, 18);
+                    }
+                });
+
+                // Render Split up table
+                doc.autoTable({
+                    startY: doc.lastAutoTable.finalY + 5,
+                    body: splitUpBody,
+                    theme: 'grid',
+                    margin: { left: 12, right: 12, bottom: 15 },
+                    styles: {
+                        fontSize: 9,
+                        cellPadding: 2,
+                        textColor: [0, 0, 0],
+                        lineColor: [0, 0, 0],
+                        lineWidth: 0.15,
+                        font: 'helvetica'
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 12, halign: 'center' },
+                        1: { cellWidth: 74, halign: 'left' },
+                        2: { cellWidth: 25, halign: 'right' },
+                        3: { cellWidth: 25, halign: 'right' },
+                        4: { cellWidth: 25, halign: 'right' },
+                        5: { cellWidth: 25, halign: 'right' }
+                    }
+                });
+
+                // ─── RENDER MATERIALS TABLE ───
+                doc.addPage();
+                const materialsHeaders = [];
+                materialsHeaders.push(['Si.no', 'Description', 'Out standing\namount', 'Advance\npaid', 'Balance\namount', 'Paid amount']);
+                doc.autoTable({
+                    startY: 24,
+                    head: materialsHeaders,
+                    body: bodyMaterials,
+                    theme: 'grid',
+                    margin: { top: 24, left: 12, right: 12, bottom: 15 },
+                    styles: {
+                        fontSize: 9,
+                        cellPadding: 2,
+                        textColor: [0, 0, 0],
+                        lineColor: [0, 0, 0],
+                        lineWidth: 0.15,
+                        font: 'helvetica'
+                    },
+                    headStyles: {
+                        fillColor: [255, 255, 255],
+                        textColor: [0, 0, 0],
+                        fontStyle: 'bold',
+                        lineWidth: 0.15,
+                        lineColor: [0, 0, 0]
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 12, halign: 'center' },
+                        1: { cellWidth: 74, halign: 'left' },
+                        2: { cellWidth: 27, halign: 'right' },
+                        3: { cellWidth: 15, halign: 'right' },
+                        4: { cellWidth: 27, halign: 'right' },
+                        5: { cellWidth: 31, halign: 'right' }
+                    },
+                    didDrawPage: function (data) {
+                        // Header centered title
+                        doc.setFontSize(14);
+                        doc.setFont('helvetica', 'bold');
+                        doc.setTextColor(0, 0, 0);
+                        const title = `${companyName.toUpperCase()} ALL SITE PAYMENT`;
+                        const pageWidth = doc.internal.pageSize.width;
+                        const titleWidth = doc.getTextWidth(title);
+                        doc.text(title, (pageWidth - titleWidth) / 2, 12);
+
+                        // Header right-aligned date
+                        doc.setFontSize(10);
+                        doc.setFont('helvetica', 'bold');
+                        const dateText = `Date : ${dateString}`;
+                        const dateWidth = doc.getTextWidth(dateText);
+                        doc.text(dateText, pageWidth - 12 - dateWidth, 18);
+                    }
+                });
+
+                // Render Total Payment table
+                doc.autoTable({
+                    startY: doc.lastAutoTable.finalY + 5,
+                    body: totalPaymentBody,
+                    theme: 'grid',
+                    margin: { left: 12, right: 12, bottom: 15 },
+                    styles: {
+                        fontSize: 9,
+                        cellPadding: 2,
+                        textColor: [0, 0, 0],
+                        lineColor: [0, 0, 0],
+                        lineWidth: 0.15,
+                        font: 'helvetica'
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 12, halign: 'center' },
+                        1: { cellWidth: 74, halign: 'left' },
+                        2: { cellWidth: 27, halign: 'right' },
+                        3: { cellWidth: 15, halign: 'right' },
+                        4: { cellWidth: 27, halign: 'right' },
+                        5: { cellWidth: 31, halign: 'right' }
+                    }
+                });
+
+                // ── Save PDF file with EXACT format required ──
+                const fileDateStr = formatDateStr(satDate);
+                const fileName = `${companyName} - Weekly expenses - ${fileDateStr}.pdf`;
+                doc.save(fileName);
+                showNotification('Weekly summary PDF exported successfully!', 'success');
+            }
+
+            // Initialization on page load
+            window.addEventListener('load', function () {
+                // Initialize Project dropdown
+                loadProjects();
+
+                // Setup flatpickr for week selection
+                flatpickrInstance = flatpickr("#week-date", {
+                    dateFormat: "Y-m-d",
+                    altInput: true,
+                    altFormat: "d M Y",
+                    allowInput: true,
+                    onChange: function (selectedDates, dateStr) {
+                        if (dateStr) {
+                            const satDate = getWeekSaturday(dateStr);
+                            const formattedStr = formatDateLocal(satDate);
+                            
+                            // Snap calendar to snapped Saturday
+                            flatpickrInstance.setDate(satDate, false);
+                            document.getElementById('week-start-val').value = formattedStr;
+                            updateWeekRangeLabel(satDate);
+                        } else {
+                            document.getElementById('week-start-val').value = '';
+                            document.getElementById('week-range-preview').textContent = 
+                                'Please select a date to verify the Saturday-to-Friday week range.';
+                        }
+                    }
+                });
+
+                // Default selection: snap current week to Saturday
+                const today = new Date();
+                const todayStr = formatDateLocal(today);
+                const currentSaturday = getWeekSaturday(todayStr);
+                
+                flatpickrInstance.setDate(currentSaturday, false);
+                document.getElementById('week-start-val').value = formatDateLocal(currentSaturday);
+                updateWeekRangeLabel(currentSaturday);
+
+                // Auto-fetch data for the current snapped week on load
+                loadWeeklySummary();
+            });
+        </script>
+    </div>
+</body>
+</html>

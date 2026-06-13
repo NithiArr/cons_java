@@ -71,6 +71,11 @@ public class ViewController {
         return "dashboard/vendor_analytics";
     }
 
+    @GetMapping({"/dashboard/weekly-summary", "/weekly-summary", "/weekly_summary"})
+    public String weeklySummary() {
+        return "dashboard/weekly_summary";
+    }
+
     @GetMapping({"/master-categories", "/master_categories"})
     public String masterCategories() {
         return "master_categories";

@@ -67,6 +67,8 @@ public class SecurityConfig {
                     "/client-payments", "/client_payments",
                     "/dashboard/daily-cash", "/daily_cash", "/daily-cash",
                     "/dashboard/vendor-analytics", "/vendor_analytics", "/vendor-analytics",
+                    "/dashboard/weekly-summary", "/weekly-summary", "/weekly_summary",
+                    "/api/weekly-summary-data",
                     "/payment-mode-split", "/payment_mode_split",
                     "/wages", "/api/wages/**"
                 ).hasAnyRole("ADMIN", "MANAGER")

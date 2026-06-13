@@ -14,4 +14,5 @@ public interface WageSheetRepository extends JpaRepository<WageSheet, Long> {
     List<WageSheet> findByProjectInOrderByWeekStartDesc(List<Project> projects);
     List<WageSheet> findByProjectOrderByWeekStartDesc(Project project);
     Optional<WageSheet> findByProjectAndWeekStart(Project project, LocalDate weekStart);
+    List<WageSheet> findByProjectInAndWeekStart(List<Project> projects, LocalDate weekStart);
 }

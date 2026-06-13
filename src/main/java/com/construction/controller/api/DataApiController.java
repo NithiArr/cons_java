@@ -27,6 +27,7 @@ public class DataApiController {
     private final SubCategoryRepository subCategoryRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final WageSheetRepository wageSheetRepository;
 
     // ─── HELPER ─────────────────────────────────────────────────────────
     private User currentUser(Authentication auth) {
@@ -926,5 +927,148 @@ public class DataApiController {
             if (((BigDecimal) oldVal).compareTo((BigDecimal) newVal) == 0) return "";
         }
         return field + ": " + o + " -> " + n + " | ";
+    }
+
+    @GetMapping("/api/weekly-summary-data")
+    public ResponseEntity<?> getWeeklySummaryData(
+            @RequestParam String week_start,
+            @RequestParam(required = false) Long project_id,
+            Authentication auth) {
+
+        Company company = currentCompany(auth);
+        java.time.LocalDate start = java.time.LocalDate.parse(week_start);
+        java.time.LocalDate end = start.plusDays(6);
+
+        // Resolve projects
+        List<Project> projects;
+        if (project_id != null) {
+            projects = projectRepository.findById(project_id)
+                    .filter(p -> p.getCompany().getCompanyId().equals(company.getCompanyId()))
+                    .map(List::of)
+                    .orElse(Collections.emptyList());
+        } else {
+            projects = projectRepository.findByCompanyOrderByCreatedAtDesc(company);
+        }
+
+        if (projects.isEmpty()) {
+            return ResponseEntity.ok(Map.of(
+                    "purchases", List.of(),
+                    "expenses", List.of(),
+                    "vendor_payments", List.of(),
+                    "client_payments", List.of(),
+                    "wages", List.of()
+            ));
+        }
+
+        // Query Purchases and Expenses
+        List<Expense> allExpenses = expenseRepository.findByCompanyAndExpenseDateBetween(company, start, end);
+        if (project_id != null) {
+            allExpenses = allExpenses.stream()
+                    .filter(e -> e.getProject() != null && e.getProject().getProjectId().equals(project_id))
+                    .collect(Collectors.toList());
+        }
+
+        List<Map<String, Object>> purchasesList = allExpenses.stream()
+                .filter(e -> "Material Purchase".equals(e.getExpenseType()))
+                .map(e -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("date", e.getExpenseDate().toString());
+                    m.put("project_name", e.getProject() != null ? e.getProject().getName() : "—");
+                    m.put("vendor_name", e.getVendor() != null ? e.getVendor().getName() : "—");
+                    m.put("category", e.getCategory());
+                    m.put("amount", e.getAmount());
+                    m.put("payment_mode", e.getPaymentMode());
+                    m.put("description", e.getDescription());
+                    m.put("invoice_number", e.getInvoiceNumber());
+                    return m;
+                }).collect(Collectors.toList());
+
+        List<Map<String, Object>> expensesList = allExpenses.stream()
+                .filter(e -> "Regular Expense".equals(e.getExpenseType()))
+                .map(e -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("date", e.getExpenseDate().toString());
+                    m.put("project_name", e.getProject() != null ? e.getProject().getName() : "—");
+                    m.put("category", e.getCategory());
+                    String subcat = (e.getItems() != null && !e.getItems().isEmpty()) ? e.getItems().get(0).getItemName() : "";
+                    m.put("subcategory", subcat);
+                    m.put("description", e.getDescription());
+                    m.put("amount", e.getAmount());
+                    m.put("payment_mode", e.getPaymentMode());
+                    return m;
+                }).collect(Collectors.toList());
+
+        // Query Vendor Payments
+        List<Payment> allVendorPayments = paymentRepository.findByCompanyAndPaymentDateBetween(company, start, end);
+        if (project_id != null) {
+            allVendorPayments = allVendorPayments.stream()
+                    .filter(p -> p.getProject() != null && p.getProject().getProjectId().equals(project_id))
+                    .collect(Collectors.toList());
+        }
+        List<Map<String, Object>> vendorPaymentsList = allVendorPayments.stream().map(p -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("date", p.getPaymentDate().toString());
+            m.put("project_name", p.getProject() != null ? p.getProject().getName() : "—");
+            m.put("vendor_name", p.getVendor() != null ? p.getVendor().getName() : "—");
+            m.put("amount", p.getAmount());
+            m.put("payment_mode", p.getPaymentMode());
+            m.put("purchase_invoice", p.getExpense() != null ? p.getExpense().getInvoiceNumber() : "-");
+            return m;
+        }).collect(Collectors.toList());
+
+        // Query Client Payments
+        List<ClientPayment> allClientPayments = clientPaymentRepository.findByCompanyAndPaymentDateBetween(company, start, end);
+        if (project_id != null) {
+            allClientPayments = allClientPayments.stream()
+                    .filter(cp -> cp.getProject() != null && cp.getProject().getProjectId().equals(project_id))
+                    .collect(Collectors.toList());
+        }
+        List<Map<String, Object>> clientPaymentsList = allClientPayments.stream().map(cp -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("date", cp.getPaymentDate().toString());
+            m.put("project_name", cp.getProject() != null ? cp.getProject().getName() : "—");
+            m.put("amount", cp.getAmount());
+            m.put("payment_mode", cp.getPaymentMode());
+            m.put("reference_number", cp.getReferenceNumber());
+            m.put("remarks", cp.getRemarks());
+            return m;
+        }).collect(Collectors.toList());
+
+        // Query Wages
+        List<WageSheet> wageSheets = wageSheetRepository.findByProjectInAndWeekStart(projects, start);
+        List<Map<String, Object>> wagesList = wageSheets.stream().map(s -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("project_name", s.getProject().getName());
+            m.put("advance", s.getAdvance());
+            m.put("mason_advance", s.getMasonAdvance());
+            m.put("fitter_advance", s.getFitterAdvance());
+            BigDecimal total = s.getRows().stream()
+                    .map(WageRow::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            m.put("grand_total", total);
+            m.put("net_total", total.subtract(s.getAdvance() == null ? BigDecimal.ZERO : s.getAdvance()));
+            
+            List<Map<String, Object>> rowsList = s.getRows().stream().map(r -> {
+                Map<String, Object> rm = new LinkedHashMap<>();
+                rm.put("employee_name", r.getEmployeeName());
+                rm.put("category", r.getCategory());
+                rm.put("row_type", r.getRowType());
+                rm.put("description", r.getDescription());
+                rm.put("amount", r.getAmount());
+                rm.put("is_head_labour", r.getIsHeadLabour());
+                return rm;
+            }).collect(Collectors.toList());
+            m.put("rows", rowsList);
+            
+            return m;
+        }).collect(Collectors.toList());
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("purchases", purchasesList);
+        result.put("expenses", expensesList);
+        result.put("vendor_payments", vendorPaymentsList);
+        result.put("client_payments", clientPaymentsList);
+        result.put("wages", wagesList);
+        return ResponseEntity.ok(result);
     }
 }
