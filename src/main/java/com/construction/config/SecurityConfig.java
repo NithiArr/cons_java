@@ -48,7 +48,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 // Public
-                .requestMatchers("/login", "/css/**", "/js/**", "/assets/**", "/static/**", "/Logo.jpeg").permitAll()
+                .requestMatchers("/login", "/css/**", "/js/**", "/assets/**", "/static/**", "/logo.jpeg").permitAll()
 
                 // ── ADMIN only ──────────────────────────────────────────────
                 .requestMatchers(
