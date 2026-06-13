@@ -80,8 +80,11 @@ public class WageApiController {
         WageSheet sheet = new WageSheet();
         sheet.setProject(projectOpt.get());
         sheet.setWeekStart(weekStart);
-        sheet.setWeekEnd(weekEnd);
-        sheet.setAdvance(body.get("advance") != null ? new BigDecimal(body.get("advance").toString()) : BigDecimal.ZERO);
+        BigDecimal masonAdvance = body.get("mason_advance") != null ? new BigDecimal(body.get("mason_advance").toString()) : BigDecimal.ZERO;
+        BigDecimal fitterAdvance = body.get("fitter_advance") != null ? new BigDecimal(body.get("fitter_advance").toString()) : BigDecimal.ZERO;
+        sheet.setMasonAdvance(masonAdvance);
+        sheet.setFitterAdvance(fitterAdvance);
+        sheet.setAdvance(masonAdvance.add(fitterAdvance));
 
         applyRows(sheet, body);
         wageSheetRepository.save(sheet);
@@ -111,9 +114,17 @@ public class WageApiController {
                         sheet.setWeekStart(ws);
                         sheet.setWeekEnd(ws.plusDays(6));
                     }
-                    if (body.get("advance") != null) {
-                        sheet.setAdvance(new BigDecimal(body.get("advance").toString()));
+                    BigDecimal mAdv = sheet.getMasonAdvance() != null ? sheet.getMasonAdvance() : BigDecimal.ZERO;
+                    BigDecimal fAdv = sheet.getFitterAdvance() != null ? sheet.getFitterAdvance() : BigDecimal.ZERO;
+                    if (body.get("mason_advance") != null) {
+                        mAdv = new BigDecimal(body.get("mason_advance").toString());
+                        sheet.setMasonAdvance(mAdv);
                     }
+                    if (body.get("fitter_advance") != null) {
+                        fAdv = new BigDecimal(body.get("fitter_advance").toString());
+                        sheet.setFitterAdvance(fAdv);
+                    }
+                    sheet.setAdvance(mAdv.add(fAdv));
                     // Replace all rows
                     sheet.getRows().clear();
                     applyRows(sheet, body);
@@ -150,6 +161,9 @@ public class WageApiController {
             row.setRowOrder(i);
             row.setCategory(strOrEmpty(rd.get("category")));
             row.setEmployeeName(strOrEmpty(rd.get("employee_name")));
+            row.setRowType(strOrEmpty(rd.get("row_type")));
+            row.setDescription(strOrEmpty(rd.get("description")));
+            row.setIsHeadLabour(bool(rd.get("is_head_labour")));
             row.setDay1(dec(rd.get("day1")));
             row.setDay2(dec(rd.get("day2")));
             row.setDay3(dec(rd.get("day3")));
@@ -170,12 +184,29 @@ public class WageApiController {
         m.put("week_start", s.getWeekStart().toString());
         m.put("week_end", s.getWeekEnd().toString());
         m.put("advance", s.getAdvance());
+        m.put("mason_advance", s.getMasonAdvance());
+        m.put("fitter_advance", s.getFitterAdvance());
         // grand total
         BigDecimal total = s.getRows().stream()
                 .map(WageRow::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal masonTotal = s.getRows().stream()
+                .filter(r -> "MASON".equals(r.getRowType()) || r.getRowType() == null || r.getRowType().isEmpty())
+                .map(WageRow::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal fitterTotal = s.getRows().stream()
+                .filter(r -> "FITTER".equals(r.getRowType()))
+                .map(WageRow::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal additionalTotal = s.getRows().stream()
+                .filter(r -> "ADDITIONAL".equals(r.getRowType()))
+                .map(WageRow::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
         m.put("grand_total", total);
         m.put("net_total", total.subtract(s.getAdvance() == null ? BigDecimal.ZERO : s.getAdvance()));
+        m.put("mason_total", masonTotal);
+        m.put("fitter_total", fitterTotal);
+        m.put("additional_total", additionalTotal);
         m.put("row_count", s.getRows().size());
         return m;
     }
@@ -191,6 +222,9 @@ public class WageApiController {
             rm.put("sl_no", i + 1);
             rm.put("category", r.getCategory());
             rm.put("employee_name", r.getEmployeeName());
+            rm.put("row_type", r.getRowType());
+            rm.put("description", r.getDescription());
+            rm.put("is_head_labour", r.getIsHeadLabour() != null && r.getIsHeadLabour());
             rm.put("day1", r.getDay1());
             rm.put("day2", r.getDay2());
             rm.put("day3", r.getDay3());
@@ -210,25 +244,40 @@ public class WageApiController {
     }
 
     private List<Map<String, Object>> buildCategorySummary(List<WageRow> rows) {
-        // group by category (case-insensitive)
+        // group by category and rowType
         Map<String, List<WageRow>> grouped = new LinkedHashMap<>();
         for (WageRow r : rows) {
-            String cat = r.getCategory() == null ? "" : r.getCategory().toUpperCase();
-            grouped.computeIfAbsent(cat, k -> new ArrayList<>()).add(r);
+            String key = (r.getCategory() == null ? "" : r.getCategory().toUpperCase())
+                    + ":" + (r.getRowType() == null ? "MASON" : r.getRowType().toUpperCase());
+            grouped.computeIfAbsent(key, k -> new ArrayList<>()).add(r);
         }
         List<Map<String, Object>> summary = new ArrayList<>();
         for (Map.Entry<String, List<WageRow>> entry : grouped.entrySet()) {
+            String[] parts = entry.getKey().split(":");
+            String cat = parts[0];
+            String type = parts[1];
             List<WageRow> catRows = entry.getValue();
-            BigDecimal totalDays = catRows.stream().map(WageRow::getNoOfDays).reduce(BigDecimal.ZERO, BigDecimal::add);
-            // Use the wage of first row that has a non-zero wage
-            BigDecimal wageRate = catRows.stream()
-                    .map(r -> r.getWagePerDay() == null ? BigDecimal.ZERO : r.getWagePerDay())
-                    .filter(w -> w.compareTo(BigDecimal.ZERO) > 0)
-                    .findFirst().orElse(BigDecimal.ZERO);
-            BigDecimal subtotal = totalDays.multiply(wageRate);
+
+            BigDecimal totalDays = BigDecimal.ZERO;
+            BigDecimal wageRate = BigDecimal.ZERO;
+            BigDecimal subtotal = BigDecimal.ZERO;
+
+            if ("ADDITIONAL".equals(type)) {
+                subtotal = catRows.stream()
+                        .map(r -> r.getWagePerDay() == null ? BigDecimal.ZERO : r.getWagePerDay())
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+            } else {
+                totalDays = catRows.stream().map(WageRow::getNoOfDays).reduce(BigDecimal.ZERO, BigDecimal::add);
+                wageRate = catRows.stream()
+                        .map(r -> r.getWagePerDay() == null ? BigDecimal.ZERO : r.getWagePerDay())
+                        .filter(w -> w.compareTo(BigDecimal.ZERO) > 0)
+                        .findFirst().orElse(BigDecimal.ZERO);
+                subtotal = totalDays.multiply(wageRate);
+            }
 
             Map<String, Object> sm = new LinkedHashMap<>();
-            sm.put("category", entry.getKey());
+            sm.put("category", cat);
+            sm.put("row_type", type);
             sm.put("total_days", totalDays);
             sm.put("wage_rate", wageRate);
             sm.put("subtotal", subtotal);
@@ -244,5 +293,11 @@ public class WageApiController {
 
     private String strOrEmpty(Object val) {
         return val == null ? "" : val.toString();
+    }
+
+    private Boolean bool(Object val) {
+        if (val == null) return false;
+        if (val instanceof Boolean) return (Boolean) val;
+        return Boolean.parseBoolean(val.toString());
     }
 }

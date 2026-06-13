@@ -235,10 +235,10 @@ Projects
                     <div class="card mb-3">
                         <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
                             <h4 class="card-title"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg> Regular Expenses Breakdown</h4>
-                            <select id="expense-category-filter" class="form-control" style="width:200px;" onchange="filterExpensesByCategory()"><option value="">All Categories</option></select>
+                            <select id="expense-category-filter" class="form-control" style="width:200px;" onchange="filterExpensesByCategory()"><option value="ALL">All Categories</option></select>
                         </div>
                         <div class="card-body"><div class="grid grid-2" style="gap:2rem;">
-                            <div><div style="max-width:400px;margin:0 auto;"><canvas id="expense-category-chart"></canvas></div></div>
+                            <div><div style="max-width:550px;margin:0 auto;"><canvas id="expense-category-chart"></canvas></div></div>
                             <div><h5 style="margin-bottom:1rem;">Subcategory Breakdown</h5><div id="expense-category-legend" style="max-height:300px;overflow-y:auto;"></div></div>
                         </div></div>
                     </div>
@@ -253,10 +253,13 @@ Projects
                                     <span id="material-drilldown-label" style="font-weight:600;color:var(--primary);"></span>
                                 </div>
                             </div>
-                            <div id="material-chart-hint" style="font-size:0.8rem;color:var(--text-secondary);font-style:italic;">💡 Click a slice to drill down</div>
+                            <div style="display:flex;align-items:center;gap:1rem;">
+                                <select id="material-category-filter" class="form-control" style="width:200px;" onchange="filterMaterialByCategory()"><option value="ALL">All Categories</option></select>
+                                <div id="material-chart-hint" style="font-size:0.8rem;color:var(--text-secondary);font-style:italic;">💡 Click a slice to drill down</div>
+                            </div>
                         </div>
                         <div class="card-body"><div class="grid grid-2" style="gap:2rem;">
-                            <div><div style="max-width:400px;margin:0 auto;"><canvas id="spending-pie-chart" style="cursor:pointer;"></canvas></div></div>
+                            <div><div style="max-width:550px;margin:0 auto;"><canvas id="spending-pie-chart" style="cursor:pointer;"></canvas></div></div>
                             <div><h5 id="material-legend-title" style="margin-bottom:1rem;">By Category</h5><div id="spending-legend" style="max-height:300px;overflow-y:auto;"></div></div>
                         </div></div>
                     </div>
@@ -268,6 +271,19 @@ Projects
                         <h4 style="margin:0;">Purchase History</h4>
                         <div style="font-size:0.85rem;color:var(--text-secondary);">Total: <strong id="purchases-grand-total" style="color:var(--primary);">—</strong></div>
                     </div>
+                    <!-- Date Filter -->
+                    <div class="flex gap-2 align-center mb-3" style="background:var(--bg-secondary); padding:0.5rem 0.75rem; border-radius:8px; font-size:0.82rem; flex-wrap:wrap; margin-bottom:1rem;">
+                        <span style="font-weight:600; color:var(--text-secondary);">Filter Date:</span>
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <span style="color:var(--text-secondary);">From</span>
+                            <input type="date" class="form-control form-control-sm" id="filter-purchase-start" onchange="filterAndRenderPurchases()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:auto; height:auto; line-height:normal;">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <span style="color:var(--text-secondary);">To</span>
+                            <input type="date" class="form-control form-control-sm" id="filter-purchase-end" onchange="filterAndRenderPurchases()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:auto; height:auto; line-height:normal;">
+                        </div>
+                        <button class="btn btn-sm btn-secondary" onclick="clearPurchaseDateFilter()" style="padding:0.25rem 0.6rem; font-size:0.78rem;">Clear</button>
+                    </div>
                     <div id="purchases-grouped-content"></div>
                 </div>
 
@@ -276,6 +292,19 @@ Projects
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
                         <h4 style="margin:0;">Vendor Payments</h4>
                         <div style="font-size:0.85rem;color:var(--text-secondary);">Total Paid: <strong id="payments-grand-total" style="color:var(--success);">—</strong></div>
+                    </div>
+                    <!-- Date Filter -->
+                    <div class="flex gap-2 align-center mb-3" style="background:var(--bg-secondary); padding:0.5rem 0.75rem; border-radius:8px; font-size:0.82rem; flex-wrap:wrap; margin-bottom:1rem;">
+                        <span style="font-weight:600; color:var(--text-secondary);">Filter Date:</span>
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <span style="color:var(--text-secondary);">From</span>
+                            <input type="date" class="form-control form-control-sm" id="filter-payment-start" onchange="filterAndRenderVendorPayments()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:auto; height:auto; line-height:normal;">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <span style="color:var(--text-secondary);">To</span>
+                            <input type="date" class="form-control form-control-sm" id="filter-payment-end" onchange="filterAndRenderVendorPayments()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:auto; height:auto; line-height:normal;">
+                        </div>
+                        <button class="btn btn-sm btn-secondary" onclick="clearVendorPaymentDateFilter()" style="padding:0.25rem 0.6rem; font-size:0.78rem;">Clear</button>
                     </div>
                     <div id="payments-grouped-content"></div>
                 </div>
@@ -286,6 +315,19 @@ Projects
                         <h4 style="margin:0;">Expenses</h4>
                         <div style="font-size:0.85rem;color:var(--text-secondary);">Total: <strong id="expenses-grand-total" style="color:var(--warning,#f59e0b);">—</strong></div>
                     </div>
+                    <!-- Date Filter -->
+                    <div class="flex gap-2 align-center mb-3" style="background:var(--bg-secondary); padding:0.5rem 0.75rem; border-radius:8px; font-size:0.82rem; flex-wrap:wrap; margin-bottom:1rem;">
+                        <span style="font-weight:600; color:var(--text-secondary);">Filter Date:</span>
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <span style="color:var(--text-secondary);">From</span>
+                            <input type="date" class="form-control form-control-sm" id="filter-expense-start" onchange="filterAndRenderExpenses()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:auto; height:auto; line-height:normal;">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <span style="color:var(--text-secondary);">To</span>
+                            <input type="date" class="form-control form-control-sm" id="filter-expense-end" onchange="filterAndRenderExpenses()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:auto; height:auto; line-height:normal;">
+                        </div>
+                        <button class="btn btn-sm btn-secondary" onclick="clearExpenseDateFilter()" style="padding:0.25rem 0.6rem; font-size:0.78rem;">Clear</button>
+                    </div>
                     <div id="expenses-grouped-content"></div>
                 </div>
 
@@ -294,6 +336,19 @@ Projects
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
                         <h4 style="margin:0;">Client Payments Received</h4>
                         <div style="font-size:0.85rem;color:var(--text-secondary);">Total Received: <strong id="client-grand-total" style="color:var(--success);">—</strong></div>
+                    </div>
+                    <!-- Date Filter -->
+                    <div class="flex gap-2 align-center mb-3" style="background:var(--bg-secondary); padding:0.5rem 0.75rem; border-radius:8px; font-size:0.82rem; flex-wrap:wrap; margin-bottom:1rem;">
+                        <span style="font-weight:600; color:var(--text-secondary);">Filter Date:</span>
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <span style="color:var(--text-secondary);">From</span>
+                            <input type="date" class="form-control form-control-sm" id="filter-client-start" onchange="filterAndRenderClientPayments()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:auto; height:auto; line-height:normal;">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <span style="color:var(--text-secondary);">To</span>
+                            <input type="date" class="form-control form-control-sm" id="filter-client-end" onchange="filterAndRenderClientPayments()" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:auto; height:auto; line-height:normal;">
+                        </div>
+                        <button class="btn btn-sm btn-secondary" onclick="clearClientPaymentDateFilter()" style="padding:0.25rem 0.6rem; font-size:0.78rem;">Clear</button>
                     </div>
                     <div id="client-grouped-content"></div>
                 </div>
@@ -498,26 +553,15 @@ Projects
     function renderExpenseCategoryChart(projectData) {
         // Store all expenses globally for filtering
         allExpenses = projectData.expenses || [];
-        console.log('Debug - All expenses:', allExpenses, 'Regular count:', allExpenses.filter(e => e.expense_type === 'Regular Expense').length);
 
         // Get unique categories for REGULAR EXPENSES only
         const regularExpenses = allExpenses.filter(e => e.expense_type === 'Regular Expense');
-        const uniqueCategories = [...new Set(regularExpenses.map(e => e.category || 'Other'))];
+        const uniqueCategories = [...new Set(regularExpenses.map(e => e.category || 'Other'))].sort();
         const filterSelect = document.getElementById('expense-category-filter');
-        filterSelect.innerHTML = '<option value="">All Categories</option>' +
+        filterSelect.innerHTML = '<option value="ALL">All Categories</option>' +
             uniqueCategories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
 
-        // Sync Tom Select if it exists, or initialize it
-        if (filterSelect.tomselect) {
-            filterSelect.tomselect.clearOptions();
-            filterSelect.tomselect.addOption({ value: '', text: 'All Categories' });
-            uniqueCategories.forEach(cat => {
-                filterSelect.tomselect.addOption({ value: cat, text: cat });
-            });
-            filterSelect.tomselect.setValue('');
-        } else {
-            initSearchableDropdowns('#expense-category-filter');
-        }
+        filterSelect.value = 'ALL';
 
         // Initial render with all expenses
         updateExpenseCategoryChart();
@@ -536,14 +580,14 @@ Projects
         let filteredExpenses = allExpenses.filter(e => e.expense_type === 'Regular Expense');
 
         // Further filter by category if selected
-        if (selectedCategory) {
+        if (selectedCategory && selectedCategory !== 'ALL') {
             filteredExpenses = filteredExpenses.filter(e => e.category === selectedCategory);
         }
 
-        // Group expenses by SUBCATEGORY
+        // Group expenses by Category (if "All Categories" is selected) or Subcategory (if a category is selected)
         const categoryMap = {};
         filteredExpenses.forEach(expense => {
-            const label = expense.subcategory || expense.category || 'Other';
+            const label = (selectedCategory && selectedCategory !== 'ALL') ? (expense.subcategory || 'Other') : (expense.category || 'Other');
             if (!categoryMap[label]) {
                 categoryMap[label] = 0;
             }
@@ -635,18 +679,42 @@ Projects
     function renderSpendingPieChart(projectData) {
         allMaterialItems = projectData.expense_items || [];
         materialDrilldownCategory = null; // Reset to top-level
+        
+        // Populate material category filter dropdown
+        const uniqueCategories = [...new Set(allMaterialItems.map(item => item.category || 'Other'))].sort();
+        const filterSelect = document.getElementById('material-category-filter');
+        filterSelect.innerHTML = '<option value="ALL">All Categories</option>' +
+            uniqueCategories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+            
+        filterSelect.value = 'ALL';
+        
         updateMaterialChart();
     }
 
     // Go back to category-level view
     function backToMaterialCategories() {
         materialDrilldownCategory = null;
+        const filterSelect = document.getElementById('material-category-filter');
+        if (filterSelect) {
+            filterSelect.value = 'ALL';
+        }
         updateMaterialChart();
     }
 
     // Drill into a specific category to see subcategories
     function drillDownMaterial(categoryName) {
         materialDrilldownCategory = categoryName;
+        const filterSelect = document.getElementById('material-category-filter');
+        if (filterSelect) {
+            filterSelect.value = categoryName;
+        }
+        updateMaterialChart();
+    }
+
+    // Filter material purchases by category from dropdown
+    function filterMaterialByCategory() {
+        const selectedVal = document.getElementById('material-category-filter').value;
+        materialDrilldownCategory = (selectedVal && selectedVal !== 'ALL') ? selectedVal : null;
         updateMaterialChart();
     }
 
@@ -828,9 +896,16 @@ Projects
         var body = document.getElementById(id);
         var icon = document.getElementById('icon-' + id);
         if (!body) return;
-        var isOpen = body.classList.contains('open');
-        body.classList.toggle('open', !isOpen);
-        if (icon) icon.textContent = isOpen ? '▶' : '▼';
+        
+        if (body.tagName === 'TR') {
+            var isOpen = body.style.display === 'table-row';
+            body.style.display = isOpen ? 'none' : 'table-row';
+            if (icon) icon.textContent = isOpen ? '▶' : '▼';
+        } else {
+            var isOpen = body.classList.contains('open');
+            body.classList.toggle('open', !isOpen);
+            if (icon) icon.textContent = isOpen ? '▶' : '▼';
+        }
     }
 
     // ── Purchase History grouped by vendor ──
@@ -859,34 +934,65 @@ Projects
             grouped[v].total += parseFloat(p.amount);
         });
         var vendorsSorted = Object.entries(grouped).sort(function(a,b){ return b[1].total - a[1].total; });
-        var html = '';
+        
+        var html = '<div class="table-container" style="margin-top:0;">'
+            + '<table class="table" style="width:100%; margin-bottom:0; border-collapse:collapse;">'
+            + '<thead>'
+            + '<tr>'
+            + '<th style="padding:0.75rem 1.1rem; width:45%;">Vendor</th>'
+            + '<th style="padding:0.75rem 1.1rem; width:20%;">Invoices</th>'
+            + '<th style="padding:0.75rem 1.1rem; width:25%; text-align:right;">Total Spent</th>'
+            + '<th style="padding:0.75rem 1.1rem; width:10%; text-align:right;">Action</th>'
+            + '</tr>'
+            + '</thead>'
+            + '<tbody>';
+
         vendorsSorted.forEach(function(entry, gIdx) {
             var vendor = entry[0]; var vData = entry[1];
             var groupId = 'pgrp-' + gIdx;
-            html += '<div class="group-card">'
-                + '<div class="group-card-hdr" onclick="toggleGroupCard(\'' + groupId + '\')" >'
+            
+            html += '<tr onclick="toggleGroupCard(\'' + groupId + '\')" style="cursor:pointer; background:var(--card-bg); border-bottom:1px solid var(--border);">'
+                + '<td style="padding:0.75rem 1.1rem;">'
                 +   '<div style="display:flex;align-items:center;gap:0.75rem;">'
-                +     '<div style="width:38px;height:38px;border-radius:9px;background:rgba(59,130,246,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="var(--primary)" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016 2.993 2.993 0 0 0 2.25-1.016 3.001 3.001 0 0 0 3.75.614m-16.5 0a3.004 3.004 0 0 1-.621-4.72l1.189-1.19A1.5 1.5 0 0 1 5.378 3h13.243a1.5 1.5 0 0 1 1.06.44l1.19 1.189a3 3 0 0 1-.621 4.72"/></svg></div>'
-                +     '<div><div style="font-weight:600;font-size:0.95rem;">' + vendor + '</div><div style="font-size:0.78rem;color:var(--text-secondary);">' + vData.items.length + ' invoice' + (vData.items.length !== 1 ? 's' : '') + '</div></div>'
+                +     '<div style="width:40px;height:40px;border-radius:8px;background:rgba(59,130,246,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="var(--primary)" style="width:20px;height:20px;"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393(2.25-1.016a2.993 2.993 0 0 0 2.25 1.016 2.993 2.993 0 0 0 2.25-1.016 3.001 3.001 0 0 0 3.75.614m-16.5 0a3.004 3.004 0 0 1-.621-4.72l1.189-1.19A1.5 1.5 0 0 1 5.378 3h13.243a1.5 1.5 0 0 1 1.06.44l1.19 1.189a3 3 0 0 1-.621 4.72"/></svg></div>'
+                +     '<div style="font-weight:600;font-size:0.92rem;color:var(--text-primary);">' + vendor + '</div>'
                 +   '</div>'
-                +   '<div style="display:flex;align-items:center;gap:1rem;"><div style="text-align:right;"><div style="font-weight:700;font-size:1rem;color:var(--primary);">' + formatCurrency(vData.total) + '</div><div style="font-size:0.72rem;color:var(--text-secondary);">Total</div></div><span id="icon-' + groupId + '" style="color:var(--text-secondary);font-size:0.8rem;">▶</span></div>'
-                + '</div>'
-                + '<div class="group-card-body" id="' + groupId + '">';
+                + '</td>'
+                + '<td style="padding:0.75rem 1.1rem; color:var(--text-secondary);">' + vData.items.length + ' invoice' + (vData.items.length !== 1 ? 's' : '') + '</td>'
+                + '<td style="padding:0.75rem 1.1rem; text-align:right; font-weight:700; color:var(--primary);">' + formatCurrency(vData.total) + '</td>'
+                + '<td style="padding:0.75rem 1.1rem; text-align:right;"><span id="icon-' + groupId + '" style="color:var(--text-secondary);font-size:0.8rem;">▶</span></td>'
+                + '</tr>';
+
+            html += '<tr id="' + groupId + '" style="display:none; background:var(--bg-secondary);">'
+                + '<td colspan="4" style="padding:1rem 1.5rem; border-bottom:1px solid var(--border);">'
+                + '<table class="table" style="width:100%; margin-bottom:0; background:var(--card-bg); border-radius:8px; border:1px solid var(--border); overflow:hidden;">'
+                + '<thead>'
+                + '<tr>'
+                + '<th style="padding:0.75rem 1.1rem; border-bottom:1px solid var(--border);">Date</th>'
+                + '<th style="padding:0.75rem 1.1rem; border-bottom:1px solid var(--border);">Type</th>'
+                + '<th style="padding:0.75rem 1.1rem; border-bottom:1px solid var(--border); text-align:right;">Amount</th>'
+                + '<th style="padding:0.75rem 1.1rem; border-bottom:1px solid var(--border); text-align:right;">Items</th>'
+                + '</tr>'
+                + '</thead>'
+                + '<tbody>';
+
             vData.items.forEach(function(p) {
                 var pItems   = itemsByExpense[p.purchase_id] || [];
                 var hasItems = pItems.length > 0;
-                var itemsId  = 'pitems-' + p.purchase_id;
-                html += '<div style="padding:0.75rem 1.1rem;border-bottom:1px solid var(--border);">'
-                    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;">'
-                    +   '<div style="display:flex;align-items:center;gap:1rem;"><div><div style="font-weight:500;font-size:0.88rem;">' + (p.invoice_number || '—') + '</div><div style="font-size:0.76rem;color:var(--text-secondary);">' + formatDate(p.invoice_date) + '</div></div></div>'
-                    +   '<div style="display:flex;align-items:center;gap:0.65rem;">'
-                    +     getPaymentBadgeHTML(p.payment_mode)
-                    +     '<span style="font-weight:700;font-size:0.92rem;">' + formatCurrency(p.amount) + '</span>'
-                    +     (hasItems ? '<button class="btn btn-sm btn-secondary" onclick="toggleGroupCard(\'' + itemsId + '\');event.stopPropagation();" style="font-size:0.72rem;padding:0.15rem 0.5rem;">' + pItems.length + ' items</button>' : '')
-                    +   '</div>'
-                    + '</div>';
+                var itemsId  = 'items-' + p.purchase_id;
+                var iconId   = 'icon-' + p.purchase_id;
+                html += '<tr>'
+                    + '<td style="padding:0.75rem 1.1rem;">' + formatDate(p.invoice_date) + '</td>'
+                    + '<td style="padding:0.75rem 1.1rem;">' + getPaymentBadgeHTML(p.payment_mode) + '</td>'
+                    + '<td style="padding:0.75rem 1.1rem; text-align:right; font-weight:700;">' + formatCurrency(p.amount) + '</td>'
+                    + '<td style="padding:0.75rem 1.1rem; text-align:right;">'
+                    +   (hasItems ? '<button class="btn btn-sm btn-secondary" onclick="togglePurchaseItems(\'' + p.purchase_id + '\');event.stopPropagation();" style="font-size:0.72rem;padding:0.15rem 0.5rem;"><span id="' + iconId + '" style="margin-right:4px;">▶</span>' + pItems.length + ' items</button>' : '—')
+                    + '</td>'
+                    + '</tr>';
                 if (hasItems) {
-                    html += '<div class="group-card-body" id="' + itemsId + '" style="margin-top:0.6rem;border:1px solid var(--border);border-radius:8px;overflow:hidden;">'
+                    html += '<tr id="' + itemsId + '" style="display:none; background:var(--bg-tertiary);">'
+                        + '<td colspan="4" style="padding:0.75rem 1.1rem;">'
+                        + '<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden; background:var(--card-bg);">'
                         + '<table style="width:100%;font-size:0.8rem;border-collapse:collapse;"><thead><tr style="background:var(--bg-tertiary);">'
                         + '<th style="padding:0.4rem 0.7rem;text-align:left;">Category</th><th style="padding:0.4rem 0.7rem;text-align:left;">Item</th><th style="padding:0.4rem 0.7rem;text-align:left;">Brand</th><th style="padding:0.4rem 0.7rem;text-align:left;">Qty</th><th style="padding:0.4rem 0.7rem;text-align:right;">Unit Price</th><th style="padding:0.4rem 0.7rem;text-align:right;">Total</th>'
                         + '</tr></thead><tbody>';
@@ -900,12 +1006,12 @@ Projects
                             + '<td style="padding:0.4rem 0.7rem;text-align:right;font-weight:700;">' + formatCurrency(item.total_price) + '</td>'
                             + '</tr>';
                     });
-                    html += '</tbody></table></div>';
+                    html += '</tbody></table></div></td></tr>';
                 }
-                html += '</div>';
             });
-            html += '</div></div>';
+            html += '</tbody></table></td></tr>';
         });
+        html += '</tbody></table></div>';
         container.innerHTML = html;
     }
 
@@ -927,28 +1033,58 @@ Projects
             grouped[v].total += parseFloat(p.amount);
         });
         var vendorsSorted = Object.entries(grouped).sort(function(a,b){ return b[1].total - a[1].total; });
-        var html = '';
+        
+        var html = '<div class="table-container" style="margin-top:0;">'
+            + '<table class="table" style="width:100%; margin-bottom:0; border-collapse:collapse;">'
+            + '<thead>'
+            + '<tr>'
+            + '<th style="padding:0.75rem 1.1rem; width:45%;">Vendor</th>'
+            + '<th style="padding:0.75rem 1.1rem; width:20%;">Payments</th>'
+            + '<th style="padding:0.75rem 1.1rem; width:25%; text-align:right;">Total Paid</th>'
+            + '<th style="padding:0.75rem 1.1rem; width:10%; text-align:right;">Action</th>'
+            + '</tr>'
+            + '</thead>'
+            + '<tbody>';
+
         vendorsSorted.forEach(function(entry, gIdx) {
             var vendor = entry[0]; var vData = entry[1];
             var groupId = 'vgrp-' + gIdx;
-            html += '<div class="group-card">'
-                + '<div class="group-card-hdr" onclick="toggleGroupCard(\'' + groupId + '\')" >'
+            html += '<tr onclick="toggleGroupCard(\'' + groupId + '\')" style="cursor:pointer; background:var(--card-bg); border-bottom:1px solid var(--border);">'
+                + '<td style="padding:0.75rem 1.1rem;">'
                 +   '<div style="display:flex;align-items:center;gap:0.75rem;">'
-                +     '<div style="width:38px;height:38px;border-radius:9px;background:rgba(16,185,129,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="var(--success)" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z"/></svg></div>'
-                +     '<div><div style="font-weight:600;font-size:0.95rem;">' + vendor + '</div><div style="font-size:0.78rem;color:var(--text-secondary);">' + vData.items.length + ' payment' + (vData.items.length !== 1 ? 's' : '') + '</div></div>'
+                +     '<div style="width:40px;height:40px;border-radius:8px;background:rgba(16,185,129,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="var(--success)" style="width:20px;height:20px;"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z"/></svg></div>'
+                +     '<div style="font-weight:600;font-size:0.92rem;color:var(--text-primary);">' + vendor + '</div>'
                 +   '</div>'
-                +   '<div style="display:flex;align-items:center;gap:1rem;"><div style="text-align:right;"><div style="font-weight:700;font-size:1rem;color:var(--success);">' + formatCurrency(vData.total) + '</div><div style="font-size:0.72rem;color:var(--text-secondary);">Total Paid</div></div><span id="icon-' + groupId + '" style="color:var(--text-secondary);font-size:0.8rem;">▶</span></div>'
-                + '</div>'
-                + '<div class="group-card-body" id="' + groupId + '">';
+                + '</td>'
+                + '<td style="padding:0.75rem 1.1rem; color:var(--text-secondary);">' + vData.items.length + ' payment' + (vData.items.length !== 1 ? 's' : '') + '</td>'
+                + '<td style="padding:0.75rem 1.1rem; text-align:right; font-weight:700; color:var(--success);">' + formatCurrency(vData.total) + '</td>'
+                + '<td style="padding:0.75rem 1.1rem; text-align:right;"><span id="icon-' + groupId + '" style="color:var(--text-secondary);font-size:0.8rem;">▶</span></td>'
+                + '</tr>';
+            
+            html += '<tr id="' + groupId + '" style="display:none; background:var(--bg-secondary);">'
+                + '<td colspan="4" style="padding:1rem 1.5rem; border-bottom:1px solid var(--border);">'
+                + '<table class="table" style="width:100%; margin-bottom:0; background:var(--card-bg); border-radius:8px; border:1px solid var(--border); overflow:hidden;">'
+                + '<thead>'
+                + '<tr>'
+                + '<th style="padding:0.75rem 1.1rem; border-bottom:1px solid var(--border);">Date</th>'
+                + '<th style="padding:0.75rem 1.1rem; border-bottom:1px solid var(--border);">Ref</th>'
+                + '<th style="padding:0.75rem 1.1rem; border-bottom:1px solid var(--border);">Cash/UPI</th>'
+                + '<th style="padding:0.75rem 1.1rem; border-bottom:1px solid var(--border); text-align:right;">Amount</th>'
+                + '</tr>'
+                + '</thead>'
+                + '<tbody>';
+
             vData.items.forEach(function(p) {
-                html += '<div class="group-row">'
-                    + '<div style="min-width:90px;font-size:0.8rem;color:var(--text-secondary);flex-shrink:0;">' + formatDate(p.payment_date) + '</div>'
-                    + '<div style="flex:1;"><span style="font-size:0.82rem;color:var(--text-secondary);">Ref: ' + (p.purchase_invoice || '—') + '</span></div>'
-                    + '<div style="display:flex;align-items:center;gap:0.65rem;">' + getPaymentBadgeHTML(p.payment_mode) + '<span style="font-weight:700;">' + formatCurrency(p.amount) + '</span></div>'
-                    + '</div>';
+                html += '<tr>'
+                    + '<td style="padding:0.75rem 1.1rem;">' + formatDate(p.payment_date) + '</td>'
+                    + '<td style="padding:0.75rem 1.1rem; color:var(--text-secondary);">' + (p.purchase_invoice || '—') + '</td>'
+                    + '<td style="padding:0.75rem 1.1rem;">' + getPaymentBadgeHTML(p.payment_mode) + '</td>'
+                    + '<td style="padding:0.75rem 1.1rem; text-align:right; font-weight:700;">' + formatCurrency(p.amount) + '</td>'
+                    + '</tr>';
             });
-            html += '</div></div>';
+            html += '</tbody></table></td></tr>';
         });
+        html += '</tbody></table></div>';
         container.innerHTML = html;
     }
 
@@ -970,28 +1106,62 @@ Projects
             grouped[cat].total += parseFloat(e.amount);
         });
         var catsSorted = Object.entries(grouped).sort(function(a,b){ return b[1].total - a[1].total; });
-        var html = '';
+        
+        var html = '<div class="table-container" style="margin-top:0;">'
+            + '<table class="table" style="width:100%; margin-bottom:0; border-collapse:collapse;">'
+            + '<thead>'
+            + '<tr>'
+            + '<th style="padding:0.75rem 1.1rem; width:45%;">Category</th>'
+            + '<th style="padding:0.75rem 1.1rem; width:20%;">Expenses</th>'
+            + '<th style="padding:0.75rem 1.1rem; width:25%; text-align:right;">Total Spent</th>'
+            + '<th style="padding:0.75rem 1.1rem; width:10%; text-align:right;">Action</th>'
+            + '</tr>'
+            + '</thead>'
+            + '<tbody>';
+
         catsSorted.forEach(function(entry, gIdx) {
             var cat = entry[0]; var cData = entry[1];
             var groupId = 'egrp-' + gIdx;
-            html += '<div class="group-card">'
-                + '<div class="group-card-hdr" onclick="toggleGroupCard(\'' + groupId + '\')" >'
+            html += '<tr onclick="toggleGroupCard(\'' + groupId + '\')" style="cursor:pointer; background:var(--card-bg); border-bottom:1px solid var(--border);">'
+                + '<td style="padding:0.75rem 1.1rem;">'
                 +   '<div style="display:flex;align-items:center;gap:0.75rem;">'
-                +     '<div style="width:38px;height:38px;border-radius:9px;background:rgba(245,158,11,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="#f59e0b" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6Z"/></svg></div>'
-                +     '<div><div style="font-weight:600;font-size:0.95rem;">' + cat + '</div><div style="font-size:0.78rem;color:var(--text-secondary);">' + cData.items.length + ' expense' + (cData.items.length !== 1 ? 's' : '') + '</div></div>'
+                +     '<div style="width:40px;height:40px;border-radius:8px;background:rgba(245,158,11,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="#f59e0b" style="width:20px;height:20px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6Z"/></svg></div>'
+                +     '<div style="font-weight:600;font-size:0.92rem;color:var(--text-primary);">' + cat + '</div>'
                 +   '</div>'
-                +   '<div style="display:flex;align-items:center;gap:1rem;"><div style="text-align:right;"><div style="font-weight:700;font-size:1rem;color:#f59e0b;">' + formatCurrency(cData.total) + '</div><div style="font-size:0.72rem;color:var(--text-secondary);">Total</div></div><span id="icon-' + groupId + '" style="color:var(--text-secondary);font-size:0.8rem;">▶</span></div>'
-                + '</div>'
-                + '<div class="group-card-body" id="' + groupId + '">';
+                + '</td>'
+                + '<td style="padding:0.75rem 1.1rem; color:var(--text-secondary);">' + cData.items.length + ' expense' + (cData.items.length !== 1 ? 's' : '') + '</td>'
+                + '<td style="padding:0.75rem 1.1rem; text-align:right; font-weight:700; color:#f59e0b;">' + formatCurrency(cData.total) + '</td>'
+                + '<td style="padding:0.75rem 1.1rem; text-align:right;"><span id="icon-' + groupId + '" style="color:var(--text-secondary);font-size:0.8rem;">▶</span></td>'
+                + '</tr>';
+            
+            html += '<tr id="' + groupId + '" style="display:none; background:var(--bg-secondary);">'
+                + '<td colspan="4" style="padding:1rem 1.5rem; border-bottom:1px solid var(--border);">'
+                + '<table class="table" style="width:100%; margin-bottom:0; background:var(--card-bg); border-radius:8px; border:1px solid var(--border); overflow:hidden;">'
+                + '<thead>'
+                + '<tr>'
+                + '<th style="padding:0.75rem 1.1rem; border-bottom:1px solid var(--border);">Date</th>'
+                + '<th style="padding:0.75rem 1.1rem; border-bottom:1px solid var(--border);">Description</th>'
+                + '<th style="padding:0.75rem 1.1rem; border-bottom:1px solid var(--border);">Cash/UPI</th>'
+                + '<th style="padding:0.75rem 1.1rem; border-bottom:1px solid var(--border); text-align:right;">Amount</th>'
+                + '</tr>'
+                + '</thead>'
+                + '<tbody>';
+
             cData.items.forEach(function(e) {
-                html += '<div class="group-row">'
-                    + '<div style="min-width:90px;font-size:0.8rem;color:var(--text-secondary);flex-shrink:0;">' + formatDate(e.expense_date) + '</div>'
-                    + '<div style="flex:1;"><div style="font-size:0.85rem;font-weight:500;">' + (e.subcategory || '—') + '</div>' + (e.description ? '<div style="font-size:0.77rem;color:var(--text-secondary);">' + e.description + '</div>' : '') + '</div>'
-                    + '<div style="display:flex;align-items:center;gap:0.65rem;">' + getPaymentBadgeHTML(e.payment_mode) + '<span style="font-weight:700;">' + formatCurrency(e.amount) + '</span></div>'
-                    + '</div>';
+                var descHtml = '<strong>' + (e.subcategory || '—') + '</strong>';
+                if (e.description) {
+                    descHtml += '<div style="font-size:0.77rem; color:var(--text-secondary); margin-top:2px;">' + e.description + '</div>';
+                }
+                html += '<tr>'
+                    + '<td style="padding:0.75rem 1.1rem;">' + formatDate(e.expense_date) + '</td>'
+                    + '<td style="padding:0.75rem 1.1rem;">' + descHtml + '</td>'
+                    + '<td style="padding:0.75rem 1.1rem;">' + getPaymentBadgeHTML(e.payment_mode) + '</td>'
+                    + '<td style="padding:0.75rem 1.1rem; text-align:right; font-weight:700;">' + formatCurrency(e.amount) + '</td>'
+                    + '</tr>';
             });
-            html += '</div></div>';
+            html += '</tbody></table></td></tr>';
         });
+        html += '</tbody></table></div>';
         container.innerHTML = html;
     }
 
@@ -1010,15 +1180,31 @@ Projects
             + '<div><h4 style="margin:0;color:var(--success);">' + formatCurrency(grandTotal) + '</h4><p style="margin:0;font-size:0.78rem;color:var(--text-secondary);">Total Received</p></div>'
             + '<div><h4 style="margin:0;">' + payments.length + '</h4><p style="margin:0;font-size:0.78rem;color:var(--text-secondary);">Payments</p></div>'
             + '</div></div>';
-        html += '<div class="group-card">';
+        html += '<div class="group-card">'
+            + '<div class="table-container" style="margin-top:0;">'
+            + '<table class="table" style="width:100%; margin-bottom:0;">'
+            + '<thead>'
+            + '<tr>'
+            + '<th style="padding:0.75rem 1.1rem; border-bottom:1px solid var(--border);">Date</th>'
+            + '<th style="padding:0.75rem 1.1rem; border-bottom:1px solid var(--border);">Ref</th>'
+            + '<th style="padding:0.75rem 1.1rem; border-bottom:1px solid var(--border);">Cash/UPI</th>'
+            + '<th style="padding:0.75rem 1.1rem; border-bottom:1px solid var(--border); text-align:right;">Amount</th>'
+            + '</tr>'
+            + '</thead>'
+            + '<tbody>';
         payments.forEach(function(p) {
-            html += '<div class="group-row">'
-                + '<div style="min-width:90px;font-size:0.8rem;color:var(--text-secondary);flex-shrink:0;">' + formatDate(p.payment_date) + '</div>'
-                + '<div style="flex:1;"><div style="font-size:0.8rem;color:var(--text-secondary);">Ref: ' + (p.reference_number || '—') + '</div>' + (p.remarks ? '<div style="font-size:0.77rem;color:var(--text-secondary);">' + p.remarks + '</div>' : '') + '</div>'
-                + '<div style="display:flex;align-items:center;gap:0.65rem;">' + getPaymentBadgeHTML(p.payment_mode) + '<span style="font-weight:700;color:var(--success);">' + formatCurrency(p.amount) + '</span></div>'
-                + '</div>';
+            var refVal = (p.reference_number || '—');
+            if (p.remarks) {
+                refVal += '<div style="font-size:0.77rem; color:var(--text-secondary); margin-top:2px;">' + p.remarks + '</div>';
+            }
+            html += '<tr>'
+                + '<td style="padding:0.75rem 1.1rem;">' + formatDate(p.payment_date) + '</td>'
+                + '<td style="padding:0.75rem 1.1rem;">' + refVal + '</td>'
+                + '<td style="padding:0.75rem 1.1rem;">' + getPaymentBadgeHTML(p.payment_mode) + '</td>'
+                + '<td style="padding:0.75rem 1.1rem; text-align:right; font-weight:700; color:var(--success);">' + formatCurrency(p.amount) + '</td>'
+                + '</tr>';
         });
-        html += '</div>';
+        html += '</tbody></table></div></div>';
         container.innerHTML = html;
     }
 
@@ -1061,13 +1247,25 @@ Projects
             remainingBudgetEl.style.color = data.financial_summary.remaining_budget < 0 ? 'var(--danger)'
                 : (budgetThreshold > 0 && data.financial_summary.remaining_budget < budgetThreshold) ? 'var(--warning)' : 'var(--success)';
 
-            // Destroy any old TomSelect on expense category filter only
+            // Destroy any old TomSelect on category filters
             var ecFilter = document.getElementById('expense-category-filter');
             if (ecFilter && ecFilter.tomselect) { ecFilter.tomselect.destroy(); ecFilter.value = ''; }
+            var matFilter = document.getElementById('material-category-filter');
+            if (matFilter && matFilter.tomselect) { matFilter.tomselect.destroy(); matFilter.value = ''; }
 
             // Render charts
             renderExpenseCategoryChart(data);
             renderSpendingPieChart(data);
+
+            // Clear date filter inputs
+            document.getElementById('filter-purchase-start').value = '';
+            document.getElementById('filter-purchase-end').value = '';
+            document.getElementById('filter-payment-start').value = '';
+            document.getElementById('filter-payment-end').value = '';
+            document.getElementById('filter-expense-start').value = '';
+            document.getElementById('filter-expense-end').value = '';
+            document.getElementById('filter-client-start').value = '';
+            document.getElementById('filter-client-end').value = '';
 
             // Render grouped sections
             renderPurchaseHistoryGrouped(data);
@@ -1082,6 +1280,102 @@ Projects
             console.error('Error loading project details:', error);
             showNotification('Error loading project details', 'error');
         }
+    }
+
+    // ── Date Filtering Helper Functions ──
+    function isDateInFilter(dateStr, startVal, endVal) {
+        if (!dateStr) return false;
+        const itemDate = new Date(dateStr);
+        itemDate.setHours(0,0,0,0);
+        
+        if (startVal) {
+            const startDate = new Date(startVal);
+            startDate.setHours(0,0,0,0);
+            if (itemDate < startDate) return false;
+        }
+        if (endVal) {
+            const endDate = new Date(endVal);
+            endDate.setHours(0,0,0,0);
+            if (itemDate > endDate) return false;
+        }
+        return true;
+    }
+
+    function filterAndRenderPurchases() {
+        if (!currentProjectData) return;
+        const startVal = document.getElementById('filter-purchase-start').value;
+        const endVal = document.getElementById('filter-purchase-end').value;
+        
+        const filteredPurchases = currentProjectData.purchase_history.filter(function(p) {
+            return isDateInFilter(p.invoice_date, startVal, endVal);
+        });
+        
+        const tempData = Object.assign({}, currentProjectData, { purchase_history: filteredPurchases });
+        renderPurchaseHistoryGrouped(tempData);
+    }
+
+    function clearPurchaseDateFilter() {
+        document.getElementById('filter-purchase-start').value = '';
+        document.getElementById('filter-purchase-end').value = '';
+        filterAndRenderPurchases();
+    }
+
+    function filterAndRenderVendorPayments() {
+        if (!currentProjectData) return;
+        const startVal = document.getElementById('filter-payment-start').value;
+        const endVal = document.getElementById('filter-payment-end').value;
+        
+        const filteredPayments = currentProjectData.vendor_payments.filter(function(p) {
+            return isDateInFilter(p.payment_date, startVal, endVal);
+        });
+        
+        const tempData = Object.assign({}, currentProjectData, { vendor_payments: filteredPayments });
+        renderVendorPaymentsGrouped(tempData);
+    }
+
+    function clearVendorPaymentDateFilter() {
+        document.getElementById('filter-payment-start').value = '';
+        document.getElementById('filter-payment-end').value = '';
+        filterAndRenderVendorPayments();
+    }
+
+    function filterAndRenderExpenses() {
+        if (!currentProjectData) return;
+        const startVal = document.getElementById('filter-expense-start').value;
+        const endVal = document.getElementById('filter-expense-end').value;
+        
+        const filteredExpenses = currentProjectData.expenses.filter(function(e) {
+            return isDateInFilter(e.expense_date, startVal, endVal);
+        });
+        
+        const tempData = Object.assign({}, currentProjectData, { expenses: filteredExpenses });
+        renderExpensesGrouped(tempData);
+    }
+
+    function clearExpenseDateFilter() {
+        document.getElementById('filter-expense-start').value = '';
+        document.getElementById('filter-expense-end').value = '';
+        filterAndRenderExpenses();
+    }
+
+    // Filter and update client payments
+    function filterAndRenderClientPayments() {
+        if (!currentProjectData) return;
+        const startVal = document.getElementById('filter-client-start').value;
+        const endVal = document.getElementById('filter-client-end').value;
+        
+        const filteredPayments = currentProjectData.client_payments.filter(function(p) {
+            return isDateInFilter(p.payment_date, startVal, endVal);
+        });
+        
+        const tempData = Object.assign({}, currentProjectData, { client_payments: filteredPayments });
+        renderClientPaymentsGrouped(tempData);
+    }
+
+    function clearClientPaymentDateFilter() {
+        document.getElementById('filter-client-start').value = '';
+        document.getElementById('filter-client-end').value = '';
+        filterAndRenderClientPayments();
     }
 
 

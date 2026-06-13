@@ -29,6 +29,15 @@ public class WageRow {
     @Column(name = "employee_name", length = 200)
     private String employeeName;
 
+    @Column(name = "row_type", length = 20)
+    private String rowType; // MASON, FITTER, ADDITIONAL
+
+    @Column(name = "description", length = 500)
+    private String description;
+
+    @Column(name = "is_head_labour")
+    private Boolean isHeadLabour = false;
+
     // day1 = Saturday, day2 = Sunday, ..., day7 = Friday
     // Values: 0, 0.5, 1, 1.5, 2
     @Column(precision = 3, scale = 1)
@@ -52,6 +61,9 @@ public class WageRow {
     // ── Calculated helpers (not stored) ──────────────────────────────────
     @Transient
     public BigDecimal getNoOfDays() {
+        if ("ADDITIONAL".equals(rowType)) {
+            return BigDecimal.ZERO;
+        }
         return safeVal(day1).add(safeVal(day2)).add(safeVal(day3))
                 .add(safeVal(day4)).add(safeVal(day5)).add(safeVal(day6))
                 .add(safeVal(day7));
@@ -59,6 +71,9 @@ public class WageRow {
 
     @Transient
     public BigDecimal getAmount() {
+        if ("ADDITIONAL".equals(rowType)) {
+            return safeVal(wagePerDay);
+        }
         return getNoOfDays().multiply(safeVal(wagePerDay));
     }
 

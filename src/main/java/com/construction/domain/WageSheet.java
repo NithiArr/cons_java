@@ -32,6 +32,12 @@ public class WageSheet {
     @Column(precision = 12, scale = 2)
     private BigDecimal advance = BigDecimal.ZERO;
 
+    @Column(name = "mason_advance", precision = 12, scale = 2)
+    private BigDecimal masonAdvance = BigDecimal.ZERO;
+
+    @Column(name = "fitter_advance", precision = 12, scale = 2)
+    private BigDecimal fitterAdvance = BigDecimal.ZERO;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
