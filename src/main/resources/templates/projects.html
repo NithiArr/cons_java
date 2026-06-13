@@ -16,31 +16,38 @@ Projects
 
 
 <style>
-    .expand-icon {
-        font-size: 0.8rem;
-        display: inline-block;
-        transition: transform 0.3s ease;
-        color: var(--primary);
+    /* ── Project Modal Sidebar Navigation ── */
+    .project-nav-item {
+        display: flex; align-items: center; gap: 0.55rem;
+        padding: 0.6rem 0.85rem; border-radius: 8px; cursor: pointer;
+        font-size: 0.875rem; color: var(--text-secondary); text-decoration: none;
+        margin-bottom: 0.2rem; transition: background 0.15s, color 0.15s;
+        user-select: none;
     }
-
-    .purchase-row:hover {
-        background-color: rgba(0, 0, 0, 0.02);
-    }
-
-    .items-row table {
-        border-collapse: collapse;
-        font-size: 0.9rem;
-    }
-
-    .items-row table th {
-        text-align: left;
-        font-weight: 600;
-        color: #495057;
-    }
-
-    .items-row table tr:hover {
-        background-color: #f1f3f5;
-    }
+    .project-nav-item:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+    .project-nav-item.active { background: var(--primary); color: #fff; font-weight: 600; }
+    .project-nav-item.active .pnav-badge { background: rgba(255,255,255,0.22); color: #fff; }
+    .pnav-label { font-size: 0.68rem; font-weight: 700; color: var(--text-secondary);
+        text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 0.5rem 0.3rem; }
+    .pnav-badge { margin-left: auto; background: var(--bg-tertiary); color: var(--text-secondary);
+        font-size: 0.68rem; font-weight: 700; padding: 0.1rem 0.45rem;
+        border-radius: 10px; min-width: 20px; text-align: center; flex-shrink: 0; }
+    /* ── Tab Panels ── */
+    .project-tab-panel { display: none; }
+    .project-tab-panel.active { display: block; }
+    /* ── Group Accordion Cards ── */
+    .group-card { border: 1px solid var(--border); border-radius: 10px;
+        margin-bottom: 0.75rem; overflow: hidden; transition: box-shadow 0.15s; }
+    .group-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.09); }
+    .group-card-hdr { display: flex; align-items: center; justify-content: space-between;
+        padding: 0.85rem 1.1rem; cursor: pointer; background: var(--card-bg); transition: background 0.15s; }
+    .group-card-hdr:hover { background: var(--bg-tertiary); }
+    .group-card-body { display: none; border-top: 1px solid var(--border); }
+    .group-card-body.open { display: block; }
+    .group-row { display: flex; align-items: flex-start; padding: 0.6rem 1.1rem;
+        border-bottom: 1px solid var(--border); gap: 0.75rem; font-size: 0.85rem; }
+    .group-row:last-child { border-bottom: none; }
+    .group-row:hover { background: var(--bg-secondary); }
 </style>
 <div class="container fade-in">
     <div class="flex justify-between align-center mb-3">
@@ -168,245 +175,135 @@ Projects
 
 <!-- Project Details Modal -->
 <div id="project-modal" class="modal">
-    <div class="modal-content modal-full">
-        <div class="modal-header">
-            <div class="flex justify-between align-center" style="width: 100%;">
+    <div class="modal-content modal-full" style="display:flex;flex-direction:column;max-height:96vh;">
+        <!-- Header -->
+        <div class="modal-header" style="flex-shrink:0;">
+            <div class="flex justify-between align-center" style="width:100%;">
                 <div class="flex align-center gap-2">
-                    <button class="btn btn-secondary" onclick="closeProjectModal()" style="padding: 0.5rem 1rem;">
-                        ← Back
-                    </button>
-                    <h3 id="project-modal-title" style="margin: 0;">Project Details</h3>
+                    <button class="btn btn-secondary" onclick="closeProjectModal()" style="padding:0.5rem 1rem;">← Back</button>
+                    <h3 id="project-modal-title" style="margin:0;">Project Details</h3>
                 </div>
-                <div class="flex align-center gap-2">
-                    <button class="btn btn-success" onclick="exportProjectToExcel()">
-                            <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg> Export to Excel
-                    </button>
-                </div>
+                <button class="btn btn-success" onclick="exportProjectToExcel()">
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg> Export to Excel
+                </button>
             </div>
         </div>
-        <div class="modal-body">
-            <!-- Financial Summary -->
-            <div class="grid grid-5 mb-3" id="financial-summary" style="gap: 0.75rem;">
-                <div class="card" style="padding: 0.75rem;">
-                    <div class="card-body" style="padding: 0;">
-                        <p class="text-secondary mb-1" style="font-size: 0.75rem;">Total Budget</p>
-                        <h3 id="summary-budget" style="font-size: 1.5rem; margin: 0;">₹0.00</h3>
-                    </div>
-                </div>
-                <div class="card" style="padding: 0.75rem;">
-                    <div class="card-body" style="padding: 0;">
-                        <p class="text-secondary mb-1" style="font-size: 0.75rem;">Total Received</p>
-                        <h3 id="summary-received" style="font-size: 1.5rem; margin: 0;">₹0.00</h3>
-                    </div>
-                </div>
-                <div class="card" style="padding: 0.75rem;">
-                    <div class="card-body" style="padding: 0;">
-                        <p class="text-secondary mb-1" style="font-size: 0.75rem;">Total Spent</p>
-                        <h3 id="summary-spent" style="font-size: 1.5rem; margin: 0;">₹0.00</h3>
-                    </div>
-                </div>
-                <div class="card" style="padding: 0.75rem;">
-                    <div class="card-body" style="padding: 0;">
-                        <p class="text-secondary mb-1" style="font-size: 0.75rem;">Balance</p>
-                        <h3 id="summary-balance" style="color: var(--success); font-size: 1.5rem; margin: 0;">₹0.00</h3>
-                        <small style="font-size: 0.65rem; color: var(--text-secondary);">Received - Spent</small>
-                    </div>
-                </div>
-                <div class="card" style="padding: 0.75rem;">
-                    <div class="card-body" style="padding: 0;">
-                        <p class="text-secondary mb-1" style="font-size: 0.75rem;">Remaining Budget</p>
-                        <h3 id="summary-budget-remaining" style="font-size: 1.5rem; margin: 0;">₹0.00</h3>
-                        <small style="font-size: 0.65rem; color: var(--text-secondary);">Budget - Spent</small>
-                    </div>
-                </div>
-                <div class="card" style="padding: 0.75rem;">
-                    <div class="card-body" style="padding: 0;">
-                        <p class="text-secondary mb-1" style="font-size: 0.75rem;">Vendor Outstanding</p>
-                        <h3 id="summary-outstanding" style="font-size: 1.5rem; margin: 0;">₹0.00</h3>
-                        <small style="font-size: 0.65rem; color: var(--text-secondary);">What we owe vendors</small>
-                    </div>
-                </div>
+        <!-- Sidebar + Content -->
+        <div style="display:flex;flex:1;overflow:hidden;min-height:0;">
+            <!-- Sidebar -->
+            <div style="width:210px;border-right:1px solid var(--border);background:var(--bg-secondary);flex-shrink:0;overflow-y:auto;padding:1rem 0.75rem;">
+                <p class="pnav-label">Project View</p>
+                <a class="project-nav-item active" id="nav-summary" onclick="switchProjectTab('summary')">
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"/></svg>
+                    <span>Summary</span>
+                </a>
+                <a class="project-nav-item" id="nav-purchases" onclick="switchProjectTab('purchases')">
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016 2.993 2.993 0 0 0 2.25-1.016 3.001 3.001 0 0 0 3.75.614m-16.5 0a3.004 3.004 0 0 1-.621-4.72l1.189-1.19A1.5 1.5 0 0 1 5.378 3h13.243a1.5 1.5 0 0 1 1.06.44l1.19 1.189a3 3 0 0 1-.621 4.72"/></svg>
+                    <span>Purchases</span>
+                    <span class="pnav-badge" id="badge-purchases"></span>
+                </a>
+                <a class="project-nav-item" id="nav-payments" onclick="switchProjectTab('payments')">
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z"/></svg>
+                    <span>Vendor Payments</span>
+                    <span class="pnav-badge" id="badge-payments"></span>
+                </a>
+                <a class="project-nav-item" id="nav-expenses" onclick="switchProjectTab('expenses')">
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6Z"/></svg>
+                    <span>Expenses</span>
+                    <span class="pnav-badge" id="badge-expenses"></span>
+                </a>
+                <a class="project-nav-item" id="nav-client" onclick="switchProjectTab('client')">
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg>
+                    <span>Client Payments</span>
+                    <span class="pnav-badge" id="badge-client"></span>
+                </a>
             </div>
+            <!-- Tab Content -->
+            <div style="flex:1;overflow-y:auto;padding:1.5rem;">
 
-            <!-- Expense Category Breakdown Chart -->
-            <div class="card mb-3">
-                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                        <h4 class="card-title"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg> Regular Expenses Breakdown</h4>
-                    <select id="expense-category-filter" class="form-control" style="width: 200px;"
-                        onchange="filterExpensesByCategory()">
-                        <option value="">All Categories</option>
-                        <!-- Will be populated by JS -->
-                    </select>
-                </div>
-                <div class="card-body">
-                    <div class="grid grid-2" style="gap: 2rem;">
-                        <div>
-                            <div style="max-width: 400px; margin: 0 auto;">
-                                <canvas id="expense-category-chart"></canvas>
-                            </div>
+                <!-- ── SUMMARY TAB ── -->
+                <div id="tab-summary" class="project-tab-panel active">
+                    <div class="grid grid-5 mb-3" id="financial-summary" style="gap:0.75rem;">
+                        <div class="card" style="padding:0.75rem;"><div class="card-body" style="padding:0;"><p class="text-secondary mb-1" style="font-size:0.75rem;">Total Budget</p><h3 id="summary-budget" style="font-size:1.5rem;margin:0;">₹0.00</h3></div></div>
+                        <div class="card" style="padding:0.75rem;"><div class="card-body" style="padding:0;"><p class="text-secondary mb-1" style="font-size:0.75rem;">Total Received</p><h3 id="summary-received" style="font-size:1.5rem;margin:0;">₹0.00</h3></div></div>
+                        <div class="card" style="padding:0.75rem;"><div class="card-body" style="padding:0;"><p class="text-secondary mb-1" style="font-size:0.75rem;">Total Spent</p><h3 id="summary-spent" style="font-size:1.5rem;margin:0;">₹0.00</h3></div></div>
+                        <div class="card" style="padding:0.75rem;"><div class="card-body" style="padding:0;"><p class="text-secondary mb-1" style="font-size:0.75rem;">Balance</p><h3 id="summary-balance" style="color:var(--success);font-size:1.5rem;margin:0;">₹0.00</h3><small style="font-size:0.65rem;color:var(--text-secondary);">Received - Spent</small></div></div>
+                        <div class="card" style="padding:0.75rem;"><div class="card-body" style="padding:0;"><p class="text-secondary mb-1" style="font-size:0.75rem;">Remaining Budget</p><h3 id="summary-budget-remaining" style="font-size:1.5rem;margin:0;">₹0.00</h3><small style="font-size:0.65rem;color:var(--text-secondary);">Budget - Spent</small></div></div>
+                        <div class="card" style="padding:0.75rem;"><div class="card-body" style="padding:0;"><p class="text-secondary mb-1" style="font-size:0.75rem;">Vendor Outstanding</p><h3 id="summary-outstanding" style="font-size:1.5rem;margin:0;">₹0.00</h3><small style="font-size:0.65rem;color:var(--text-secondary);">What we owe vendors</small></div></div>
+                    </div>
+                    <!-- Regular Expenses Chart -->
+                    <div class="card mb-3">
+                        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                            <h4 class="card-title"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg> Regular Expenses Breakdown</h4>
+                            <select id="expense-category-filter" class="form-control" style="width:200px;" onchange="filterExpensesByCategory()"><option value="">All Categories</option></select>
                         </div>
-                        <div>
-                            <h5 style="margin-bottom: 1rem;">Subcategory Breakdown</h5>
-                            <div id="expense-category-legend" style="max-height: 300px; overflow-y: auto;">
-                                <!-- Legend will be populated by JS -->
+                        <div class="card-body"><div class="grid grid-2" style="gap:2rem;">
+                            <div><div style="max-width:400px;margin:0 auto;"><canvas id="expense-category-chart"></canvas></div></div>
+                            <div><h5 style="margin-bottom:1rem;">Subcategory Breakdown</h5><div id="expense-category-legend" style="max-height:300px;overflow-y:auto;"></div></div>
+                        </div></div>
+                    </div>
+                    <!-- Material Purchases Chart -->
+                    <div class="card mb-3">
+                        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+                            <div style="display:flex;align-items:center;gap:1rem;">
+                                <h4 class="card-title" style="margin:0;"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21"/></svg> Material Purchases Breakdown</h4>
+                                <div id="material-breadcrumb" style="display:none;align-items:center;gap:0.5rem;font-size:0.9rem;">
+                                    <button class="btn btn-sm btn-secondary" onclick="backToMaterialCategories()" style="padding:0.25rem 0.75rem;font-size:0.8rem;">← All Categories</button>
+                                    <span style="color:var(--text-secondary);">›</span>
+                                    <span id="material-drilldown-label" style="font-weight:600;color:var(--primary);"></span>
+                                </div>
                             </div>
+                            <div id="material-chart-hint" style="font-size:0.8rem;color:var(--text-secondary);font-style:italic;">💡 Click a slice to drill down</div>
                         </div>
+                        <div class="card-body"><div class="grid grid-2" style="gap:2rem;">
+                            <div><div style="max-width:400px;margin:0 auto;"><canvas id="spending-pie-chart" style="cursor:pointer;"></canvas></div></div>
+                            <div><h5 id="material-legend-title" style="margin-bottom:1rem;">By Category</h5><div id="spending-legend" style="max-height:300px;overflow-y:auto;"></div></div>
+                        </div></div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Spending Breakdown Pie Chart -->
-            <div class="card mb-3">
-                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                        <h4 class="card-title"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="inline-icon"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg> Material Purchases Breakdown</h4>
-                    <select id="material-category-filter" class="form-control" style="width: 200px;"
-                        onchange="filterMaterialsByCategory()">
-                        <option value="">All Categories</option>
-                        <!-- Will be populated by JS -->
-                    </select>
-                </div>
-                <div class="card-body">
-                    <div class="grid grid-2" style="gap: 2rem;">
-                        <div>
-                            <div style="max-width: 400px; margin: 0 auto;">
-                                <canvas id="spending-pie-chart"></canvas>
-                            </div>
-                        </div>
-                        <div>
-                            <h5 style="margin-bottom: 1rem;">Subcategory Breakdown</h5>
-                            <div id="spending-legend" style="max-height: 300px; overflow-y: auto;">
-                                <!-- Legend will be populated by JS -->
-                            </div>
-                        </div>
+                <!-- ── PURCHASES TAB ── -->
+                <div id="tab-purchases" class="project-tab-panel">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+                        <h4 style="margin:0;">Purchase History</h4>
+                        <div style="font-size:0.85rem;color:var(--text-secondary);">Total: <strong id="purchases-grand-total" style="color:var(--primary);">—</strong></div>
                     </div>
+                    <div id="purchases-grouped-content"></div>
                 </div>
-            </div>
 
-            <!-- Purchase History -->
-            <h4 class="mb-2">Purchase History</h4>
-            <div class="table-container mb-3">
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 30px;"></th> <!-- Expand/Collapse -->
-                            <th>
-                                <select id="modal-filter-purchase-vendor" class="form-control form-control-sm"
-                                    onchange="filterPurchaseHistory()">
-                                    <option value="">All Vendors</option>
-                                </select>
-                            </th>
-                            <th>Invoice No.</th>
-                            <th>Date</th>
-                            <th>Amount</th>
-                            <th>
-                                <select id="modal-filter-purchase-mode" class="form-control form-control-sm"
-                                    onchange="filterPurchaseHistory()">
-                                    <option value="">All Modes</option>
-                                    <option value="CASH">CASH</option>
-                                    <option value="BANK">BANK</option>
-                                    <option value="UPI">UPI</option>
-                                    <option value="CREDIT">CREDIT</option>
-                                </select>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody id="purchase-history-tbody"></tbody>
-                </table>
-            </div>
+                <!-- ── VENDOR PAYMENTS TAB ── -->
+                <div id="tab-payments" class="project-tab-panel">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+                        <h4 style="margin:0;">Vendor Payments</h4>
+                        <div style="font-size:0.85rem;color:var(--text-secondary);">Total Paid: <strong id="payments-grand-total" style="color:var(--success);">—</strong></div>
+                    </div>
+                    <div id="payments-grouped-content"></div>
+                </div>
 
-            <!-- Vendor Payments -->
-            <h4 class="mb-2">Vendor Payments</h4>
-            <div class="table-container mb-3">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>
-                                <select id="modal-filter-payment-vendor" class="form-control form-control-sm"
-                                    onchange="filterVendorPayments()">
-                                    <option value="">All Vendors</option>
-                                </select>
-                            </th>
-                            <th>Amount</th>
-                            <th>
-                                <select id="modal-filter-payment-mode" class="form-control form-control-sm"
-                                    onchange="filterVendorPayments()">
-                                    <option value="">All Modes</option>
-                                    <option value="CASH">CASH</option>
-                                    <option value="BANK">BANK</option>
-                                    <option value="UPI">UPI</option>
-                                </select>
-                            </th>
-                            <th>Invoice Ref.</th>
-                        </tr>
-                    </thead>
-                    <tbody id="vendor-payments-tbody"></tbody>
-                </table>
-            </div>
+                <!-- ── EXPENSES TAB ── -->
+                <div id="tab-expenses" class="project-tab-panel">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+                        <h4 style="margin:0;">Expenses</h4>
+                        <div style="font-size:0.85rem;color:var(--text-secondary);">Total: <strong id="expenses-grand-total" style="color:var(--warning,#f59e0b);">—</strong></div>
+                    </div>
+                    <div id="expenses-grouped-content"></div>
+                </div>
 
-            <!-- Expenses -->
-            <h4 class="mb-2">Expenses</h4>
-            <div class="table-container mb-3">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>
-                                <select id="modal-filter-expense-category" class="form-control form-control-sm"
-                                    onchange="filterExpensesTable()">
-                                    <option value="">All Categories</option>
-                                </select>
-                            </th>
-                            <th>
-                                <select id="modal-filter-expense-subcategory" class="form-control form-control-sm"
-                                    onchange="filterExpensesTable()">
-                                    <option value="">All Subcategories</option>
-                                </select>
-                            </th>
-                            <th>Amount</th>
-                            <th>
-                                <select id="modal-filter-expense-mode" class="form-control form-control-sm"
-                                    onchange="filterExpensesTable()">
-                                    <option value="">All Modes</option>
-                                    <option value="CASH">CASH</option>
-                                    <option value="BANK">BANK</option>
-                                    <option value="UPI">UPI</option>
-                                </select>
-                            </th>
-                            <th>Description</th>
-                        </tr>
-                    </thead>
-                    <tbody id="expenses-tbody"></tbody>
-                </table>
-            </div>
+                <!-- ── CLIENT PAYMENTS TAB ── -->
+                <div id="tab-client" class="project-tab-panel">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+                        <h4 style="margin:0;">Client Payments Received</h4>
+                        <div style="font-size:0.85rem;color:var(--text-secondary);">Total Received: <strong id="client-grand-total" style="color:var(--success);">—</strong></div>
+                    </div>
+                    <div id="client-grouped-content"></div>
+                </div>
 
-            <!-- Client Payments -->
-            <h4 class="mb-2">Client Payments (Received)</h4>
-            <div class="table-container mb-3">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Amount</th>
-                            <th>
-                                <select id="modal-filter-client-mode" class="form-control form-control-sm"
-                                    onchange="filterClientPayments()">
-                                    <option value="">All Modes</option>
-                                    <option value="CASH">CASH</option>
-                                    <option value="BANK">BANK</option>
-                                    <option value="UPI">UPI</option>
-                                </select>
-                            </th>
-                            <th>Reference</th>
-                            <th>Remarks</th>
-                        </tr>
-                    </thead>
-                    <tbody id="client-payments-tbody"></tbody>
-                </table>
-            </div>
-        </div>
+            </div><!-- end tab content -->
+        </div><!-- end sidebar+content -->
     </div>
 </div>
+
+
 
 <script>
     let projects = [];
@@ -414,6 +311,7 @@ Projects
     let currentProjectData = null; // Store fetched data for filtering
     let spendingPieChart = null;
     let allMaterialItems = [];  // For material chart filtering
+    let materialDrilldownCategory = null; // null = top-level category view, string = drilled into a category
 
     // Load all projects
     async function loadProjects() {
@@ -733,134 +631,180 @@ Projects
         });
     }
 
-    // Render Material Purchases Breakdown Pie Chart
+    // Render Material Purchases Breakdown Pie Chart — always starts at category level
     function renderSpendingPieChart(projectData) {
-        // Store expense items globally for filtering
         allMaterialItems = projectData.expense_items || [];
-        console.log('Debug - Expense items:', allMaterialItems);
-
-        // Get unique categories for the filter dropdown
-        const uniqueCategories = [...new Set(allMaterialItems.map(item => item.category || 'Other'))];
-        const filterSelect = document.getElementById('material-category-filter');
-        filterSelect.innerHTML = '<option value="">All Categories</option>' +
-            uniqueCategories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
-
-        // Sync Tom Select if it exists, or initialize it
-        if (filterSelect.tomselect) {
-            filterSelect.tomselect.clearOptions();
-            filterSelect.tomselect.addOption({ value: '', text: 'All Categories' });
-            uniqueCategories.forEach(cat => {
-                filterSelect.tomselect.addOption({ value: cat, text: cat });
-            });
-            filterSelect.tomselect.setValue('');
-        } else {
-            initSearchableDropdowns('#material-category-filter');
-        }
-
-        // Initial render with all items
+        materialDrilldownCategory = null; // Reset to top-level
         updateMaterialChart();
     }
 
-    // Filter and update chart based on selected category
-    function filterMaterialsByCategory() {
+    // Go back to category-level view
+    function backToMaterialCategories() {
+        materialDrilldownCategory = null;
         updateMaterialChart();
     }
 
-    // Update the material purchases chart
+    // Drill into a specific category to see subcategories
+    function drillDownMaterial(categoryName) {
+        materialDrilldownCategory = categoryName;
+        updateMaterialChart();
+    }
+
+    // Colour palette shared between category and subcategory views
+    const MATERIAL_COLORS = [
+        'rgba(239, 68, 68, 0.8)',
+        'rgba(245, 158, 11, 0.8)',
+        'rgba(16, 185, 129, 0.8)',
+        'rgba(59, 130, 246, 0.8)',
+        'rgba(139, 92, 246, 0.8)',
+        'rgba(236, 72, 153, 0.8)',
+        'rgba(20, 184, 166, 0.8)',
+        'rgba(251, 146, 60, 0.8)',
+        'rgba(132, 204, 22, 0.8)',
+        'rgba(168, 85, 247, 0.8)',
+        'rgba(251, 191, 36, 0.8)',
+        'rgba(6, 182, 212, 0.8)',
+    ];
+
+    // Core render — builds either category view or subcategory drill-down view
     function updateMaterialChart() {
-        const selectedCategory = document.getElementById('material-category-filter').value;
+        const isDrilldown = materialDrilldownCategory !== null;
 
-        // Filter items by category if selected
-        let filteredItems = allMaterialItems;
-        if (selectedCategory) {
-            filteredItems = allMaterialItems.filter(item => item.category === selectedCategory);
+        // Update breadcrumb UI
+        const breadcrumb  = document.getElementById('material-breadcrumb');
+        const hintEl      = document.getElementById('material-chart-hint');
+        const legendTitle = document.getElementById('material-legend-title');
+        const drillLabel  = document.getElementById('material-drilldown-label');
+
+        if (isDrilldown) {
+            breadcrumb.style.display  = 'flex';
+            hintEl.style.display      = 'none';
+            drillLabel.textContent    = materialDrilldownCategory;
+            legendTitle.textContent   = 'Subcategory Breakdown';
+        } else {
+            breadcrumb.style.display  = 'none';
+            hintEl.style.display      = 'block';
+            legendTitle.textContent   = 'By Category';
         }
 
-        // Group expense items by subcategory (item_name)
-        const spendingMap = {};
-        filteredItems.forEach(item => {
-            const subcategory = item.subcategory || 'Other Materials';
-            if (!spendingMap[subcategory]) {
-                spendingMap[subcategory] = 0;
-            }
-            spendingMap[subcategory] += parseFloat(item.total_price);
-        });
+        // Build aggregation map
+        let groupMap = {};
+        if (isDrilldown) {
+            // Subcategory breakdown for the selected category
+            allMaterialItems
+                .filter(item => (item.category || 'Other') === materialDrilldownCategory)
+                .forEach(item => {
+                    const key = item.subcategory || 'Other';
+                    if (!groupMap[key]) groupMap[key] = { amount: 0 };
+                    groupMap[key].amount += parseFloat(item.total_price);
+                });
+        } else {
+            // Top-level: group by category
+            allMaterialItems.forEach(item => {
+                const key = item.category || 'Other';
+                if (!groupMap[key]) groupMap[key] = { amount: 0 };
+                groupMap[key].amount += parseFloat(item.total_price);
+            });
+        }
 
-        // Convert to arrays for Chart.js
-        const categories = Object.keys(spendingMap);
-        const amounts = Object.values(spendingMap);
+        // Sort descending by amount
+        const sorted = Object.entries(groupMap).sort((a, b) => b[1].amount - a[1].amount);
+        const labels  = sorted.map(e => e[0]);
+        const amounts = sorted.map(e => e[1].amount);
+        const total   = amounts.reduce((s, v) => s + v, 0);
+        const colors  = MATERIAL_COLORS;
 
-        // Generate colors dynamically
-        const colors = [
-            'rgba(239, 68, 68, 0.8)',    // Red
-            'rgba(245, 158, 11, 0.8)',   // Orange
-            'rgba(16, 185, 129, 0.8)',   // Green
-            'rgba(59, 130, 246, 0.8)',   // Blue
-            'rgba(139, 92, 246, 0.8)',   // Purple
-            'rgba(236, 72, 153, 0.8)',   // Pink
-            'rgba(20, 184, 166, 0.8)',   // Teal
-            'rgba(251, 146, 60, 0.8)',   // Amber
-            'rgba(132, 204, 22, 0.8)',   // Lime
-            'rgba(168, 85, 247, 0.8)',   // Violet
-        ];
+        // Build legend HTML — use string concatenation to avoid template-literal newline issues in style attrs
+        const legendHTML = labels.length === 0
+            ? '<p class="text-secondary">No data found</p>'
+            : labels.map(function(label, idx) {
+                const amount     = amounts[idx];
+                const percentage = total > 0 ? ((amount / total) * 100).toFixed(1) : 0;
+                const color      = colors[idx % colors.length];
 
-        const borderColors = colors.map(c => c.replace('0.8', '1'));
+                // Sub-text: quantity+unit for drilldown, item count for category view
+                let subText;
+                if (isDrilldown) {
+                    const qtyByUnit = {};
+                    allMaterialItems
+                        .filter(function(item) {
+                            return (item.category || 'Other') === materialDrilldownCategory
+                                && (item.subcategory || 'Other') === label;
+                        })
+                        .forEach(function(item) {
+                            const u = item.measuring_unit || 'unit';
+                            qtyByUnit[u] = (qtyByUnit[u] || 0) + parseFloat(item.quantity || 0);
+                        });
+                    const qtyStr = Object.entries(qtyByUnit)
+                        .map(function(e) { const q = e[1]; return (Number.isInteger(q) ? q : q.toFixed(2)) + ' ' + e[0]; })
+                        .join(', ');
+                    subText = (qtyStr ? qtyStr + ' &nbsp;&bull;&nbsp; ' : '') + formatCurrency(amount) + ' (' + percentage + '%)';
+                } else {
+                    const cnt = allMaterialItems.filter(function(item) { return (item.category || 'Other') === label; }).length;
+                    subText = cnt + ' item' + (cnt !== 1 ? 's' : '') + ' &nbsp;&bull;&nbsp; ' + formatCurrency(amount) + ' (' + percentage + '%)';
+                }
 
-        // Create legend HTML
-        const totalSpent = amounts.reduce((sum, val) => sum + val, 0);
-        const legendHTML = categories.map((cat, idx) => {
-            const amount = amounts[idx];
-            const percentage = totalSpent > 0 ? ((amount / totalSpent) * 100).toFixed(1) : 0;
-            const color = colors[idx % colors.length];
+                const clickable  = !isDrilldown;
+                const cursor     = clickable ? 'pointer' : 'default';
+                const onclickStr = clickable ? 'drillDownMaterial(\'' + label.replace(/'/g, "\\'") + '\')' : '';
+                const hoverBg    = clickable ? 'var(--bg-tertiary)' : 'var(--card-bg)';
+                const titleAttr  = clickable ? 'title="Click to see ' + label + ' subcategories"' : '';
+                const arrow      = clickable ? '<span style="font-size:0.8rem;color:var(--text-secondary);flex-shrink:0;margin-left:6px;">&#8250;</span>' : '';
 
-            return `
-                <div style="display: flex; align-items: center; margin-bottom: 0.75rem; padding: 0.5rem; background: var(--card-bg); border-radius: 8px;">
-                    <div style="width: 20px; height: 20px; background: ${color}; border-radius: 4px; margin-right: 10px;"></div>
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600; font-size: 0.9rem;">${cat}</div>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary);">
-                            ${formatCurrency(amount)} (${percentage}%)
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
+                return '<div ' + titleAttr + ' onclick="' + onclickStr + '" style="cursor:' + cursor + ';display:flex;align-items:center;margin-bottom:0.6rem;padding:0.5rem 0.6rem;background:var(--card-bg);border-radius:8px;transition:background 0.15s;" onmouseover="this.style.background=\'' + hoverBg + '\'" onmouseout="this.style.background=\'var(--card-bg)\'">'
+                    + '<div style="width:13px;height:13px;background:' + color + ';border-radius:3px;flex-shrink:0;margin-right:9px;"></div>'
+                    + '<div style="flex:1;min-width:0;">'
+                    + '<div style="font-weight:600;font-size:0.88rem;">' + label + '</div>'
+                    + '<div style="font-size:0.78rem;color:var(--text-secondary);margin-top:2px;">' + subText + '</div>'
+                    + '</div>'
+                    + arrow
+                    + '</div>';
+            }).join('');
 
         document.getElementById('spending-legend').innerHTML = legendHTML;
 
-        // Destroy existing chart if exists
+        // Destroy old chart
         if (spendingPieChart) {
             spendingPieChart.destroy();
         }
 
-        // Create pie chart
-        const ctx = document.getElementById('spending-pie-chart').getContext('2d');
+        if (labels.length === 0) return;
 
+        const ctx = document.getElementById('spending-pie-chart').getContext('2d');
         spendingPieChart = new Chart(ctx, {
             type: 'pie',
             data: {
-                labels: categories,
+                labels: labels,
                 datasets: [{
                     data: amounts,
-                    backgroundColor: colors.slice(0, categories.length),
-                    borderColor: borderColors.slice(0, categories.length),
-                    borderWidth: 2
+                    backgroundColor: colors.slice(0, labels.length),
+                    borderColor: colors.slice(0, labels.length).map(c => c.replace('0.8', '1')),
+                    borderWidth: 2,
+                    hoverOffset: 10
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
+                onClick: function(evt, elements) {
+                    // Only drill down from category view
+                    if (!isDrilldown && elements.length > 0) {
+                        const clickedLabel = labels[elements[0].index];
+                        drillDownMaterial(clickedLabel);
+                    }
+                },
                 plugins: {
-                    legend: {
-                        display: false  // We're using custom legend
-                    },
+                    legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            label: function (context) {
-                                const label = context.label || '';
-                                const value = context.parsed || 0;
-                                const percentage = totalSpent > 0 ? ((value / totalSpent) * 100).toFixed(1) : 0;
-                                return label + ': ₹' + value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' (' + percentage + '%)';
+                            label: function(context) {
+                                const label      = context.label || '';
+                                const value      = context.parsed || 0;
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                const suffix     = !isDrilldown ? ' (click to drill down)' : '';
+                                return label + ': ₹' + value.toLocaleString('en-IN',
+                                    { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                    + ' (' + percentage + '%)' + suffix;
                             }
                         }
                     }
@@ -869,7 +813,216 @@ Projects
         });
     }
 
-    // Show project details
+    // ── Tab switching ──
+    function switchProjectTab(tabName) {
+        document.querySelectorAll('.project-tab-panel').forEach(function(p) { p.classList.remove('active'); });
+        document.querySelectorAll('.project-nav-item').forEach(function(n) { n.classList.remove('active'); });
+        var panel = document.getElementById('tab-' + tabName);
+        var nav   = document.getElementById('nav-' + tabName);
+        if (panel) panel.classList.add('active');
+        if (nav)   nav.classList.add('active');
+    }
+
+    // ── Accordion toggle ──
+    function toggleGroupCard(id) {
+        var body = document.getElementById(id);
+        var icon = document.getElementById('icon-' + id);
+        if (!body) return;
+        var isOpen = body.classList.contains('open');
+        body.classList.toggle('open', !isOpen);
+        if (icon) icon.textContent = isOpen ? '▶' : '▼';
+    }
+
+    // ── Purchase History grouped by vendor ──
+    function renderPurchaseHistoryGrouped(data) {
+        var purchases = data.purchase_history || [];
+        var expItems  = data.expense_items   || [];
+        var badge = document.getElementById('badge-purchases');
+        if (badge) badge.textContent = purchases.length;
+        var grandTotal = purchases.reduce(function(s,p){ return s + parseFloat(p.amount); }, 0);
+        var gtEl = document.getElementById('purchases-grand-total');
+        if (gtEl) gtEl.textContent = formatCurrency(grandTotal);
+        var container = document.getElementById('purchases-grouped-content');
+        if (purchases.length === 0) { container.innerHTML = '<p class="text-secondary" style="text-align:center;padding:2rem;">No purchases found</p>'; return; }
+        // items lookup
+        var itemsByExpense = {};
+        expItems.forEach(function(item) {
+            if (!itemsByExpense[item.expense_id]) itemsByExpense[item.expense_id] = [];
+            itemsByExpense[item.expense_id].push(item);
+        });
+        // group by vendor
+        var grouped = {};
+        purchases.forEach(function(p) {
+            var v = p.vendor_name || 'Unknown';
+            if (!grouped[v]) grouped[v] = { items: [], total: 0 };
+            grouped[v].items.push(p);
+            grouped[v].total += parseFloat(p.amount);
+        });
+        var vendorsSorted = Object.entries(grouped).sort(function(a,b){ return b[1].total - a[1].total; });
+        var html = '';
+        vendorsSorted.forEach(function(entry, gIdx) {
+            var vendor = entry[0]; var vData = entry[1];
+            var groupId = 'pgrp-' + gIdx;
+            html += '<div class="group-card">'
+                + '<div class="group-card-hdr" onclick="toggleGroupCard(\'' + groupId + '\')" >'
+                +   '<div style="display:flex;align-items:center;gap:0.75rem;">'
+                +     '<div style="width:38px;height:38px;border-radius:9px;background:rgba(59,130,246,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="var(--primary)" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016 2.993 2.993 0 0 0 2.25-1.016 3.001 3.001 0 0 0 3.75.614m-16.5 0a3.004 3.004 0 0 1-.621-4.72l1.189-1.19A1.5 1.5 0 0 1 5.378 3h13.243a1.5 1.5 0 0 1 1.06.44l1.19 1.189a3 3 0 0 1-.621 4.72"/></svg></div>'
+                +     '<div><div style="font-weight:600;font-size:0.95rem;">' + vendor + '</div><div style="font-size:0.78rem;color:var(--text-secondary);">' + vData.items.length + ' invoice' + (vData.items.length !== 1 ? 's' : '') + '</div></div>'
+                +   '</div>'
+                +   '<div style="display:flex;align-items:center;gap:1rem;"><div style="text-align:right;"><div style="font-weight:700;font-size:1rem;color:var(--primary);">' + formatCurrency(vData.total) + '</div><div style="font-size:0.72rem;color:var(--text-secondary);">Total</div></div><span id="icon-' + groupId + '" style="color:var(--text-secondary);font-size:0.8rem;">▶</span></div>'
+                + '</div>'
+                + '<div class="group-card-body" id="' + groupId + '">';
+            vData.items.forEach(function(p) {
+                var pItems   = itemsByExpense[p.purchase_id] || [];
+                var hasItems = pItems.length > 0;
+                var itemsId  = 'pitems-' + p.purchase_id;
+                html += '<div style="padding:0.75rem 1.1rem;border-bottom:1px solid var(--border);">'
+                    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;">'
+                    +   '<div style="display:flex;align-items:center;gap:1rem;"><div><div style="font-weight:500;font-size:0.88rem;">' + (p.invoice_number || '—') + '</div><div style="font-size:0.76rem;color:var(--text-secondary);">' + formatDate(p.invoice_date) + '</div></div></div>'
+                    +   '<div style="display:flex;align-items:center;gap:0.65rem;">'
+                    +     getPaymentBadgeHTML(p.payment_mode)
+                    +     '<span style="font-weight:700;font-size:0.92rem;">' + formatCurrency(p.amount) + '</span>'
+                    +     (hasItems ? '<button class="btn btn-sm btn-secondary" onclick="toggleGroupCard(\'' + itemsId + '\');event.stopPropagation();" style="font-size:0.72rem;padding:0.15rem 0.5rem;">' + pItems.length + ' items</button>' : '')
+                    +   '</div>'
+                    + '</div>';
+                if (hasItems) {
+                    html += '<div class="group-card-body" id="' + itemsId + '" style="margin-top:0.6rem;border:1px solid var(--border);border-radius:8px;overflow:hidden;">'
+                        + '<table style="width:100%;font-size:0.8rem;border-collapse:collapse;"><thead><tr style="background:var(--bg-tertiary);">'
+                        + '<th style="padding:0.4rem 0.7rem;text-align:left;">Category</th><th style="padding:0.4rem 0.7rem;text-align:left;">Item</th><th style="padding:0.4rem 0.7rem;text-align:left;">Brand</th><th style="padding:0.4rem 0.7rem;text-align:left;">Qty</th><th style="padding:0.4rem 0.7rem;text-align:right;">Unit Price</th><th style="padding:0.4rem 0.7rem;text-align:right;">Total</th>'
+                        + '</tr></thead><tbody>';
+                    pItems.forEach(function(item) {
+                        html += '<tr style="border-top:1px solid var(--border);">'
+                            + '<td style="padding:0.4rem 0.7rem;"><span class="status-badge status-active" style="font-size:0.72rem;">' + (item.category || '—') + '</span></td>'
+                            + '<td style="padding:0.4rem 0.7rem;">' + item.subcategory + '</td>'
+                            + '<td style="padding:0.4rem 0.7rem;color:var(--text-secondary);">' + (item.brand || '—') + '</td>'
+                            + '<td style="padding:0.4rem 0.7rem;">' + item.quantity + ' ' + item.measuring_unit + '</td>'
+                            + '<td style="padding:0.4rem 0.7rem;text-align:right;">' + formatCurrency(item.unit_price) + '</td>'
+                            + '<td style="padding:0.4rem 0.7rem;text-align:right;font-weight:700;">' + formatCurrency(item.total_price) + '</td>'
+                            + '</tr>';
+                    });
+                    html += '</tbody></table></div>';
+                }
+                html += '</div>';
+            });
+            html += '</div></div>';
+        });
+        container.innerHTML = html;
+    }
+
+    // ── Vendor Payments grouped by vendor ──
+    function renderVendorPaymentsGrouped(data) {
+        var payments = data.vendor_payments || [];
+        var badge = document.getElementById('badge-payments');
+        if (badge) badge.textContent = payments.length;
+        var grandTotal = payments.reduce(function(s,p){ return s + parseFloat(p.amount); }, 0);
+        var gtEl = document.getElementById('payments-grand-total');
+        if (gtEl) gtEl.textContent = formatCurrency(grandTotal);
+        var container = document.getElementById('payments-grouped-content');
+        if (payments.length === 0) { container.innerHTML = '<p class="text-secondary" style="text-align:center;padding:2rem;">No vendor payments found</p>'; return; }
+        var grouped = {};
+        payments.forEach(function(p) {
+            var v = p.vendor_name || 'Unknown';
+            if (!grouped[v]) grouped[v] = { items: [], total: 0 };
+            grouped[v].items.push(p);
+            grouped[v].total += parseFloat(p.amount);
+        });
+        var vendorsSorted = Object.entries(grouped).sort(function(a,b){ return b[1].total - a[1].total; });
+        var html = '';
+        vendorsSorted.forEach(function(entry, gIdx) {
+            var vendor = entry[0]; var vData = entry[1];
+            var groupId = 'vgrp-' + gIdx;
+            html += '<div class="group-card">'
+                + '<div class="group-card-hdr" onclick="toggleGroupCard(\'' + groupId + '\')" >'
+                +   '<div style="display:flex;align-items:center;gap:0.75rem;">'
+                +     '<div style="width:38px;height:38px;border-radius:9px;background:rgba(16,185,129,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="var(--success)" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z"/></svg></div>'
+                +     '<div><div style="font-weight:600;font-size:0.95rem;">' + vendor + '</div><div style="font-size:0.78rem;color:var(--text-secondary);">' + vData.items.length + ' payment' + (vData.items.length !== 1 ? 's' : '') + '</div></div>'
+                +   '</div>'
+                +   '<div style="display:flex;align-items:center;gap:1rem;"><div style="text-align:right;"><div style="font-weight:700;font-size:1rem;color:var(--success);">' + formatCurrency(vData.total) + '</div><div style="font-size:0.72rem;color:var(--text-secondary);">Total Paid</div></div><span id="icon-' + groupId + '" style="color:var(--text-secondary);font-size:0.8rem;">▶</span></div>'
+                + '</div>'
+                + '<div class="group-card-body" id="' + groupId + '">';
+            vData.items.forEach(function(p) {
+                html += '<div class="group-row">'
+                    + '<div style="min-width:90px;font-size:0.8rem;color:var(--text-secondary);flex-shrink:0;">' + formatDate(p.payment_date) + '</div>'
+                    + '<div style="flex:1;"><span style="font-size:0.82rem;color:var(--text-secondary);">Ref: ' + (p.purchase_invoice || '—') + '</span></div>'
+                    + '<div style="display:flex;align-items:center;gap:0.65rem;">' + getPaymentBadgeHTML(p.payment_mode) + '<span style="font-weight:700;">' + formatCurrency(p.amount) + '</span></div>'
+                    + '</div>';
+            });
+            html += '</div></div>';
+        });
+        container.innerHTML = html;
+    }
+
+    // ── Expenses grouped by category ──
+    function renderExpensesGrouped(data) {
+        var expenses = (data.expenses || []);
+        var badge = document.getElementById('badge-expenses');
+        if (badge) badge.textContent = expenses.length;
+        var grandTotal = expenses.reduce(function(s,e){ return s + parseFloat(e.amount); }, 0);
+        var gtEl = document.getElementById('expenses-grand-total');
+        if (gtEl) gtEl.textContent = formatCurrency(grandTotal);
+        var container = document.getElementById('expenses-grouped-content');
+        if (expenses.length === 0) { container.innerHTML = '<p class="text-secondary" style="text-align:center;padding:2rem;">No expenses found</p>'; return; }
+        var grouped = {};
+        expenses.forEach(function(e) {
+            var cat = e.category || 'Other';
+            if (!grouped[cat]) grouped[cat] = { items: [], total: 0 };
+            grouped[cat].items.push(e);
+            grouped[cat].total += parseFloat(e.amount);
+        });
+        var catsSorted = Object.entries(grouped).sort(function(a,b){ return b[1].total - a[1].total; });
+        var html = '';
+        catsSorted.forEach(function(entry, gIdx) {
+            var cat = entry[0]; var cData = entry[1];
+            var groupId = 'egrp-' + gIdx;
+            html += '<div class="group-card">'
+                + '<div class="group-card-hdr" onclick="toggleGroupCard(\'' + groupId + '\')" >'
+                +   '<div style="display:flex;align-items:center;gap:0.75rem;">'
+                +     '<div style="width:38px;height:38px;border-radius:9px;background:rgba(245,158,11,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="#f59e0b" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6Z"/></svg></div>'
+                +     '<div><div style="font-weight:600;font-size:0.95rem;">' + cat + '</div><div style="font-size:0.78rem;color:var(--text-secondary);">' + cData.items.length + ' expense' + (cData.items.length !== 1 ? 's' : '') + '</div></div>'
+                +   '</div>'
+                +   '<div style="display:flex;align-items:center;gap:1rem;"><div style="text-align:right;"><div style="font-weight:700;font-size:1rem;color:#f59e0b;">' + formatCurrency(cData.total) + '</div><div style="font-size:0.72rem;color:var(--text-secondary);">Total</div></div><span id="icon-' + groupId + '" style="color:var(--text-secondary);font-size:0.8rem;">▶</span></div>'
+                + '</div>'
+                + '<div class="group-card-body" id="' + groupId + '">';
+            cData.items.forEach(function(e) {
+                html += '<div class="group-row">'
+                    + '<div style="min-width:90px;font-size:0.8rem;color:var(--text-secondary);flex-shrink:0;">' + formatDate(e.expense_date) + '</div>'
+                    + '<div style="flex:1;"><div style="font-size:0.85rem;font-weight:500;">' + (e.subcategory || '—') + '</div>' + (e.description ? '<div style="font-size:0.77rem;color:var(--text-secondary);">' + e.description + '</div>' : '') + '</div>'
+                    + '<div style="display:flex;align-items:center;gap:0.65rem;">' + getPaymentBadgeHTML(e.payment_mode) + '<span style="font-weight:700;">' + formatCurrency(e.amount) + '</span></div>'
+                    + '</div>';
+            });
+            html += '</div></div>';
+        });
+        container.innerHTML = html;
+    }
+
+    // ── Client Payments (simple list) ──
+    function renderClientPaymentsGrouped(data) {
+        var payments = data.client_payments || [];
+        var badge = document.getElementById('badge-client');
+        if (badge) badge.textContent = payments.length;
+        var grandTotal = payments.reduce(function(s,p){ return s + parseFloat(p.amount); }, 0);
+        var gtEl = document.getElementById('client-grand-total');
+        if (gtEl) gtEl.textContent = formatCurrency(grandTotal);
+        var container = document.getElementById('client-grouped-content');
+        if (payments.length === 0) { container.innerHTML = '<p class="text-secondary" style="text-align:center;padding:2rem;">No client payments received</p>'; return; }
+        var html = '<div class="card mb-3" style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.25);">'
+            + '<div class="card-body" style="display:flex;gap:2rem;align-items:center;padding:1rem;">'
+            + '<div><h4 style="margin:0;color:var(--success);">' + formatCurrency(grandTotal) + '</h4><p style="margin:0;font-size:0.78rem;color:var(--text-secondary);">Total Received</p></div>'
+            + '<div><h4 style="margin:0;">' + payments.length + '</h4><p style="margin:0;font-size:0.78rem;color:var(--text-secondary);">Payments</p></div>'
+            + '</div></div>';
+        html += '<div class="group-card">';
+        payments.forEach(function(p) {
+            html += '<div class="group-row">'
+                + '<div style="min-width:90px;font-size:0.8rem;color:var(--text-secondary);flex-shrink:0;">' + formatDate(p.payment_date) + '</div>'
+                + '<div style="flex:1;"><div style="font-size:0.8rem;color:var(--text-secondary);">Ref: ' + (p.reference_number || '—') + '</div>' + (p.remarks ? '<div style="font-size:0.77rem;color:var(--text-secondary);">' + p.remarks + '</div>' : '') + '</div>'
+                + '<div style="display:flex;align-items:center;gap:0.65rem;">' + getPaymentBadgeHTML(p.payment_mode) + '<span style="font-weight:700;color:var(--success);">' + formatCurrency(p.amount) + '</span></div>'
+                + '</div>';
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    // ── Show project details ──
     async function showProjectDetails(projectId, projectName) {
         currentProjectId = projectId;  // Store for export
         document.getElementById('project-modal-title').textContent = projectName;
@@ -888,85 +1041,42 @@ Projects
             }
 
             currentProjectData = await response.json();
+            var data = currentProjectData;
 
-            const data = currentProjectData;
-
-            // Update financial summary
-            // Use == (loose) to handle string/number type mismatch from onclick vs API
-            const project = projects.find(p => p.project_id == projectId);
-            if (project) {
-                document.getElementById('summary-budget').textContent = formatCurrency(project.budget);
-            }
-            document.getElementById('summary-spent').textContent = formatCurrency(data.financial_summary.total_spent);
-
-            // Calculate and display balance (Received - Spent)
-            const balance = data.financial_summary.total_received - data.financial_summary.total_spent;
-            const balanceEl = document.getElementById('summary-balance');
-            balanceEl.textContent = formatCurrency(balance);
-
-            // Color code the balance
-            if (balance < 0) {
-                balanceEl.style.color = 'var(--danger)';
-            } else if (balance < data.financial_summary.total_received * 0.2) {
-                balanceEl.style.color = 'var(--warning)';
-            } else {
-                balanceEl.style.color = 'var(--success)';
-            }
-
-            // Remaining Budget
-            const remainingBudgetEl = document.getElementById('summary-budget-remaining');
-            remainingBudgetEl.textContent = formatCurrency(data.financial_summary.remaining_budget);
-
-            const budgetThreshold = (project?.budget || 0) * 0.1;
-            if (data.financial_summary.remaining_budget < 0) {
-                remainingBudgetEl.style.color = 'var(--danger)';
-            } else if (budgetThreshold > 0 && data.financial_summary.remaining_budget < budgetThreshold) {
-                remainingBudgetEl.style.color = 'var(--warning)';
-            } else {
-                remainingBudgetEl.style.color = 'var(--success)';
-            }
-
-
+            // KPI cards
+            var project = projects.find(function(p) { return p.project_id == projectId; });
+            if (project) document.getElementById('summary-budget').textContent = formatCurrency(project.budget);
+            document.getElementById('summary-spent').textContent    = formatCurrency(data.financial_summary.total_spent);
             document.getElementById('summary-received').textContent = formatCurrency(data.financial_summary.total_received);
             document.getElementById('summary-outstanding').textContent = formatCurrency(data.financial_summary.vendor_outstanding);
 
-            // Reset filters and destroy existing TomSelect instances to allow re-population
-            document.querySelectorAll('#project-modal select').forEach(s => {
-                if (s.tomselect) s.tomselect.destroy();
-                s.value = "";
-            });
+            var balance = data.financial_summary.total_received - data.financial_summary.total_spent;
+            var balanceEl = document.getElementById('summary-balance');
+            balanceEl.textContent = formatCurrency(balance);
+            balanceEl.style.color = balance < 0 ? 'var(--danger)' : balance < data.financial_summary.total_received * 0.2 ? 'var(--warning)' : 'var(--success)';
 
-            // Populate filters
-            const vendors = [...new Set([
-                ...data.purchase_history.map(p => p.vendor_name),
-                ...data.vendor_payments.map(p => p.vendor_name)
-            ])].filter(Boolean).sort();
+            var remainingBudgetEl = document.getElementById('summary-budget-remaining');
+            remainingBudgetEl.textContent = formatCurrency(data.financial_summary.remaining_budget);
+            var budgetThreshold = (project ? project.budget : 0) * 0.1;
+            remainingBudgetEl.style.color = data.financial_summary.remaining_budget < 0 ? 'var(--danger)'
+                : (budgetThreshold > 0 && data.financial_summary.remaining_budget < budgetThreshold) ? 'var(--warning)' : 'var(--success)';
 
-            document.getElementById('modal-filter-purchase-vendor').innerHTML = '<option value="">All Vendors</option>' +
-                vendors.map(v => `<option value="${v}">${v}</option>`).join('');
+            // Destroy any old TomSelect on expense category filter only
+            var ecFilter = document.getElementById('expense-category-filter');
+            if (ecFilter && ecFilter.tomselect) { ecFilter.tomselect.destroy(); ecFilter.value = ''; }
 
-            document.getElementById('modal-filter-payment-vendor').innerHTML = '<option value="">All Vendors</option>' +
-                vendors.map(v => `<option value="${v}">${v}</option>`).join('');
-
-            const expCategories = [...new Set(data.expenses.map(e => e.category))].filter(Boolean).sort();
-            document.getElementById('modal-filter-expense-category').innerHTML = '<option value="">All Categories</option>' +
-                expCategories.map(c => `<option value="${c}">${c}</option>`).join('');
-
-            const expSubCategories = [...new Set(data.expenses.map(e => e.subcategory))].filter(Boolean).sort();
-            document.getElementById('modal-filter-expense-subcategory').innerHTML = '<option value="">All Subcategories</option>' +
-                expSubCategories.map(s => `<option value="${s}">${s}</option>`).join('');
-
-            // Initialize Tom Select for searching/filtering
-            initSearchableDropdowns('#project-modal select');
-
-            // Render All
+            // Render charts
             renderExpenseCategoryChart(data);
             renderSpendingPieChart(data);
 
-            filterPurchaseHistory();
-            filterVendorPayments();
-            filterExpensesTable();
-            filterClientPayments();
+            // Render grouped sections
+            renderPurchaseHistoryGrouped(data);
+            renderVendorPaymentsGrouped(data);
+            renderExpensesGrouped(data);
+            renderClientPaymentsGrouped(data);
+
+            // Start on Summary
+            switchProjectTab('summary');
 
         } catch (error) {
             console.error('Error loading project details:', error);
@@ -974,157 +1084,8 @@ Projects
         }
     }
 
-    function filterPurchaseHistory() {
-        const vendor = document.getElementById('modal-filter-purchase-vendor').value;
-        const mode = document.getElementById('modal-filter-purchase-mode').value;
 
-        const filtered = currentProjectData.purchase_history.filter(p => {
-            return (!vendor || p.vendor_name === vendor) && (!mode || p.payment_mode === mode);
-        });
-
-        renderPurchaseHistory(filtered);
-    }
-
-    function renderPurchaseHistory(history) {
-        const tbody = document.getElementById('purchase-history-tbody');
-        if (history.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No purchases found</td></tr>';
-            return;
-        }
-
-        const itemsByExpense = {};
-        if (currentProjectData.expense_items) {
-            currentProjectData.expense_items.forEach(item => {
-                if (!itemsByExpense[item.expense_id]) itemsByExpense[item.expense_id] = [];
-                itemsByExpense[item.expense_id].push(item);
-            });
-        }
-
-        tbody.innerHTML = history.map(p => {
-            const items = itemsByExpense[p.purchase_id] || [];
-            const hasItems = items.length > 0;
-            return `
-                <tr class="purchase-row" data-purchase-id="${p.purchase_id}" onclick="togglePurchaseItems('${p.purchase_id}')" style="cursor: ${hasItems ? 'pointer' : 'default'};">
-                    <td style="text-align: center;">${hasItems ? '<span class="expand-icon" id="icon-' + p.purchase_id + '">▶</span>' : ''}</td>
-                    <td><strong>${p.vendor_name}</strong></td>
-                    <td>${p.invoice_number || '-'}</td>
-                    <td>${formatDate(p.invoice_date)}</td>
-                    <td>${formatCurrency(p.amount)}</td>
-                    <td><span class="status-badge ${p.payment_mode === 'CREDIT' ? 'status-on_hold' : 'status-completed'}">${p.payment_mode}</span></td>
-                </tr>
-                ${hasItems ? `
-                <tr class="items-row" id="items-${p.purchase_id}" style="display: none;">
-                    <td colspan="6" style="padding: 0; background: var(--bg-primary);">
-                        <div style="padding: 1rem; margin-left: 2rem;">
-                            <table style="width: 100%; background: var(--bg-tertiary); border-radius: 8px; margin-top: 0.5rem; overflow: hidden;">
-                                <thead>
-                                    <tr style="background: var(--bg-card);">
-                                        <th style="padding: 0.5rem;">Category</th>
-                                        <th style="padding: 0.5rem;">Item Name</th>
-                                        <th style="padding: 0.5rem;">Brand</th>
-                                        <th style="padding: 0.5rem;">Quantity</th>
-                                        <th style="padding: 0.5rem;">Unit Price</th>
-                                        <th style="padding: 0.5rem;">Total Price</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${items.map(item => `
-                                        <tr>
-                                            <td style="padding: 0.5rem;"><span class="status-badge status-active">${item.category || 'Other'}</span></td>
-                                            <td style="padding: 0.5rem;">${item.subcategory}</td>
-                                            <td style="padding: 0.5rem;">${item.brand || '-'}</td>
-                                            <td style="padding: 0.5rem;">${item.quantity} ${item.measuring_unit}</td>
-                                            <td style="padding: 0.5rem;">${formatCurrency(item.unit_price)}</td>
-                                            <td style="padding: 0.5rem;"><strong>${formatCurrency(item.total_price)}</strong></td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    </td>
-                </tr>` : ''}
-            `;
-        }).join('');
-    }
-
-    function filterVendorPayments() {
-        const vendor = document.getElementById('modal-filter-payment-vendor').value;
-        const mode = document.getElementById('modal-filter-payment-mode').value;
-        const filtered = currentProjectData.vendor_payments.filter(p => {
-            return (!vendor || p.vendor_name === vendor) && (!mode || p.payment_mode === mode);
-        });
-        renderVendorPayments(filtered);
-    }
-
-    function renderVendorPayments(payments) {
-        const tbody = document.getElementById('vendor-payments-tbody');
-        if (payments.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center">No vendor payments found</td></tr>';
-            return;
-        }
-        tbody.innerHTML = payments.map(p => `
-            <tr>
-                <td>${formatDate(p.payment_date)}</td>
-                <td>${p.vendor_name}</td>
-                <td>${formatCurrency(p.amount)}</td>
-                <td>${getPaymentBadgeHTML(p.payment_mode)}</td>
-                <td>${p.purchase_invoice || '-'}</td>
-            </tr>
-        `).join('');
-    }
-
-    function filterExpensesTable() {
-        const cat = document.getElementById('modal-filter-expense-category').value;
-        const sub = document.getElementById('modal-filter-expense-subcategory').value;
-        const mode = document.getElementById('modal-filter-expense-mode').value;
-        const filtered = currentProjectData.expenses.filter(e => {
-            return (!cat || e.category === cat) && (!sub || e.subcategory === sub) && (!mode || e.payment_mode === mode);
-        });
-        renderExpensesTable(filtered);
-    }
-
-    function renderExpensesTable(expenses) {
-        const tbody = document.getElementById('expenses-tbody');
-        if (expenses.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No expenses found</td></tr>';
-            return;
-        }
-        tbody.innerHTML = expenses.map(e => `
-            <tr>
-                <td>${formatDate(e.expense_date)}</td>
-                <td>${e.category}</td>
-                <td>${e.subcategory || '-'}</td>
-                <td><strong>${formatCurrency(e.amount)}</strong></td>
-                <td>${getPaymentBadgeHTML(e.payment_mode)}</td>
-                <td>${e.description || '-'}</td>
-            </tr>
-        `).join('');
-    }
-
-    function filterClientPayments() {
-        const mode = document.getElementById('modal-filter-client-mode').value;
-        const filtered = currentProjectData.client_payments.filter(cp => {
-            return (!mode || cp.payment_mode === mode);
-        });
-        renderClientPayments(filtered);
-    }
-
-    function renderClientPayments(payments) {
-        const tbody = document.getElementById('client-payments-tbody');
-        if (payments.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center">No client payments received</td></tr>';
-            return;
-        }
-        tbody.innerHTML = payments.map(cp => `
-            <tr>
-                <td>${formatDate(cp.payment_date)}</td>
-                <td>${formatCurrency(cp.amount)}</td>
-                <td>${getPaymentBadgeHTML(cp.payment_mode)}</td>
-                <td>${cp.reference_number || '-'}</td>
-                <td>${cp.remarks || '-'}</td>
-            </tr>
-        `).join('');
-    }
+    // (old flat render functions removed — replaced by grouped versions above)
 
     // Helper for payment badges
     function getPaymentBadgeHTML(mode) {
