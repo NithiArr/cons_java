@@ -844,65 +844,63 @@
                     { content: 'MATERIALS', colSpan: 6, styles: { halign: 'center', fontStyle: 'bold', fontSize: 11, fillColor: [240, 240, 240] } }
                 ]);
 
-                const materialsByProject = {};
+                const materialsByVendor = {};
 
-                if (currentData.purchases) {
-                    currentData.purchases.forEach(p => {
-                        const pName = p.project_name || 'Other Project';
-                        const vName = p.vendor_name || 'Other Vendor';
-                        const amt = parseFloat(p.amount || 0);
+                if (currentData.materials_summary) {
+                    currentData.materials_summary.forEach(item => {
+                        const vName = item.vendor_name || 'Other Vendor';
+                        const pName = item.project_name || 'Other Project';
                         
-                        if (!materialsByProject[pName]) {
-                            materialsByProject[pName] = { name: pName, vendors: {} };
-                        }
-                        if (!materialsByProject[pName].vendors[vName]) {
-                            materialsByProject[pName].vendors[vName] = { name: vName, outstanding: 0, paid: 0 };
-                        }
-                        materialsByProject[pName].vendors[vName].outstanding += amt;
-                    });
-                }
+                        const totalPurchases = parseFloat(item.total_purchases || 0);
+                        const totalPaymentsBefore = parseFloat(item.total_payments_before || 0);
+                        const paymentsThisWeek = parseFloat(item.payments_this_week || 0);
+                        
+                        const outstanding = totalPurchases - totalPaymentsBefore;
+                        const paid = paymentsThisWeek;
+                        const balance = outstanding - paid;
 
-                if (currentData.vendor_payments) {
-                    currentData.vendor_payments.forEach(vp => {
-                        const pName = vp.project_name || 'Other Project';
-                        const vName = vp.vendor_name || 'Other Vendor';
-                        const amt = parseFloat(vp.amount || 0);
+                        // Only show if there is outstanding or paid amount is non-zero
+                        if (outstanding === 0 && paid === 0) {
+                            return;
+                        }
+
+                        if (!materialsByVendor[vName]) {
+                            materialsByVendor[vName] = { name: vName, projects: [] };
+                        }
                         
-                        if (!materialsByProject[pName]) {
-                            materialsByProject[pName] = { name: pName, vendors: {} };
-                        }
-                        if (!materialsByProject[pName].vendors[vName]) {
-                            materialsByProject[pName].vendors[vName] = { name: vName, outstanding: 0, paid: 0 };
-                        }
-                        materialsByProject[pName].vendors[vName].paid += amt;
+                        materialsByVendor[vName].projects.push({
+                            name: pName,
+                            outstanding: outstanding,
+                            paid: paid,
+                            balance: balance
+                        });
                     });
                 }
 
                 let grandTotalOutstandingMaterials = 0;
                 let grandTotalPaidMaterials = 0;
 
-                const sortedProjects = Object.keys(materialsByProject).sort();
-                sortedProjects.forEach(pKey => {
-                    const proj = materialsByProject[pKey];
+                const sortedVendors = Object.keys(materialsByVendor).sort();
+                sortedVendors.forEach((vKey, vIdx) => {
+                    const vendor = materialsByVendor[vKey];
                     
-                    // Project header row
+                    // Vendor header row
                     bodyMaterials.push([
                         '',
-                        { content: proj.name, colSpan: 5, styles: { fontStyle: 'bold' } }
+                        { content: vendor.name, colSpan: 5, styles: { fontStyle: 'bold' } }
                     ]);
 
-                    const vendorsList = Object.values(proj.vendors);
-                    vendorsList.forEach((vendor, idx) => {
-                        const outstanding = vendor.outstanding;
-                        const paid = vendor.paid;
-                        const balance = outstanding - paid;
+                    vendor.projects.forEach((proj, idx) => {
+                        const outstanding = proj.outstanding;
+                        const paid = proj.paid;
+                        const balance = proj.balance;
 
                         grandTotalOutstandingMaterials += outstanding;
                         grandTotalPaidMaterials += paid;
 
                         bodyMaterials.push([
                             idx + 1,
-                            vendor.name,
+                            proj.name,
                             formatMaterialNum(outstanding),
                             '',
                             formatMaterialNum(balance),

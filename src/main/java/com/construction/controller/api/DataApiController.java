@@ -1062,6 +1062,78 @@ public class DataApiController {
             
             return m;
         }).collect(Collectors.toList());
+        // Cumulative Materials Summary up to end of selected week
+        List<Expense> purchasesUpTo = expenseRepository.findByCompanyAndExpenseDateBetween(company, java.time.LocalDate.of(2000, 1, 1), end);
+        if (project_id != null) {
+            purchasesUpTo = purchasesUpTo.stream()
+                    .filter(e -> e.getProject() != null && e.getProject().getProjectId().equals(project_id))
+                    .collect(Collectors.toList());
+        }
+
+        List<Payment> paymentsUpTo = paymentRepository.findByCompanyAndPaymentDateBetween(company, java.time.LocalDate.of(2000, 1, 1), end);
+        if (project_id != null) {
+            paymentsUpTo = paymentsUpTo.stream()
+                    .filter(p -> p.getProject() != null && p.getProject().getProjectId().equals(project_id))
+                    .collect(Collectors.toList());
+        }
+
+        // Map: Vendor Name -> Project Name -> Map of calculations
+        Map<String, Map<String, Map<String, Object>>> summaryMap = new LinkedHashMap<>();
+
+        for (Expense e : purchasesUpTo) {
+            if (!"Material Purchase".equals(e.getExpenseType())) continue;
+            String vName = e.getVendor() != null ? e.getVendor().getName() : "—";
+            String pName = e.getProject() != null ? e.getProject().getName() : "—";
+            BigDecimal amt = e.getAmount() != null ? e.getAmount() : BigDecimal.ZERO;
+
+            summaryMap.computeIfAbsent(vName, k -> new LinkedHashMap<>())
+                      .computeIfAbsent(pName, k -> {
+                          Map<String, Object> m = new LinkedHashMap<>();
+                          m.put("vendor_name", vName);
+                          m.put("project_name", pName);
+                          m.put("total_purchases", BigDecimal.ZERO);
+                          m.put("total_payments_before", BigDecimal.ZERO);
+                          m.put("payments_this_week", BigDecimal.ZERO);
+                          return m;
+                      });
+
+            Map<String, Object> calc = summaryMap.get(vName).get(pName);
+            BigDecimal prev = (BigDecimal) calc.get("total_purchases");
+            calc.put("total_purchases", prev.add(amt));
+        }
+
+        for (Payment p : paymentsUpTo) {
+            String vName = p.getVendor() != null ? p.getVendor().getName() : "—";
+            String pName = p.getProject() != null ? p.getProject().getName() : "—";
+            BigDecimal amt = p.getAmount() != null ? p.getAmount() : BigDecimal.ZERO;
+
+            summaryMap.computeIfAbsent(vName, k -> new LinkedHashMap<>())
+                      .computeIfAbsent(pName, k -> {
+                          Map<String, Object> m = new LinkedHashMap<>();
+                          m.put("vendor_name", vName);
+                          m.put("project_name", pName);
+                          m.put("total_purchases", BigDecimal.ZERO);
+                          m.put("total_payments_before", BigDecimal.ZERO);
+                          m.put("payments_this_week", BigDecimal.ZERO);
+                          return m;
+                      });
+
+            Map<String, Object> calc = summaryMap.get(vName).get(pName);
+
+            java.time.LocalDate pDate = p.getPaymentDate();
+            if (pDate.isBefore(start)) {
+                BigDecimal prev = (BigDecimal) calc.get("total_payments_before");
+                calc.put("total_payments_before", prev.add(amt));
+            } else {
+                BigDecimal prev = (BigDecimal) calc.get("payments_this_week");
+                calc.put("payments_this_week", prev.add(amt));
+            }
+        }
+
+        List<Map<String, Object>> materialsSummaryList = new ArrayList<>();
+        for (Map<String, Map<String, Object>> projectMap : summaryMap.values()) {
+            materialsSummaryList.addAll(projectMap.values());
+        }
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("purchases", purchasesList);
@@ -1069,6 +1141,7 @@ public class DataApiController {
         result.put("vendor_payments", vendorPaymentsList);
         result.put("client_payments", clientPaymentsList);
         result.put("wages", wagesList);
+        result.put("materials_summary", materialsSummaryList);
         return ResponseEntity.ok(result);
     }
 }
